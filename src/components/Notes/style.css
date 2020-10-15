@@ -1,0 +1,62 @@
+:root {
+  --Note-radius: calc(0 * var(--Button-radius));
+}
+
+.Note {
+  background-color: #ffffff;
+  border-radius: var(--Note-radius);
+  /* box-shadow: 0 8px 17px 2px rgba(0, 0, 0, 0.14), 0 3px 14px 2px rgba(0, 0, 0, 0.12),
+    0 5px 5px -3px rgba(0, 0, 0, 0.2); */
+  box-shadow: 0 0px 0px 0px rgba(0, 0, 0, 0.08), 0 0px 0px 0px rgba(0, 0, 0, 0.02),
+    0 0px 0px 0px rgba(0, 0, 0, 0.05);
+  display: block;
+  line-height: 1.5;
+  margin: 0rem auto 0rem;
+  max-width: var(--container);
+  width: 100%;
+}
+
+/* EN LINKS */
+
+.Note-openLink {
+  background-color: #ffffff;
+  border-top-right-radius: var(--Note-radius);
+  border-top-left-radius: var(--Note-radius);
+  color: #000000;
+  padding-bottom: 0px;
+  padding-right: 6px;
+  text-align: right;
+}
+.Note-openLink span {
+  margin: 0 0;
+}
+.Note-openLink a:link {
+  color: #000000;
+}
+.Note-openLink a:active {
+  color: #000000;
+}
+.Note-openLink a:visited {
+  color: #000000;
+}
+
+/* INNER */
+
+.Note-inner {
+  padding: 1rem;
+  padding-top: 0;
+}
+
+.Note-heading {
+  /* background-color: var(--c-link-bg); */
+  /* border-bottom: 1px solid var(--c-link); */
+  padding: 0rem 1rem;
+}
+
+.Note .enNote a {
+  text-decoration: underline;
+}
+
+.Note hr {
+  margin: 0 0;
+}
