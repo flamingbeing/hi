@@ -1,0 +1,9 @@
+{
+  "short_name": "RandomNote",
+  "name": "RandomNote",
+  "start_url": "https://showmehow.glitch.me/",
+  "display": "standalone",
+  "theme_color": "#000000",
+  "background_color": "#ffffff",
+  "content_security_policy": "default-src 'self' evernote.com; script-src 'unsafe-inline' https://sandbox.evernote.com *.evernote.com https://evernote-random.glitch.me *.glitch.me; style-src 'unsafe-inline' https://sandbox.evernote.com *.evernote.com https://evernote-random.glitch.me *.glitch.me; img-src 'unsafe-inline'; connect-src 'unsafe-inline'"
+}
