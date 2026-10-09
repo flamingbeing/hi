@@ -103,28 +103,24 @@ And the heart's not why it's worse.
 
 [Break]
 [Band drops out, lone guitar pulse]
-[Spoken, close-mic, deliberate]
-Then somebody says, quietly,
-The cefazolin. Five minutes in.
-The pressure.
-The wheeze.
-The timing.
+[Spoken, close-mic, inner voice]
+Pressure that won't hold.
+A chest that won't move.
+Cefazolin. Five minutes in.
 [Pause]
-And that's enough.
+I know.
 
 [Bridge]
 [Drums rebuild, male vocal rising]
 [Strings swell, crescendo]
-No alarm to tell us,
-No number on the screen,
-Just the pieces falling into place
-From everything we've seen.
-Anaphylaxis.
-Say it out loud.
 Stop the trigger.
 Adrenaline,
 Fifty micrograms,
 And fifty more again.
+Then the pressure climbs and holds,
+And the bag goes soft again,
+Nobody had to name it,
+The answer's in the trend.
 
 [Final Chorus]
 [Biggest chorus, full band, key lift]
@@ -142,10 +138,10 @@ We know.
 [Verse 4]
 [Half-time, band pulls back]
 [Warm male vocal, acoustic and kick]
-The pressure's coming back now,
-And now the rash comes through,
+The rash comes through at last now,
+Like it's catching up on cue,
 The shark fin's flattening out again,
-The bag is moving too.
+And the theatre breathes out too.
 
 But no one calls it finished,
 I-C-U are on their way,
