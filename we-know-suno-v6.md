@@ -75,7 +75,7 @@ Salbutamol down the line,
 Hundred percent, slow the rate,
 Don't stack the breaths, give it time.
 
-My O-D-P looks up at me,
+My M-O looks up at me,
 The room stays very polite,
 And a quiet call along the corridor,
 Could you come? It's probably fine.
@@ -105,7 +105,7 @@ And the heart's not why it's worse.
 [Band drops out, lone guitar pulse]
 [Spoken, close-mic, deliberate]
 Then somebody says, quietly,
-The teicoplanin. Five minutes in.
+The cefazolin. Five minutes in.
 The pressure.
 The wheeze.
 The timing.
@@ -115,16 +115,16 @@ And that's enough.
 [Bridge]
 [Drums rebuild, male vocal rising]
 [Strings swell, crescendo]
+No alarm to tell us,
+No number on the screen,
+Just the pieces falling into place
+From everything we've seen.
 Anaphylaxis.
 Say it out loud.
 Stop the trigger.
 Adrenaline,
 Fifty micrograms,
 And fifty more again.
-Not because the monitor
-Told us something new,
-But the pieces fell together
-The way they always do.
 
 [Final Chorus]
 [Biggest chorus, full band, key lift]
@@ -152,25 +152,20 @@ I-C-U are on their way,
 Tryptase now, again at two,
 The baseline another day.
 
-Yellow Card, the debrief, cold tea,
-The clinic letter's mine,
+Tag it into C-M-I-S,
+And write it on the chart,
+Refer her to the allergist,
+Before the next case starts.
 She'll never feel how close it came,
 I'll tell her, plain, in time.
 
 [Outro]
 [Lone guitar pulse]
 [Spoken, offhand, second voice]
-Second tryptase sent?
+Next one's ready when you are.
 [Pause]
-[Spoken, second voice]
-I-C-U on their way?
-[Pause]
-[Spoken, quieter]
-Who's telling her when she wakes?
-[Guitar pulse stops]
 [Sung softly, solo male vocal]
 We know.
-[Fade Out]
 [End]
 ```
 
