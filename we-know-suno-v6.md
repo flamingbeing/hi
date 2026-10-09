@@ -1,21 +1,23 @@
 # We Know (Suno v6)
 
+Anthemic, driving British acoustic pop-rock version.
+
 ## Style
 
 ```
-Acoustic pop ballad in 6/8, 68 BPM, D major, gentle sway. Intimate close-mic British male tenor-baritone, sincere, understated, dry and conversational, clear diction; same lead voice throughout; spoken lines delivered offhand and quiet, never sung. Fingerpicked steel-string acoustic guitar, soft felt piano, low cello pulse in verse two, string quartet from the second chorus, brushed snare and soft tom swells only. Hushed sparse verses lift into warm layered male harmonies on choruses; break drops to near silence with spoken fragments over a heartbeat pulse; bridge strings swell into a key-lifted cinematic final chorus with stacked three-part harmonies; coda and outro strip back to solo voice and guitar with room ambience. Warm organic mix, natural plate reverb, dynamic, unhurried. Exclude: 4/4 shuffle, EDM, trap, autotune, female lead, gospel choir, big rock drums, electric guitar solo, synth bass.
+Anthemic acoustic-driven British pop rock, 4/4, 134 BPM, D major. Nostalgic and urgent: a true story told fast, building into a stadium-sized singalong. Earnest British male tenor lead, warm and conversational in verses, rising to open-throated belting on choruses; doubled lead and gang-style backing vocals on hooks. Palm-muted electric guitar driving constant eighth notes from bar one, strummed acoustic guitar, four-on-the-floor kick pulse, tom-heavy builds, crash-led full-band choruses with wide shimmering delay guitars and soaring strings. Tight propulsive verses, climbing pre-choruses, explosive choruses; the break drops to a lone guitar pulse under spoken lines; the final chorus is the biggest, with stacked harmonies, then a quick stripped-back ending. Bright, punchy, modern pop-rock mix. Spoken lines quiet and offhand. Exclude: 6/8, slow ballad tempo, EDM drop, trap, autotune, female lead, gospel choir, guitar solo.
 ```
 
 ## Lyrics
 
 ```
 [Intro]
-[Solo fingerpicked acoustic guitar, 6/8 sway]
-[Quiet theatre room tone]
+[Palm-muted electric guitar, driving eighth notes]
+[Kick pulse enters, building]
 
 [Verse 1]
-[Soft close-mic male vocal, intimate]
-[Guitar only, hushed, conversational]
+[Earnest British male vocal, conversational]
+[Guitar pulse and kick, propulsive]
 Half past eight, the machine is checked,
 Syringes labelled, lined up,
 A simple airway, a routine list,
@@ -27,16 +29,16 @@ The surgeon's talking holidays,
 The pressure's drifting low.
 
 [Pre-Chorus]
-[Piano enters, gentle lift]
-[Male vocal, slightly brighter]
+[Toms build, rising melody]
+[Male vocal, climbing]
 A little metaraminol,
 It comes back, then it slides,
 The heart rate starts to run away,
 And something turns inside.
 
 [Chorus]
-[Male lead, gentle harmonies]
-[Guitar and piano, warm, restrained]
+[Full band, belted male lead]
+[Gang vocals on hook, wide delay guitars]
 We know, we know,
 When the pattern starts to show,
 It's never just one number,
@@ -48,8 +50,8 @@ Don't explain the lot,
 We know.
 
 [Verse 2]
-[Male vocal, quicker phrasing]
-[Low cello pulse, tension rising]
+[Male vocal, tight rapid phrasing]
+[Driving guitar pulse, tension rising]
 Could be depth, could be volume,
 Could be blood we haven't seen,
 Cycle the cuff, check the circuit,
@@ -66,8 +68,8 @@ There's a shark fin on the capnograph,
 End-tidal falling out of sight.
 
 [Pre-Chorus]
-[Strings creeping in, brushed snare]
-[Male vocal, controlled]
+[Tom-heavy build, strings rising]
+[Male vocal, urgent]
 Hit the bell and call for help,
 Salbutamol down the line,
 Hundred percent, slow the rate,
@@ -79,8 +81,8 @@ And a quiet call along the corridor,
 Could you come? It's probably fine.
 
 [Chorus]
-[Male lead, layered harmonies]
-[Strings enter, fuller]
+[Full band, belted male lead]
+[Gang vocals, soaring strings]
 We know, we know,
 When the pattern starts to show,
 It's never just one number,
@@ -92,15 +94,15 @@ Don't explain the lot,
 We know.
 
 [Verse 3]
-[Male vocal, hushed]
-[Sparse guitar, brushed snare]
+[Male vocal, pulled back]
+[Guitar pulse, kick only]
 No rash beneath the drapes,
 But there often isn't, not at first,
 Fluids in, the blood loss doesn't fit,
 And the heart's not why it's worse.
 
 [Break]
-[Instruments drop out, heartbeat pulse]
+[Band drops out, lone guitar pulse]
 [Spoken, close-mic, deliberate]
 Then somebody says, quietly,
 The teicoplanin. Five minutes in.
@@ -111,8 +113,8 @@ The timing.
 And that's enough.
 
 [Bridge]
-[Single held male vocal, stripped]
-[Strings rising, crescendo]
+[Drums rebuild, male vocal rising]
+[Strings swell, crescendo]
 Anaphylaxis.
 Say it out loud.
 Stop the trigger.
@@ -125,8 +127,8 @@ But the pieces fell together
 The way they always do.
 
 [Final Chorus]
-[Key lift, full strings, cinematic]
-[Male lead, soaring three-part harmonies]
+[Biggest chorus, full band, key lift]
+[Belted male lead, stacked harmonies, gang vocals]
 Now we know, we know,
 When the pattern starts to show,
 It's never just one number,
@@ -138,8 +140,8 @@ Don't explain the lot,
 We know.
 
 [Verse 4]
-[Strings fall away, soft male vocal]
-[Half-spoken, guitar and piano]
+[Half-time, band pulls back]
+[Warm male vocal, acoustic and kick]
 The pressure's coming back now,
 And now the rash comes through,
 The shark fin's flattening out again,
@@ -156,7 +158,7 @@ She'll never feel how close it came,
 I'll tell her, plain, in time.
 
 [Outro]
-[Solo fingerpicked guitar, room ambience]
+[Lone guitar pulse]
 [Spoken, offhand, second voice]
 Second tryptase sent?
 [Pause]
@@ -165,13 +167,13 @@ I-C-U on their way?
 [Pause]
 [Spoken, quieter]
 Who's telling her when she wakes?
-[Instrumental pause, solo guitar]
+[Guitar pulse stops]
 [Sung softly, solo male vocal]
 We know.
 [Fade Out]
 [End]
 ```
 
-Style Influence: 65%: strong enough to hold the 6/8 sway, the British male lead and the sparse-to-cinematic arc, with some room left for melody
+Style Influence: 70%
 
-Weirdness: 25%: low, so it stays a clean acoustic ballad and keeps the spoken lines and drug names clear
+Weirdness: 25%
