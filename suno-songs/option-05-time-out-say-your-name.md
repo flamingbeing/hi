@@ -81,7 +81,7 @@ Name, role, plan, then we cut with skill
 Closing up, the counts come round
 Swabs and sharps and instruments all found
 Specimen labelled, right pot, right name
-Procedure written into C-M-I-S the same
+Procedure written into Epic the same
 Any kit that broke? Tell us now
 Concerns for recovery, say them out loud
 That's the sign out, before they roll

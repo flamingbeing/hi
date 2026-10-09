@@ -116,8 +116,8 @@ I know.
 Stop the trigger.
 Adrenaline,
 Fifty micrograms,
-And fifty more again.
-Then the pressure climbs and holds,
+Then watch the screen.
+The pressure climbs and holds,
 And the bag goes soft again,
 Nobody had to name it,
 The answer's in the trend.
@@ -148,7 +148,7 @@ I-C-U are on their way,
 Tryptase now, again at two,
 The baseline another day.
 
-Tag it into C-M-I-S,
+Tag it into Epic,
 And write it on the chart,
 Refer her to the allergist,
 Before the next case starts.

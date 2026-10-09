@@ -54,7 +54,7 @@ Hit the bell in theatre, give the hall a shout
 [Breakdown]
 [Gang shout call and response, stop-time horns, crowd energy rising]
 M-O on the mixing, hey!
-Nurses on the line, hey!
+A-Us on the line, hey!
 Resident on the art line, hey!
 Consultant keeping time, hey!
 Water, not saline, hey!
@@ -99,7 +99,7 @@ We are not done till it goes away
 [Tempo holds, raspy tenor steady, horns thinning to one trumpet]
 I-C-U, a day at least
 Watch for it coming back, the sleeping beast
-Flag it in C-M-I-S, tell the family too
+Flag it up in Epic, tell the family too
 Muscle biopsy referral, R-Y-R-1 too
 [Spoken] Good save, team. Who's restocking the M-H cart?
 [Gang shout] Not me!

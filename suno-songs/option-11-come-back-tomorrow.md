@@ -46,7 +46,7 @@ Hot debrief in the coffee room
 Paper cups and a timeline drawn
 Who did what and when we called
 Nobody asked who got it wrong
-Typed my notes into C-M-I-S
+Typed my notes into Epic
 Every time stamp, every dose
 Read it over seven times
 Still it sits here in my throat

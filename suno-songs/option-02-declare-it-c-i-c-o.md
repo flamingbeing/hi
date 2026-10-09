@@ -59,7 +59,7 @@ Cuff up, bag again
 My hands are shaking, let them
 Every voice is calm and low
 The M-O's on the suction
-The nurse calls out the clock, we go
+The A-U calls the clock, we go
 
 [Chorus: male baritone belted harder, gang vocals, drums open]
 Can't intubate, can't oxygenate
@@ -104,7 +104,7 @@ We declared it, and we didn't let go
 
 [Outro: synths fade, steady resting heartbeat, sats tone holding high]
 [Spoken, calm male voice]
-Tube secured. Call E-N-T. Book the I-C-U bed. Write it up in C-M-I-S. Restock the trolley.
+Tube secured. Call E-N-T. Book the I-C-U bed. Write it up in Epic. Restock the trolley.
 Then we debrief. All of us.
 [End]
 ```

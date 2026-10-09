@@ -94,7 +94,7 @@ Daddy's still crying, the pain is all gone
 Curl up like a prawn, darling, curl up like a prawn
 
 [Outro: baritone lead with harmony tag, banjo slows, spoken over last chord]
-Chart it in C-M-I-S, sign it off with a sigh
+Chart it all in Epic, sign it off with a sigh
 Pager buzzing, bed twelve, here we go, bye bye
 [Spoken: baritone, wry]
 Bed twelve. Sit up for me. You know the shape.

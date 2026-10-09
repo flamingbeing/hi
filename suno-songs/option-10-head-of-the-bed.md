@@ -40,7 +40,7 @@ Where the light never falls on our name
 They'll wake and won't know our faces
 But we bring them back all the same
 So raise up a glass for the M-Os
-For the nurses, the residents, every one
+For the A-Us, the residents, every one
 We're the ones who carry them under
 And we're the ones who bring them home
 
@@ -69,7 +69,7 @@ Where the light never falls on our name
 They'll wake and won't know our faces
 But we bring them back all the same
 So raise up a glass for the M-Os
-For the nurses, the residents, every one
+For the A-Us, the residents, every one
 We're the ones who carry them under
 And we're the ones who bring them home
 
@@ -78,7 +78,7 @@ And we're the ones who bring them home
 [Spoken] Train-of-four count of two. Sugammadex in. Open your eyes for me.
 Squeeze my hand, now breathe for me
 Tube comes out on a gentle cough
-Notes in C-M-I-S, signed and done
+Notes in Epic, signed and done
 Hand them over, then we're off
 They won't remember the voice at three
 Or the hands that kept them warm
@@ -99,7 +99,7 @@ Where the light never falls on our name
 They'll wake and won't know our faces
 But we bring them back all the same
 So raise up a glass for the M-Os
-For the nurses, the residents, every one
+For the A-Us, the residents, every one
 We're the ones who carry them under
 And we're the ones who bring them home
 Yes we're the ones who bring them home

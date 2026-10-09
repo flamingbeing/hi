@@ -61,7 +61,7 @@ Use the weight that is real, not the weight on the screen
 Interscalene, the phrenic takes the hit
 Check the chest first, trim the volume, that's it
 Catheter in, label the line
-Block chart in C-M-I-S, signed, every time
+Block note in Epic, signed, every time
 
 [Pre-Chorus]
 [Baritone rap tightens, piano stabs, kick drops out]

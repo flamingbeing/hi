@@ -66,11 +66,11 @@ Still here when the sun comes up
 [Driving shuffle, bass walks harder]
 Surgeon calls, there's a perf belly, two laps waiting in the queue
 Surgeon calls, there's a perf belly, two more laps waiting in the queue
-M-O's drawing up the next one, bless the nurses pulling through
+M-O's drawing up the next one, bless the A-Us pulling through
 
 Pressure dips on induction, phenylephrine, watch it climb
 Pressure dips on induction, phenylephrine, watch it climb
-Charting in the C-M-I-S, every dose and every time
+Charting it in Epic, every dose and every time
 
 [Bridge]
 [Music drops to slide guitar and heartbeat kick]

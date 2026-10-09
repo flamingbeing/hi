@@ -40,7 +40,7 @@ Noradrenaline at point one, mic per kilo per minute. Art line, left radial.
 Pip-taz at four, next dose is charted.
 Last roc at five, train-of-four count of two.
 Lactate six, down from nine. Four units cross-matched. Family's updated.
-It's all in C-M-I-S. I-C-U bed is coming.
+It's all in Epic. I-C-U bed is coming.
 
 [Chorus]
 [Gospel choir sings the colleague's answer, baritone echoes with a soulful belt, Hammond swells]
@@ -82,7 +82,7 @@ Who taught you to listen?
 (Somebody tired like me)
 Who taught you to carry?
 (Somebody who set you free)
-The nurse who caught the falling pressure
+The A-U who caught the falling pressure
 The M-O running for the blood
 Nobody does this on their own
 Nobody ever could
