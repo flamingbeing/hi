@@ -5,7 +5,7 @@ A tired night-shift anaesthetist hands over a septic emergency laparotomy at sev
 ## Style
 
 ```
-Warm 1960s soul ballad, slow 12/8 groove, 66 BPM, E-flat major. Rich soulful male baritone lead, tender and gritty, worn but warm. Gospel choir backing vocals, call and response, swelling hums. Hammond organ with rotating speaker swell, upright piano, round warm bass, brushed snare growing to full kit, tambourine on the backbeat in the final chorus, soft horn pads. Arc: organ and lone voice intro, intimate first verse, choir enters at pre-chorus, full band chorus, hushed spoken handover over organ, bridge call and response, half-step key change into a soaring final chorus, organ fade outro. Analog tape warmth, vintage room reverb, live band feel, vocals upfront. No autotune, no electronic drums, no rap, no modern pop production.
+Male vocals only. Warm 1960s soul ballad, slow 12/8 groove, 66 BPM, E-flat major. Rich soulful male baritone lead, tender and gritty, worn but warm. Gospel choir backing vocals, call and response, swelling hums. Hammond organ with rotating speaker swell, upright piano, round warm bass, brushed snare growing to full kit, tambourine on the backbeat in the final chorus, soft horn pads. Arc: organ and lone voice intro, intimate first verse, choir enters at pre-chorus, full band chorus, hushed spoken handover over organ, bridge call and response, half-step key change into a soaring final chorus, organ fade outro. Analog tape warmth, vintage room reverb, live band feel, vocals upfront. No autotune, no electronic drums, no rap, no modern pop production. No female vocals.
 ```
 
 ## Lyrics

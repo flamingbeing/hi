@@ -5,7 +5,7 @@ A hushed waltz sung from the anaesthetist's side of the drapes: the anxious hand
 ## Style
 
 ```
-Hushed folk waltz lullaby, 3/4 time, 72 BPM, D major. Fingerpicked nylon-string guitar, delicate celeste glints, soft upright bass entering at first chorus, brushed snare from verse 2, warm cello swell in bridge. Intimate breathy soft female vocal, close-mic'd, tender and reverent, gentle stacked harmonies on final chorus. Arrangement arc: solo guitar and voice, slowly blooming to a warm full swell at final chorus, then falling back to near silence with guitar and celeste only. Warm analogue tape mix, small wooden room reverb, soft dynamics, lots of space between notes. No electric guitar, no synths, no heavy drums, no autotune, no belting.
+Female vocals only. Hushed folk waltz lullaby, 3/4 time, 72 BPM, D major. Fingerpicked nylon-string guitar, delicate celeste glints, soft upright bass entering at first chorus, brushed snare from verse 2, warm cello swell in bridge. Intimate breathy soft female vocal, close-mic'd, tender and reverent, gentle stacked harmonies on final chorus. Arrangement arc: solo guitar and voice, slowly blooming to a warm full swell at final chorus, then falling back to near silence with guitar and celeste only. Warm analogue tape mix, small wooden room reverb, soft dynamics, lots of space between notes. No electric guitar, no synths, no heavy drums, no autotune, no belting. No male vocals.
 ```
 
 ## Lyrics

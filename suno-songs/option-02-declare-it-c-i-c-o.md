@@ -5,7 +5,7 @@ A tense, heartbeat-driven synth-rock anthem about the moment the team leader dec
 ## Style
 
 ```
-Tense cinematic synth-rock, 84 BPM, heartbeat kick doubling to a driving 168 feel in choruses, D minor lifting to E major for the final chorus. Low analogue synth drone, pulse oximeter sine beeps falling in pitch, ticking hi-hat, palm-muted overdriven guitars, clockwork arpeggiator, swelling strings and choir pads. Male baritone lead, close and restrained in verses, belted in choruses, soaring into tenor at the release; gang vocal answers; calm spoken male and female clinical voices. Arc: sparse tense intro, creeping verses, rising pre-chorus, driving chorus, bridge stripped to heartbeat only, explosive release with stadium drums and wide synth walls, key lift final chorus, outro on a steady resting heartbeat and a high, steady sats tone. Mix: wide cinematic stereo, punchy low end, vocals upfront. No rap, no autotune, no EDM drop, no comedic tone.
+Male vocals only. Tense cinematic synth-rock, 84 BPM, heartbeat kick doubling to a driving 168 feel in choruses, D minor lifting to E major for the final chorus. Low analogue synth drone, pulse oximeter sine beeps falling in pitch, ticking hi-hat, palm-muted overdriven guitars, clockwork arpeggiator, swelling strings and choir pads. Male baritone lead, close and restrained in verses, belted in choruses, soaring into tenor at the release; gang vocal answers; calm spoken male clinical voices. Arc: sparse tense intro, creeping verses, rising pre-chorus, driving chorus, bridge stripped to heartbeat only, explosive release with stadium drums and wide synth walls, key lift final chorus, outro on a steady resting heartbeat and a high, steady sats tone. Mix: wide cinematic stereo, punchy low end, vocals upfront. No rap, no autotune, no EDM drop, no comedic tone. No female vocals.
 ```
 
 ## Lyrics
@@ -43,7 +43,7 @@ Can't intubate, can't oxygenate
 Say it out loud, declare C-I-C-O
 
 [Verse 2: male baritone, tight and focused, palm-muted guitar, clockwork arp]
-[Spoken, firm female voice]
+[Spoken, firm male voice]
 Roc is in. Full block. Neck extended. Oxygen still on top.
 [Sung, male baritone, steady]
 Left hand, the laryngeal handshake
@@ -72,7 +72,7 @@ Can't intubate, can't oxygenate
 Say it out loud, declare C-I-C-O
 
 [Bridge: music drops to heartbeat only, male baritone fragile, then building]
-[Spoken, female voice]
+[Spoken, male voice]
 Squeeze the bag.
 [Spoken, male voice]
 Waiting for the trace.

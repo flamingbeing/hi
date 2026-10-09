@@ -5,7 +5,7 @@ Anthemic, driving British acoustic pop-rock version.
 ## Style
 
 ```
-Anthemic acoustic-driven British pop rock, 4/4, 134 BPM, D major. Nostalgic and urgent: a true story told fast, building into a stadium-sized singalong. Earnest British male tenor lead, warm and conversational in verses, rising to open-throated belting on choruses; doubled lead and gang-style backing vocals on hooks. Palm-muted electric guitar driving constant eighth notes from bar one, strummed acoustic guitar, four-on-the-floor kick pulse, tom-heavy builds, crash-led full-band choruses with wide shimmering delay guitars and soaring strings. Tight propulsive verses, climbing pre-choruses, explosive choruses; the break drops to a lone guitar pulse under spoken lines; the final chorus is the biggest, with stacked harmonies, then a quick stripped-back ending. Bright, punchy, modern pop-rock mix. Spoken lines quiet and offhand. Exclude: 6/8, slow ballad tempo, EDM drop, trap, autotune, female lead, gospel choir, guitar solo.
+Male vocals only. Anthemic acoustic-driven British pop rock, 4/4, 134 BPM, D major. Nostalgic and urgent: a true story told fast, building into a stadium-sized singalong. Earnest British male tenor lead, warm and conversational in verses, rising to open-throated belting on choruses; doubled lead and gang-style backing vocals on hooks. Palm-muted electric guitar driving constant eighth notes from bar one, strummed acoustic guitar, four-on-the-floor kick pulse, tom-heavy builds, crash-led full-band choruses with wide shimmering delay guitars and soaring strings. Tight propulsive verses, climbing pre-choruses, explosive choruses; the break drops to a lone guitar pulse under spoken lines; the final chorus is the biggest, with stacked harmonies, then a quick stripped-back ending. Bright, punchy, modern pop-rock mix. Spoken lines quiet and offhand. Exclude: 6/8, slow ballad tempo, EDM drop, trap, autotune, female lead, gospel choir, guitar solo. No female vocals.
 ```
 
 ## Lyrics
@@ -157,7 +157,7 @@ I'll tell her, plain, in time.
 
 [Outro]
 [Lone guitar pulse]
-[Spoken, offhand, second voice]
+[Spoken, offhand, male voice]
 Next one's ready when you are.
 [Pause]
 [Sung softly, solo male vocal]

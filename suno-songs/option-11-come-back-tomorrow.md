@@ -5,7 +5,7 @@ An anaesthetist sits in the car park after a bad case, hearing the falling sats 
 ## Style
 
 ```
-Sparse cinematic piano ballad, 68 BPM, D major with tender minor-chord shadows, 4/4 with rubato in intro and outro. Intimate female vocal, breathy close-mic alto, conversational and unforced, soft vibrato only on held notes. Arc: solo felt piano intro, low cello drone joins at pre-chorus, cello countermelody and warm pad in chorus, hushed sung interlude over sustained piano, bridge swells with full strings and a gentle timpani roll, final chorus lifts one semitone with harmony vocals, outro strips back to solo piano and one cello note, ending on a held suspended chord that resolves to major. Mix: dry close vocal, natural room reverb on piano, warm low-mid cello, no pumping compression, lots of space and silence. No drum kit, no synth bass, no electric guitar, no autotune, no belting.
+Female vocals only. Sparse cinematic piano ballad, 68 BPM, D major with tender minor-chord shadows, 4/4 with rubato in intro and outro. Intimate female vocal, breathy close-mic alto, conversational and unforced, soft vibrato only on held notes. Arc: solo felt piano intro, low cello drone joins at pre-chorus, cello countermelody and warm pad in chorus, hushed sung interlude over sustained piano, bridge swells with full strings and a gentle timpani roll, final chorus lifts one semitone with harmony vocals, outro strips back to solo piano and one cello note, ending on a held suspended chord that resolves to major. Mix: dry close vocal, natural room reverb on piano, warm low-mid cello, no pumping compression, lots of space and silence. No drum kit, no synth bass, no electric guitar, no autotune, no belting. No male vocals.
 ```
 
 ## Lyrics

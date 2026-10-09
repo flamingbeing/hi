@@ -5,14 +5,14 @@ A 70s disco-funk party anthem that turns the WHO surgical safety checklist (sign
 ## Style
 
 ```
-70s disco-funk, four-on-the-floor kick, 122 BPM, A minor verses lifting to C major chorus, final chorus key change up a whole step. Popping slap bass, wah-wah rhythm guitar, clavinet, open hi-hat offbeats, congas and handclaps, lush string section swoops and stabs, tight brass horn section hits. Lead vocal: warm soulful female diva, gospel-edged belts and ad-libs; second voice: smooth male baritone for spoken call-outs and verse trades; big gang group vocals shouting answers in call-and-response. Arc: filtered string-and-bass intro, groove verse, string-swell pre-chorus, horn-blast chorus, stripped bass-and-claps breakdown with crowd chant, triumphant key-change final chorus, horn fanfare ending. Mix: warm analogue tape, wide strings, punchy kick, bright horns, crowd room energy. Exclusions: no rap, no autotune, no EDM drops, no trap hi-hats, no synth bass.
+Female vocals only. 70s disco-funk, four-on-the-floor kick, 122 BPM, A minor verses lifting to C major chorus, final chorus key change up a whole step. Popping slap bass, wah-wah rhythm guitar, clavinet, open hi-hat offbeats, congas and handclaps, lush string section swoops and stabs, tight brass horn section hits. Lead vocal: warm soulful female diva, gospel-edged belts and ad-libs, also delivers the spoken call-outs; big gang group vocals shouting answers in call-and-response. Arc: filtered string-and-bass intro, groove verse, string-swell pre-chorus, horn-blast chorus, stripped bass-and-claps breakdown with crowd chant, triumphant key-change final chorus, horn fanfare ending. Mix: warm analogue tape, wide strings, punchy kick, bright horns, crowd room energy. Exclusions: no rap, no autotune, no EDM drops, no trap hi-hats, no synth bass. No male vocals.
 ```
 
 ## Lyrics
 
 ```
 [Intro: filtered strings, slap bass pickup, crowd chatter]
-[Spoken: smooth male baritone, deadpan]
+[Spoken: female diva, deadpan]
 Before we sleep, before we cut.
 Everybody, eyes up.
 
@@ -42,7 +42,7 @@ Hands off the knife (time out!)
 Thirty seconds now
 Keeps it right tonight
 
-[Verse 2: male baritone and female diva trade lines, congas enter]
+[Verse 2: female diva lead, playful, congas enter]
 Hi, I'm the surgeon, two hours, I hope
 Hi, I'm the M-O, I've got the drugs and the scope
 Scrub nurse here, indicators all turned clean
@@ -69,7 +69,7 @@ Thirty seconds now
 Keeps it right tonight
 
 [Breakdown: bass and handclaps only, crowd chant, playful]
-[Spoken: male baritone, amused]
+[Spoken: female diva, amused]
 Prof is tapping his foot. Says we did this yesterday.
 [Group vocals, chanting, diva ad-libs over the top]
 Doesn't matter, Prof, we do it anyway
@@ -98,7 +98,7 @@ Sign in, time out, sign out
 Keeps it right tonight
 
 [Outro: strings and horns ring out, crowd cheering]
-[Spoken: smooth male baritone, warm]
+[Spoken: female diva, warm]
 Sign in. Time out. Sign out.
 Goodnight, theatre.
 [End]

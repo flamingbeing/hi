@@ -5,7 +5,7 @@ A tired, wry anaesthetist sings a night on call in 12-bar blues, from a 3am cate
 ## Style
 
 ```
-Slow-burning electric 12-bar blues, 66 BPM, swung shuffle in E, AAB verse form. Gravelly, weary male baritone, lived-in and wry, half-spoken verses opening to a full-throated chorus. Bottleneck slide guitar, wailing cross-harp harmonica, Hammond organ swells, warm round bass, brushed then sticked drums. Arc: lone slide and harmonica intro, sparse verses, band locks in on first chorus, rising shuffle intensity, breakdown to slide and heartbeat kick for spoken bridge, harmonica solo, belted final chorus with gang backing vocals and upward key lift, tired solo slide outro. Mix: live-room late-night club feel, tape saturation, valve amp grit, close vocal, generous plate reverb on harmonica. No autotune, no female vocals, no synths, no EDM, no rap, no trap hats.
+Male vocals only. Slow-burning electric 12-bar blues, 66 BPM, swung shuffle in E, AAB verse form. Gravelly, weary male baritone, lived-in and wry, half-spoken verses opening to a full-throated chorus. Bottleneck slide guitar, wailing cross-harp harmonica, Hammond organ swells, warm round bass, brushed then sticked drums. Arc: lone slide and harmonica intro, sparse verses, band locks in on first chorus, rising shuffle intensity, breakdown to slide and heartbeat kick for spoken bridge, harmonica solo, belted final chorus with gang backing vocals and upward key lift, tired solo slide outro. Mix: live-room late-night club feel, tape saturation, valve amp grit, close vocal, generous plate reverb on harmonica. No autotune, no female vocals, no synths, no EDM, no rap, no trap hats.
 ```
 
 ## Lyrics

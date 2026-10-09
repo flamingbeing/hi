@@ -5,7 +5,7 @@ A stomping bluegrass singalong that follows a 2 a.m. labour epidural from pager 
 ## Style
 
 ```
-Upbeat bluegrass country, 132 BPM, G major, 2/4 feel. Rolling three-finger banjo, sawing fiddle fills, slapped upright bass, flatpicked acoustic guitar, mandolin chop on the backbeat, foot stomps and handclaps, no drum kit. Warm wry male baritone lead, conversational and smiling, close-mic'd; tight three-part high harmonies on pre-chorus and chorus; gang vocals on the final chorus. Arc: banjo pickup intro, lean verses with fiddle answering lines, building pre-chorus with claps, full-band driving chorus, hushed breakdown with only bass and soft fiddle, key lift into a joyful final chorus, harmony tag and short spoken ending. Dry live-room mix, crisp banjo forward, vocals intelligible over the band. Exclusions: no electric guitar, no synths, no autotune, no trap drums, no reverb wash.
+Male vocals only. Upbeat bluegrass country, 132 BPM, G major, 2/4 feel. Rolling three-finger banjo, sawing fiddle fills, slapped upright bass, flatpicked acoustic guitar, mandolin chop on the backbeat, foot stomps and handclaps, no drum kit. Warm wry male baritone lead, conversational and smiling, close-mic'd; tight three-part high harmonies on pre-chorus and chorus; gang vocals on the final chorus. Arc: banjo pickup intro, lean verses with fiddle answering lines, building pre-chorus with claps, full-band driving chorus, hushed breakdown with only bass and soft fiddle, key lift into a joyful final chorus, harmony tag and short spoken ending. Dry live-room mix, crisp banjo forward, vocals intelligible over the band. Exclusions: no electric guitar, no synths, no autotune, no trap drums, no reverb wash. No female vocals.
 ```
 
 ## Lyrics

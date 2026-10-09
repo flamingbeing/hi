@@ -5,7 +5,7 @@ A stomping pub-style anthem for the people behind the drapes: we take patients u
 ## Style
 
 ```
-Celtic folk-rock singalong anthem, 128 BPM, D major lifting to E major for the final chorus, stomping 4/4 with a reel-like swing. Bodhran as lead percussion, tin whistle hook melody, fiddle reels and drones, mandolin, bouzouki, strummed acoustic guitar, upright bass, kick drum, floor stomps, handclaps. Warm gritty male baritone lead with a folk lilt; a clear bright female alto trades lines in verse 2; huge mixed gang choir on every chorus, a whole room singing with raised glasses. Arc: lone tin whistle intro, sparse verse, building pre-chorus, explosive gang chorus, stripped bodhran bridge with spoken lines, a cappella gang chant rebuild, key-change final chorus, cheering outro. Live-room mix, wide stereo, punchy bodhran up front, natural vocals. No autotune, no synths, no EDM drops, no trap hi-hats.
+Male vocals only. Celtic folk-rock singalong anthem, 128 BPM, D major lifting to E major for the final chorus, stomping 4/4 with a reel-like swing. Bodhran as lead percussion, tin whistle hook melody, fiddle reels and drones, mandolin, bouzouki, strummed acoustic guitar, upright bass, kick drum, floor stomps, handclaps. Warm gritty male baritone lead with a folk lilt, huge gang choir on every chorus, a whole room singing with raised glasses. Arc: lone tin whistle intro, sparse verse, building pre-chorus, explosive gang chorus, stripped bodhran bridge with spoken lines, a cappella gang chant rebuild, key-change final chorus, cheering outro. Live-room mix, wide stereo, punchy bodhran up front, natural vocals. No autotune, no synths, no EDM drops, no trap hi-hats. No female vocals.
 ```
 
 ## Lyrics
@@ -34,7 +34,7 @@ We're the wall that nobody sees
 The keepers of the breath below
 
 [Chorus]
-[Full mixed gang choir, baritone on top, fiddle and tin whistle in unison, stomping]
+[Full gang choir, baritone on top, fiddle and tin whistle in unison, stomping]
 We stand at the head of the bed
 Where the light never falls on our name
 They'll wake and won't know our faces
@@ -45,7 +45,7 @@ We're the ones who carry them under
 And we're the ones who bring them home
 
 [Verse 2]
-[Clear bright female alto takes the lead, baritone answers, bodhran doubles, driving harder]
+[Male baritone lead, driving harder, bodhran doubles]
 Three in the morning and the sats are falling
 Two hands on the mask, a second voice
 Mask, then the S-G-A, then the tube
@@ -56,14 +56,14 @@ Pressure crashing, reaching for adrenaline
 Hold the line till the break of day
 
 [Pre-Chorus]
-[Alto and baritone together, gang hums swelling, stomps double]
+[Male baritone, gang hums swelling, stomps double]
 And the drapes stay up and the lights stay bright
 And the surgeons never know
 We're the wall that nobody sees
 The keepers of the breath below
 
 [Chorus]
-[Full mixed gang choir, louder, handclaps on every beat, fiddle reel soaring]
+[Full gang choir, louder, handclaps on every beat, fiddle reel soaring]
 We stand at the head of the bed
 Where the light never falls on our name
 They'll wake and won't know our faces
@@ -93,7 +93,7 @@ Head of the bed, head of the bed
 We bring them home
 
 [Final Chorus]
-[Key change up, whole room singing, baritone and alto on top, fiddle and whistle screaming the hook]
+[Key change up, whole room singing, baritone on top, fiddle and whistle screaming the hook]
 We stand at the head of the bed
 Where the light never falls on our name
 They'll wake and won't know our faces
