@@ -55,7 +55,7 @@ I've got you
 [Baritone lead, more grit, bass and drums settle into twelve-eight]
 I don't say I nearly lost him around three
 When the pressure fell away and it felt like only me
-Fifty of adrenaline, then fifty more in time
+A push of adrenaline, then another one in time
 Running in the fluid till the numbers learned to climb
 You see it in the charting, the gap where I was gone
 You don't ask, you just nod, and you carry on

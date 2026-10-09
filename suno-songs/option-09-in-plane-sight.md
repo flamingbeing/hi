@@ -91,7 +91,7 @@ Midazolam for the seizure, not propofol in shock
 Twenty percent lipid, that's the key for the lock
 One point five mils a kilo, push it over two, three
 Then point two five a kilo a minute, run it steady
-If the heart stops, small adrenaline, one mic a kilo or less
+If the heart stops, keep the adrenaline small, no excess
 Long C-P-R, keep the lipid going, call E-C-M-O, no rest
 
 [Final Chorus]

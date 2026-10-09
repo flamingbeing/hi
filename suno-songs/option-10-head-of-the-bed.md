@@ -52,7 +52,7 @@ Mask, then the S-G-A, then the tube
 Round the Vortex, best effort, make the choice
 Can't intubate, can't oxygenate, call it
 Scalpel, bougie, tube, we know the way
-Pressure crashing, fifty of adrenaline
+Pressure crashing, reaching for adrenaline
 Hold the line till the break of day
 
 [Pre-Chorus]

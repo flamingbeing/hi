@@ -29,7 +29,7 @@ Follows me the whole way home
 [Low cello drone enters, alto a little stronger, piano chords widen]
 Every red light, I go back in
 Did I call for help in time
-Fifty micrograms, then again
+Adrenaline, then again
 I keep rewinding the line
 
 [Chorus]
