@@ -372,7 +372,7 @@ The updated working copy is /tmp/claude-0/-home-user-hi/5ecc65b7-9cb6-5393-97dc-
 
 **Style** (871 chars)
 ```
-Comic chamber-pop patter number, 150 BPM, frantic staccato strings, plucky pizzicato and harpsichord-like synth pluck, tick-tock woodblock, stomp-clap backbeat, handclaps, piccolo flourishes, rapid tongue-twister patter. THE PULLEYS - comic trio: two grand posh wobbling operatic sopranos (A2 and A4) and one dry deadpan alto (A1). A3 AND A5 - two small sulky voices in flat unison, deadpan. TIP - warm boyish pop tenor, light airy falsetto, charming comic delivery, soft and vulnerable when scared. Half-time falsetto bridge on felt piano and strings. Sudden half-time spooky drop into the SCARLETT signature: sliding sub-bass, muted trumpet, finger snaps, swung electro-swing hi-hat under whispered voices. Snap back to bright major, half-step key lift into the last chorus with gang vocals, big three-hit operatic button, dry spoken tag. Crisp British English diction.
+Comic chamber-pop patter number, 150 BPM, frantic staccato strings, plucky pizzicato and harpsichord-like synth pluck, tick-tock woodblock, stomp-clap backbeat, handclaps, piccolo flourishes, rapid tongue-twister patter. THE PULLEYS - comic trio: two grand posh wobbling operatic sopranos (Ay-two and Ay-four) and one dry deadpan alto (Ay-one). Ay-three AND Ay-five - two small sulky voices in flat unison, deadpan. TIP - warm boyish pop tenor, light airy falsetto, charming comic delivery, soft and vulnerable when scared. Half-time falsetto bridge on felt piano and strings. Sudden half-time spooky drop into the SCARLETT signature: sliding sub-bass, muted trumpet, finger snaps, swung electro-swing hi-hat under whispered voices. Snap back to bright major, half-step key lift into the last chorus with gang vocals, big three-hit operatic button, dry spoken tag. Crisp British English diction.
 ```
 
 **Lyrics** (4510 chars)
@@ -385,7 +385,7 @@ and the pulleys cannot sleep!
 Five little rings to hold her close,
 and a reputation to keep!
 
-[Patter 1 | A2 and A4 - posh wobbling operatic sopranos trading lines, rapid tongue-twister patter, scandalised]
+[Patter 1 | Ay-two and Ay-four - posh wobbling operatic sopranos trading lines, rapid tongue-twister patter, scandalised]
 Have you heard? Have you HEARD?
 There's a surgeon in tomorrow!
 Oh, the horror! Oh, the scalpel!
@@ -395,29 +395,29 @@ A little slit to let her through!
 A little slit in ME, my dear?
 Or a little slit in YOU?
 
-[Break | A1 - dry deadpan alto, flat half-spoken, bored, pizzicato plinks]
-Calm down. I'm A-one. I get cut every week.
+[Break | Ay-one - dry deadpan alto, flat half-spoken, bored, pizzicato plinks]
+Calm down. I'm Ay-one. I get cut every week.
 Tuesday. Trigger finger. Local. Again.
 At least it wasn't a rugby shirt.
 
-[Pre-Chorus | A2 and A4 - wobbling operatic sopranos, building, stomp-clap]
+[Pre-Chorus | Ay-two and Ay-four - wobbling operatic sopranos, building, stomp-clap]
 And if he must, and if he MUST,
 then which of us? (Not me!)
 And if he must, and if he MUST,
 then which of us? (Not ME!)
 
-[Chorus | A2 and A4 - posh operatic sopranos ping-ponging, A1 deadpan echo, handclaps, big hook]
+[Chorus | Ay-two and Ay-four - posh operatic sopranos ping-ponging, Ay-one deadpan echo, handclaps, big hook]
 Vent me not! (Vent HER!)
 Not me, not me!
 Take a sliver off somebody else!
 Vent me not! (Vent HER!)
 Not me, not me!
 I'm load-bearing, actually!
-A-four, or a little of A-two, my dear,
+Ay-four, or a little of Ay-two, my dear,
 but NEVER both. We have standards!
 (We have STANDARDS!)
 
-[Patter 2 | A2 and A4 - wobbling operatic sopranos, faster, gasping, piccolo runs]
+[Patter 2 | Ay-two and Ay-four - wobbling operatic sopranos, faster, gasping, piccolo runs]
 Cut us both and off she sails,
 clean off the bone, a BOWSTRING! (Bowstring!)
 Every time the finger bends
@@ -427,12 +427,12 @@ Lifting off the bone in PUBLIC!
 Whatever would the knuckles say?
 (What WOULD the knuckles say?)
 
-[Post-Chorus | A2 and A4 - posh operatic sopranos, handclaps, quick hook]
+[Post-Chorus | Ay-two and Ay-four - posh operatic sopranos, handclaps, quick hook]
 Vent me not! (Vent HER!)
 Not me, not me!
 Take a sliver off somebody else!
 
-[Break | A3 AND A5 - two small sulky voices in flat unison, deadpan, triangle ping]
+[Break | Ay-three AND Ay-five - two small sulky voices in flat unison, deadpan, triangle ping]
 Nobody mentions us.
 
 [Verse 2 | TIP - warm boyish pop tenor, charming comic swagger, finger snaps, pop piano]
@@ -453,15 +453,15 @@ now the tunnel's gone so still.
 I've never moved. Not once. Not by myself.
 I only bend when Prox pulls.
 And she's up there in the palm,
-and I'm down here by A-four...
+and I'm down here by Ay-four...
 
-[Break | A4 - posh wobbling operatic soprano, sympathetic coo, harp]
+[Break | Ay-four - posh wobbling operatic soprano, sympathetic coo, harp]
 By ME? Oh, poor boy. Poor boy.
 
 [Bridge | TIP - light airy falsetto, scared, almost whispered]
 ...and I don't know the way to her.
 
-[Drop | A1 - dry deadpan alto as spooky narrator, half-time, sliding sub-bass, muted trumpet, finger snaps]
+[Drop | Ay-one - dry deadpan alto as spooky narrator, half-time, sliding sub-bass, muted trumpet, finger snaps]
 On old Doctor Bunnell's map
 they call it No Man's Land.
 Zone Two, from the crease of the palm
@@ -479,7 +479,7 @@ she moves into any space that stops moving.
 [Spoken | TIP - boyish pop tenor, trembling bravado]
 Then I'll just keep moving.
 
-[Spoken | A1 - dry deadpan alto, flat]
+[Spoken | Ay-one - dry deadpan alto, flat]
 You just said you can't.
 
 [Spoken | TIP - boyish tenor, tiny voice]
@@ -496,20 +496,20 @@ Take a sliver off somebody else!
 Vent me not! (Vent HER!)
 Not me, not me!
 I'm load-bearing, actually!
-A-four, or a little of A-two, my dear,
+Ay-four, or a little of Ay-two, my dear,
 but NEVER both. We have standards!
 (We have STANDARDS!)
 
-[Outro | A2 and A4 - huge wobbling operatic sopranos, three big orchestral hits, full stop]
+[Outro | Ay-two and Ay-four - huge wobbling operatic sopranos, three big orchestral hits, full stop]
 VENT... ME... NOT!
 
-[Spoken | A1 - dry deadpan alto, bored]
-(Vent A-four. She'll be fine.)
+[Spoken | Ay-one - dry deadpan alto, bored]
+(Vent Ay-four. She'll be fine.)
 
-[Spoken | A4 - posh wobbling operatic soprano, outraged]
+[Spoken | Ay-four - posh wobbling operatic soprano, outraged]
 How DARE you!
 
-[Spoken | A3 AND A5 - two small sulky voices in flat unison]
+[Spoken | Ay-three AND Ay-five - two small sulky voices in flat unison]
 (Nobody mentions us.)
 
 [End]
@@ -621,10 +621,10 @@ It's a gap, Tip. Not a divorce.
 Make a fist for me.
 [Sudden string catch | Silence]
 [PROX and TIP - tense whisper]
-Hang on! We're caught on the edge of A-four!
-[THE PULLEYS - A2, grand posh wobbling operatic soprano, relieved gasp]
-Only A-four! Spare the A-two!
-[A4 - posh operatic soprano, wounded]
+Hang on! We're caught on the edge of Ay-four!
+[THE PULLEYS - Ay-two, grand posh wobbling operatic soprano, relieved gasp]
+Only Ay-four! Spare the Ay-two!
+[Ay-four - posh operatic soprano, wounded]
 I KNEW it.
 [DR. TEO - dry gentle humour]
 Just a sliver.
@@ -1592,14 +1592,14 @@ we can close, Father!
 (Ooh!) We can close!
 
 [Curtain-Call | THE PULLEYS - two posh operatic sopranos, stop-time hits]
-A-two, untouched!
-A-four, a sliver, none the worse!
+Ay-two, untouched!
+Ay-four, a sliver, none the worse!
 Not a bowstring in sight!
 
-[Aside | A1 - dry deadpan alto]
+[Aside | Ay-one - dry deadpan alto]
 (Tuesdays soon. Marvellous.)
 
-[Aside | A3 AND A5 - two small sulky voices, flat unison]
+[Aside | Ay-three AND Ay-five - two small sulky voices, flat unison]
 (Nobody mentions us.)
 
 [Curtain-Call | THE PULLEYS - operatic sopranos, grand flourish]

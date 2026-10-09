@@ -333,12 +333,12 @@ A little slit in ME, my dear?
 Or a little slit in YOU?
 
 [Break | A-ONE - dry deadpan alto, flat half-spoken, bored, pizzicato plinks]
-Calm down. I'm A-one. I get cut every week.
+Calm down. I'm Ay-one. I get cut every week.
 Tuesday. Trigger finger. Local. Again.
 At least it wasn't a rugby shirt.
 
 [Chorus | A-TWO and A-FOUR - dowager sopranos in grand thirds, deadpan alto echo, bouncing operetta refrain, triangle]
-A-four, or a little of A-two, my dear,
+Ay-four, or a little of Ay-two, my dear,
 but NEVER both. We are not animals!
 (We are not animals!)
 For we're the two that matter most,
@@ -378,7 +378,7 @@ now the tunnel's dark and still.
 I've never moved. Not once. Not by myself.
 I only bend when Prox pulls.
 And Prox is up there in the palm,
-and I've slid down here by A-four,
+and I've slid down here by Ay-four,
 and I don't know how to move to her.
 
 [Break | A-FOUR and A-TWO - softening dowager sopranos, sympathetic coo, harp]
@@ -407,7 +407,7 @@ So let the surgeon come tomorrow,
 let him fetch her from the palm,
 let him thread her back beneath us
 with his needle and his calm!
-But A-four, or a little of A-two, my dear,
+But Ay-four, or a little of Ay-two, my dear,
 but NEVER both. We are not animals!
 (We are not animals!)
 And if he needs a little slit,
@@ -415,7 +415,7 @@ then slit us if you must, but please...
 
 [Outro | A-TWO and A-FOUR - big ringing operetta cadenza, wobbling high sopranos, full orchestra, then dry alto button]
 VENT... ME... NOT!
-(Vent A-four. She'll be fine.)
+(Vent Ay-four. She'll be fine.)
 How DARE you!
 (Nobody mentions us.)
 [End]
@@ -530,9 +530,9 @@ Never more than three millimetres apart. Good.
 Make a fist for me.
 [Sudden string catch | Silence]
 [PROX and TIP - mezzo and tenor, tense whisper]
-We're bunching! We're caught on the edge of A-four!
+We're bunching! We're caught on the edge of Ay-four!
 [THE PULLEYS - grand wobbling dowager sopranos, mock-operetta gasp]
-Only A-four! Spare the A-two!
+Only Ay-four! Spare the Ay-two!
 [DR. TEO - calm, gentle humour]
 Just a sliver. A little slit to let her through.
 Again. Make a fist for me.
@@ -1407,7 +1407,7 @@ we can close, Father!
 We can close!
 
 [Patter | THE PULLEYS - two grand wobbling dowager sopranos and a dry deadpan alto, mock-operetta, piccolo and pizzicato]
-A2 untouched, and A4 vented,
+Ay-two untouched, and Ay-four vented,
 just a sliver, none the worse!
 Not a bowstring in sight!
 (Tuesdays soon. Marvellous.)

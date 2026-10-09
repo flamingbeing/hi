@@ -351,26 +351,26 @@ and a dignity to keep!
 
 [Patter 1]
 [Female Vocal]
-I'm A-four, my dear, the grandest ring on the bone!
+I'm Ay-four, my dear, the grandest ring on the bone!
 Have you heard it? Have you heard it?
 There's a surgeon due tomorrow!
 Oh, the horror! Oh, the scalpel!
 Oh, the sorrow, sorrow, sorrow!
 He may VENT us! Vent us, sister?
 A little slit to let her through!
-A little slit in ME, A-two?
+A little slit in ME, Ay-two?
 Or a little slit in YOU?
 
 [Break]
 [Choir]
-Calm down, says A-one. She gets cut every week.
+Calm down, says Ay-one. She gets cut every week.
 Tuesday. Trigger finger. Local. Again.
 At least it wasn't a rugby shirt.
 
 [Chorus]
 [Female Vocal]
 [Belted]
-A-four, or a little of my sister A-two, my dear,
+Ay-four, or a little of my sister Ay-two, my dear,
 but NEVER both!
 
 [Chorus Echo]
@@ -384,7 +384,7 @@ the finest in the land!
 
 [Patter 2]
 [Female Vocal]
-Mark A-four, dears: if we go, the tendon goes
+Mark Ay-four, dears: if we go, the tendon goes
 a-lifting off the bone,
 a BOWSTRING! Yes, a bowstring!
 Every time the finger bends,
@@ -409,7 +409,7 @@ Us, dear. US.
 
 [Verse 2 Continued]
 [Male Vocal]
-Yes, you, A-four. I'm the bit that touches EVERYTHING.
+Yes, you, Ay-four. I'm the bit that touches EVERYTHING.
 Phones. Noses. I've been in a bagel.
 
 [Break]
@@ -431,7 +431,7 @@ now the tunnel's dark and still.
 I've never moved. Not once. Not by myself.
 I only bend when Prox pulls.
 And Prox is up there in the palm,
-and I've slid down here by A-four,
+and I've slid down here by Ay-four,
 and I don't know how to move to her.
 
 [Break]
@@ -467,11 +467,11 @@ You just said you can't, dear.
 [Final Chorus]
 [Duet]
 [Harmonies]
-So let the surgeon come tomorrow, A-four,
+So let the surgeon come tomorrow, Ay-four,
 let him fetch her from the palm, my boy,
 let him thread her back beneath us
 with his needle and his calm!
-But A-four, or a little of A-two, my dear,
+But Ay-four, or a little of Ay-two, my dear,
 but NEVER both!
 
 [Final Chorus Echo]
@@ -491,7 +491,7 @@ VENT... ME... NOT!
 
 [Outro Aside]
 [Choir]
-Vent A-four. She'll be fine.
+Vent Ay-four. She'll be fine.
 
 [Outro Reply]
 [Female Vocal]
@@ -627,11 +627,11 @@ Make a fist for me.
 [Bridge 2]
 [Duet]
 [Whispered]
-We're bunching! We're caught on the edge of A-four!
+We're bunching! We're caught on the edge of Ay-four!
 
 [Bridge 3]
 [Choir]
-Only A-four! Spare the A-two!
+Only Ay-four! Spare the Ay-two!
 Just a sliver, a little slit to let her through.
 
 [Bridge 4]
@@ -1656,7 +1656,7 @@ We can close!"
 [Choir]
 [Playful]
 And the Pulleys take a bow:
-A2 untouched, and A4 vented,
+Ay-two untouched, and Ay-four vented,
 just a sliver, none the worse!
 Not a bowstring in sight!
 Tuesdays soon. Marvellous.

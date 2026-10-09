@@ -403,20 +403,20 @@ and a reputation to keep!
 [Patter 1]
 [Female Vocal]
 [Fast]
-I'm A-four, my dear, and I'm load-bearing, actually!
+I'm Ay-four, my dear, and I'm load-bearing, actually!
 Have you heard? Have you HEARD?
 There's a surgeon in tomorrow!
 Oh, the horror! Oh, the scalpel!
 Oh, the sorrow, sorrow, sorrow!
 He may VENT us! Vent us, sister?
 A little slit to let her through!
-A little slit in ME, A-two?
+A little slit in ME, Ay-two?
 Or a little slit in YOU?
 
 [Break]
 [Choir]
 [Monotone]
-Calm down, says A-one. I get cut every week.
+Calm down, says Ay-one. I get cut every week.
 Tuesday. Trigger finger. Local. Again.
 At least it wasn't a rugby shirt.
 
@@ -436,7 +436,7 @@ Take a sliver off somebody else!
 Vent me not! (Vent HER!)
 Not me, not me!
 I'm load-bearing, actually!
-A-four, or a little of A-two, my dear,
+Ay-four, or a little of Ay-two, my dear,
 but NEVER both. We have standards!
 (We have STANDARDS!)
 
@@ -484,7 +484,7 @@ now the tunnel's gone so still.
 I've never moved. Not once. Not by myself.
 I only bend when Prox pulls.
 And she's up there in the palm,
-and I'm down here by A-four...
+and I'm down here by Ay-four...
 
 [Break]
 [Female Vocal]
@@ -523,7 +523,7 @@ You just said you can't, dear.
 
 [Pre-Chorus]
 [Male Vocal]
-Alright, A-four, I'll say it:
+Alright, Ay-four, I'll say it:
 so let the surgeon come tomorrow,
 let him fetch her from the palm,
 
@@ -542,7 +542,7 @@ Take a sliver off somebody else!
 Vent me not! (Vent HER!)
 Not me, not me!
 I'm load-bearing, actually!
-A-four, or a little of A-two, my dear,
+Ay-four, or a little of Ay-two, my dear,
 but NEVER both. We have standards!
 (We have STANDARDS!)
 
@@ -554,7 +554,7 @@ VENT... ME... NOT!
 [Tag]
 [Choir]
 [Monotone]
-Vent A-four. She'll be fine.
+Vent Ay-four. She'll be fine.
 
 [Tag]
 [Female Vocal]
@@ -709,11 +709,11 @@ Make a fist for me.
 [Breakdown Cry]
 [Duet]
 [Whispered]
-Hang on! We're caught on the edge of A-four!
+Hang on! We're caught on the edge of Ay-four!
 
 [Breakdown Choir]
 [Choir]
-Only A-four! Spare the A-two!
+Only Ay-four! Spare the Ay-two!
 I KNEW it.
 Just a sliver. Again.
 Make a fist for me.
@@ -1828,11 +1828,11 @@ we can close, Father!
 [Curtain Call]
 [Choir]
 The Pulleys take a bow:
-A-two, untouched!
-A-four, a sliver, none the worse!
+Ay-two, untouched!
+Ay-four, a sliver, none the worse!
 Not a bowstring in sight!
-A-one sighs, "Tuesdays soon. Marvellous."
-A-three and A-five: "Nobody mentions us."
+Ay-one sighs, "Tuesdays soon. Marvellous."
+Ay-three and Ay-five: "Nobody mentions us."
 And thank you, Lumbo!
 Somebody THANKED him!
 Out loud! In public!
