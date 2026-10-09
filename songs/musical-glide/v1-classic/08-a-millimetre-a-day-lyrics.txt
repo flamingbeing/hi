@@ -18,6 +18,7 @@ and I'll get there when I get there.
 [Male Vocal]
 The old wires downstream packed up and left,
 but they left me the tunnels,
+empty as a Sunday road,
 so I'm following the signs.
 
 [Chorus]
@@ -31,9 +32,6 @@ I'd only get lost.
 [Choir]
 [Shouted]
 (He'd only get lost!) Hey!
-
-[Chorus]
-[Male Vocal]
 A little further every day,
 a millimetre, more or less.
 
@@ -42,38 +40,18 @@ a millimetre, more or less.
 It's Thea, my love. Every week I tap the finger,
 from the fingertip back up towards the scar,
 and where he tingles, that's how far.
-
-[Call]
-[Female Vocal]
-(Tap, tap.) Tingle there?
-
-[Response]
-[Male Vocal]
-Not yet, ma'am.
-
-[Call]
-[Female Vocal]
-(Tap, tap.) There?
-
-[Response]
-[Male Vocal]
-Not yet, ma'am.
-
-[Call]
-[Female Vocal]
-(Tap, tap.) There?
-
-[Response]
-[Male Vocal]
-[Belted]
-Ooh! That's me! That's ME!
-
-[Answer]
-[Female Vocal]
+(Tap, tap.) Tingle there? And Digby drawls, "Not yet, ma'am."
+(Tap, tap.) There? "Not yet, ma'am."
+(Tap, tap.) There? And he hollers, "Ooh! That's me! That's ME!"
 Tee-nell's sign, my love. He's moving.
 A little further every time.
 
-[Chorus]
+[Response]
+[Choir]
+[Shouted]
+(That's ME!)
+
+[Chorus 2]
 [Male Vocal]
 Thank you, ma'am! A little further every day,
 a millimetre, more or less.
@@ -88,15 +66,8 @@ Next stop, the last joint.
 I'll reach the fingertip by New Year.
 Ice lollies? Hateful, all winter.
 Lucky it's November.
-Thea pokes two points on the pulp and she asks me:
-
-[Call]
-[Female Vocal]
-Five millimetres?
-
-[Response]
-[Male Vocal]
-Ask me next year, ma'am.
+Thea pokes two points on the pulp and she asks me,
+"Five millimetres?" Ask me next year, ma'am.
 Not heard from Tip in a fortnight.
 Quiet lad, these days.
 
@@ -113,7 +84,7 @@ She's taking it well.
 [Choir]
 (She's not.)
 
-[Chorus]
+[Chorus 3]
 [Male Vocal]
 A little further every day,
 a millimetre, more or less.
@@ -123,16 +94,12 @@ A little further every day,
 a millimetre, more or less.
 
 [Verse 4]
-[Male Vocal]
-[Soft]
-Six weeks, the splint comes off.
-The whole hand holds its breath.
-And Thea says, so gentle:
-
-[Call]
 [Female Vocal]
 [Soft]
-Make a fist for me.
+Six weeks, my love. It's Thea. The splint comes off.
+The whole hand holds its breath.
+I lean in close and say, so gentle,
+"Make a fist for me."
 
 [Break]
 [Choir]
@@ -142,7 +109,7 @@ Make a fist for me.
 [Verse 5]
 [Male Vocal]
 [Soft]
-Here we go, ma'am. The King pulls. Prox pulls.
+Here we go, ma'am, it's Digby. The King pulls. Prox pulls.
 Tip won't come.
 The fingertip won't bend.
 And middle and little stop short beside her,
@@ -154,15 +121,12 @@ both of them calling out:
 Father, why can't WE close?
 (Why can't we close?)
 
-[Verse 5 Tag]
+[Verse 6]
 [Male Vocal]
 [Soft]
 Oh.
 Well, ma'am... I'll just keep driving, then.
-
-[Pre-Outro]
-[Male Vocal]
-[Soft]
+Same old road, same old tunnels.
 Down in the palm, Prox sings my road song back, slow...
 
 [Outro]

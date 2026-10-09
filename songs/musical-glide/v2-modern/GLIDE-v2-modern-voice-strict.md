@@ -1,33 +1,15 @@
-# GLIDE (v2-modern), voice-strict edition
+# GLIDE (Version 2: Modern Pop), voice-strict edition
 
-Every section has a single voice tag ([Female Vocal], [Male Vocal], [Duet] or [Choir]). Each song has at most one female and one male lead, and the lyrics name whoever is singing. Set Suno's Vocal Gender option as listed for each song.
+Every solo section is at least 4 lines long, and each song switches between the male and female voice no more than 4 times. Short replies are written as reported speech or given to the choir. Each style field opens with the casting. Leave Suno's Vocal Gender option **unset** for every song.
 
-| # | Song | Cast | Suno Vocal Gender |
-|---|---|---|---|
-| 1 | Got It In Hand | Female lead is PROX, male lead is TIP, each introduced by name before the first hook. Mixed choir sings everything else in the third person: Mae, Wren, the King, Digby, Lumbo, the Pulleys and Big Sister. | Leave unset (duet) |
-| 2 | Half of a Name (Proxantip) | PROX (female mezzo) sings every verse and chorus; KING PROFUNDUS (male bass-baritone) sings the "Prox! Come home!" calls and the first bridge; the mixed choir sings all of Lumbo's patter and the deadpan asides. Changes: vocal sections renamed from Interlude/Break to Call/Interjection so Suno doesn't play them as instrumentals, cues added ("Me and Tip...", "Prox, it's Papa", "Lumbo's sorry"), and the final whisper moved before [End]. | Leave unset (duet) |
-| 3 | Vent Me Not | A-Four (female soprano) sings the patter, hook and "You just said you can't, dear". Tip (male tenor) sings Verse 2, the bridge and "Then I'll just keep moving... Ah". The mixed choir sings Verse 1, A-one's deadpan asides, the whispered Bunnell's-map drop, the echoes and the tags. Both leads sing the final chorus. | Leave unset (duet) |
-| 4 | Make It Six If You Love Me | PROX = female mezzo lead, TIP = male tenor lead, mixed choir sings the narration plus Mae and Teo's surgery lines. The leads quote Mae and Teo, and there is no child voice and no spoken word. | Leave unset (duet) |
-| 5 | Thea's Rules | THEA (female alto) sings nearly everything and quotes Mae; KING PROFUNDUS (male bass-baritone) gets "Make way! The King of the Forearm!" and "A... whisper? Me? The King?", then joins Thea in the final duet chorus; the Hands-Up Girls, Prox and Tip parts all go to the mixed choir. | Leave unset (duet) |
-| 6 | Day Ten | PROX (female mezzo) sings every lead line and quotes Tip, Thea and Mae. KING PROFUNDUS (male bass-baritone) sings only the stair-grab boast, the night vows and the final "Never!". The mixed choir sings the narration, the rep counts, Mae's and Wren's quoted lines and Scarlett's whispered "Hold still". Changes from the last version: the King's two-line sections are longer, so the switch to his voice is easier to hear, and Prox now says "Tip" and "Papa" at each of her re-entries. | Leave unset (duet) |
-| 7 | Hold Still | Female contralto Scarlett Adhesion leads; male tenor Tip sings the short soft "It's Tip" / "Scarlett, but Prox says" / "Just for a while, Prox" verses; mixed choir sings the Fibroblasts, the whispered intro, the stabs and the distant "Tip?" echo. | Leave unset (duet) |
-| 8 | A Millimetre a Day | Digby (male baritone) leads; Thea (female alto) does the Tinel tap calls, the paperclip test and "Make a fist"; mixed choir does the gang shouts, the "(Why can't WE close, Father?)" echo and Prox's soft outro reprise. Wren and Mae are only quoted by Digby. Fixes: took out the [Break] section that had no voice tag (the held-note stop is already in the style), added "Thank you, ma'am!" and "Right you are, Thea" so you can hear where Thea hands back to Digby, and left Vocal Gender unset so Suno doesn't turn Thea male. | Leave unset (duet) |
-| 9 | A Little Further | Prox (female mezzo) sings lead and quotes Teo, Mae, Thea and Tip; King Profundus (male bass-baritone) answers in short lines; the choir carries Scarlett's whispers, Thea's counting and the gospel echoes. | Leave unset (duet) |
-| 10 | Now Open | Female lead is Prox (and she quotes Scarlett); male lead is Tip; they duet on the sheath and "two" lines. The mixed choir tells the story of Mae, Wren, the King and his daughters, the Pulleys, Lumbo and Digby, and the final whisper is a female voice. | Leave unset (duet) |
+## 01. Got It In Hand
 
----
-
-## 1. Got It In Hand
-
-**Cast:** Female lead is PROX, male lead is TIP, each introduced by name before the first hook. Mixed choir sings everything else in the third person: Mae, Wren, the King, Digby, Lumbo, the Pulleys and Big Sister.  
-**Suno Vocal Gender:** Leave unset (duet)
-
-**Style** (679 chars)
+**Style** (936 chars)
 ```
-Duet, female musical-theatre mezzo-soprano lead and male boyish pop tenor lead, with a big punchy mixed pop choir carrying the story, upbeat pop-orchestral opening ensemble number, 124 BPM 4/4, ticking-clock hi-hat, staccato pop piano, punchy kick, handclaps and stomps, driving strings, bright horns, glockenspiel, synth pads, gang-vocal chorus, call-and-response ad-libs, rising harp-and-synth shimmer swell into soaring legato strings on the duet hook, swaggering low brass on the king's verse, no key change, energy builds then thins to a lone tick, sudden dead stop, silence, tense string tremolo, low brass hit, unresolved string chord ending, crisp British English diction
+Duet. A big punchy mixed pop choir carries most of the story. A female musical-theatre mezzo-soprano sings two full sections of her own: her introduction verse and a soft lost call after the stop. A male boyish pop tenor sings one full section of his own: his introduction verse, with plucked pizzicato and bright glockenspiel under him. He never sings single lines, and the female never sings in his section. Upbeat pop-orchestral opening ensemble number, 124 BPM 4/4, ticking-clock hi-hat, staccato pop piano, punchy kick, handclaps and stomps, driving strings, bright horns, synth pads, gang-vocal chorus, call-and-response ad-libs, rising harp-and-synth shimmer swell into soaring legato strings on the hook, swaggering low brass on the king's verse, no key change, energy builds then thins to a lone tick, sudden dead stop, silence, tense string tremolo, low brass hit, unresolved string chord ending, crisp British English diction
 ```
 
-**Lyrics** (3579 chars)
+**Lyrics** (3688 chars)
 ```
 [Intro]
 [Choir]
@@ -89,7 +71,8 @@ where my Tip is waiting for me.
 [Verse 4]
 [Male Vocal]
 And I'm Tip, the fingertip's boy,
-Prox, it's me, I hold on at the very end.
+Prox, it's me, I hold on at the very end,
+right where the finger stops, I wait for you.
 Married. It's a whole thing.
 
 [Hook]
@@ -115,8 +98,8 @@ we've got it in hand! (Hey!)
 Not a drop, not a crumb, not a thing gets spilled,
 we're the holding hand! (The holding hand!)
 
-[Hook]
-[Duet]
+[Hook 2]
+[Choir]
 [Harmonies]
 Through the sheath and past the pulleys,
 one line from the elbow to the fingertip.
@@ -160,11 +143,9 @@ one line from the elbow to the-
 [Female Vocal]
 [Soft]
 Tip? ...Tip?
-
-[Interlude]
-[Male Vocal]
-[Soft]
-Prox? ...Prox?
+It's me, it's Prox, where did you go?
+And faint from the end of the finger,
+he calls back, "Prox? ...Prox?"
 
 [Verse 6]
 [Choir]
@@ -200,20 +181,17 @@ And Mae says, "Of course it's Zone Two."
 
 ---
 
-## 2. Half of a Name (Proxantip)
+## 02. Half Of A Name Proxantip
 
-**Cast:** PROX (female mezzo) sings every verse and chorus; KING PROFUNDUS (male bass-baritone) sings the "Prox! Come home!" calls and the first bridge; the mixed choir sings all of Lumbo's patter and the deadpan asides. Changes: vocal sections renamed from Interlude/Break to Call/Interjection so Suno doesn't play them as instrumentals, cues added ("Me and Tip...", "Prox, it's Papa", "Lumbo's sorry"), and the final whisper moved before [End].  
-**Suno Vocal Gender:** Leave unset (duet)
-
-**Style** (841 chars)
+**Style** (922 chars)
 ```
-Female musical-theatre mezzo-soprano lead with a booming male bass-baritone and a quick comic mixed choir, intimate piano-pop power ballad, 74 BPM, British English diction. Bright contemporary female mezzo carries every verse and chorus: conversational and wry, warm pop-belt mix, huge sustained chest belt on the climax, breathy when quiet. Big theatrical male bass-baritone for the father's short calls and bridge: regal, booming, gruff tenderness, low brass and timpani under him. Mixed choir delivers fast staccato comic patter over pizzicato and a glitchy tick beat, plus dry deadpan asides. Felt piano and soft synth pad intro, half-time drums and sub bass in at the chorus, warm swelling strings, stacked harmonies on the hook, harp-and-synth shimmer that fades. Big key change into a soaring final chorus. Ends on a held piano chord.
+Duet. Female mezzo-soprano sings most of the song. A booming male bass-baritone sings two full sections of his own: a belted calling verse and a belted pleading bridge. He never sings single lines, and the female never sings in his sections. Quick comic mixed choir for patter and deadpan asides. Intimate piano-pop power ballad, 74 BPM, British English diction. Bright contemporary female mezzo: conversational and wry, warm pop-belt mix, huge sustained chest belt on the climax, breathy when quiet. Regal theatrical male bass-baritone with low brass and timpani under his sections, gruff tenderness. Choir delivers fast staccato patter over pizzicato and a glitchy tick beat. Felt piano and soft synth pad intro, half-time drums and sub bass in at the chorus, warm swelling strings, stacked harmonies on the hook, harp-and-synth shimmer that fades. Big key change into a soaring final chorus. Ends on a held piano chord.
 ```
 
-**Lyrics** (3457 chars)
+**Lyrics** (3756 chars)
 ```
 [Intro]
-[Female Vocal]
+[Choir]
 [Soft]
 Day nought, the dark of the palm,
 the finger in a bandage, and Mae can't sleep.
@@ -241,8 +219,12 @@ Nobody ever thanks the lumbrical!
 [Male Vocal]
 [Belted]
 Prox! It's your father! Come home!
+Up the tunnel, up the arm, back where you belong!
+I'll heave with every fibre in the forearm,
+I'll pull and I'll pull till you're home with me!
+Prox! Come HOME!
 
-[Patter]
+[Patter 2]
 [Choir]
 [Staccato]
 Lumbo! He's pulling, he's pulling, he's pulling,
@@ -253,15 +235,7 @@ so the harder he heaves, the straighter it goes!
 Paradoxical extension, Mae says. Lovely.
 Lumbrical plus! Nobody knows what he does,
 and NOW they do!
-
-[Call]
-[Male Vocal]
-[Belted]
-Prox! Come HOME!
-
-[Interjection]
-[Choir]
-Lumbo's sorry! Sorry!
+(Lumbo's sorry! Sorry!)
 
 [Verse 2]
 [Female Vocal]
@@ -279,6 +253,8 @@ He only bends when I pull.
 [Pre-Chorus]
 [Female Vocal]
 [Soft]
+And I pull, and nothing answers.
+I pull, and the tunnel's empty.
 Through the sheath and past the pulleys,
 one line from the elbow to the...
 
@@ -326,16 +302,20 @@ How, exactly?
 [Belted]
 Prox, it's Papa. Come home, my girl, stay where it's safe,
 up in the forearm, close to me.
-No Man's Land is no place for a daughter of mine.
+No Man's Land is no place for a daughter of mine,
+and I've lost one half of the name already.
 Come home, my girl, stay where it's safe.
 
-[Bridge]
+[Bridge 2]
 [Female Vocal]
 [Soft]
+It's Prox, Papa. Listen to me.
+I came when you called. I always came.
+But this time the pulling's the problem.
 You pulled me here, Papa.
 You can't pull me home.
 
-[Patter]
+[Patter 3]
 [Choir]
 [Staccato]
 Lumbo! Finger's gone straight again, Your Majesty!
@@ -344,7 +324,7 @@ And news from Above, the news from Above!
 The surgeon comes on Thursday! Day two!
 
 [Key Change]
-[Female Vocal]
+[Choir]
 [Belted]
 Day two!
 
@@ -358,7 +338,7 @@ I'm coming down through No Man's Land.
 I never knew that we were two
 until there was a space between.
 
-[Post-Chorus]
+[Post-Chorus 2]
 [Female Vocal]
 [Harmonies]
 We were two! (We were two!)
@@ -372,7 +352,7 @@ and this time I'm counting!
 And Lumbo comes too. He has to. He's attached.
 
 [Tag]
-[Female Vocal]
+[Choir]
 [Whispered]
 Day two.
 
@@ -381,17 +361,14 @@ Day two.
 
 ---
 
-## 3. Vent Me Not
+## 03. Vent Me Not
 
-**Cast:** A-Four (female soprano) sings the patter, hook and "You just said you can't, dear". Tip (male tenor) sings Verse 2, the bridge and "Then I'll just keep moving... Ah". The mixed choir sings Verse 1, A-one's deadpan asides, the whispered Bunnell's-map drop, the echoes and the tags. Both leads sing the final chorus.  
-**Suno Vocal Gender:** Leave unset (duet)
-
-**Style** (812 chars)
+**Style** (942 chars)
 ```
-Duet, posh wobbling operatic female soprano lead and male boyish pop tenor, with a mixed choir as the pulley chorus. The soprano sings the fast patter and the hook, the tenor sings the verse and a soft falsetto bridge, the choir sings flat deadpan echoes and whispers. Comic chamber-pop patter number, 150 BPM, frantic staccato strings, pizzicato, harpsichord-like synth pluck, tick-tock woodblock, stomp-clap backbeat, handclaps, piccolo flourishes, rapid tongue-twister patter. Half-time falsetto bridge on felt piano and strings. Sudden spooky drop: sliding sub-bass, muted trumpet, finger snaps, swung electro-swing hi-hat under whispered choir. Snaps back to bright major, half-step key lift into a final duet chorus with gang vocals, three big orchestral hits, dry choir tag. Crisp British English diction.
+Duet. Posh wobbling operatic female soprano sings most of the song, the fast patter and every chorus. A boyish male pop tenor sings three full sections of his own in the middle: a cheeky spoken-sung verse, a soft falsetto bridge, and a resigned verse after the drop. He never sings single lines, and the female never sings in his sections. Mixed choir sings flat deadpan echoes and whispers. Comic chamber-pop patter number, 150 BPM, frantic staccato strings, pizzicato, harpsichord-like synth pluck, tick-tock woodblock, stomp-clap backbeat, piccolo flourishes, rapid tongue-twister patter. Muted guitar and felt piano under his sections, half-time falsetto bridge. Spooky drop: sliding sub-bass, muted trumpet, finger snaps, swung electro-swing hi-hat under whispered choir. Snaps back to bright major, half-step key lift into a final soprano chorus with gang vocals, three big orchestral hits, dry choir tag. Crisp British English diction.
 ```
 
-**Lyrics** (3376 chars)
+**Lyrics** (3459 chars)
 ```
 [Verse 1]
 [Choir]
@@ -457,6 +434,7 @@ What WOULD the knuckles say?
 Vent me not! (Vent HER!)
 Not me, not me!
 Take a sliver off somebody else!
+I'm load-bearing, actually!
 
 [Break]
 [Choir]
@@ -468,10 +446,10 @@ Nobody mentions us.
 Evening, ladies. Tip.
 The fingertip's boy, from the end of the world.
 Through the sheath and past the-
-(Us, dear. US.)
+"Us, dear," says Ay-four. "US."
 I'm the bit that touches EVERYTHING.
 Phones. Noses. I've been in a bagel.
-(That's how we got into this.)
+And the pulleys mutter, "That's how we got into this."
 Last stop on the line, top of the bill,
 every fist you've ever made
 finishes with me!
@@ -485,15 +463,7 @@ I've never moved. Not once. Not by myself.
 I only bend when Prox pulls.
 And she's up there in the palm,
 and I'm down here by Ay-four...
-
-[Break]
-[Female Vocal]
-[Soft]
-By ME? Oh, poor boy. Poor boy.
-
-[Bridge]
-[Male Vocal]
-[Whispered]
+"By me? Oh, poor boy," she coos. "Poor boy."
 ...and I don't know the way to her.
 
 [Drop]
@@ -509,33 +479,25 @@ Her name is Scarlett Adhesion.
 Scarlett Adhesion...
 she moves into any space that stops moving.
 
-[Interlude]
+[Pre-Chorus 2]
 [Male Vocal]
-Then I'll just keep moving.
-
-[Interlude]
-[Female Vocal]
-You just said you can't, dear.
-
-[Interlude]
-[Male Vocal]
+Right then, ladies, it's Tip. I'll just keep moving.
+And Ay-four sighs, "You just said you can't, dear."
 ...Ah.
-
-[Pre-Chorus]
-[Male Vocal]
 Alright, Ay-four, I'll say it:
 so let the surgeon come tomorrow,
-let him fetch her from the palm,
+let him fetch her from the palm.
 
-[Pre-Chorus]
+[Pre-Chorus 3]
 [Female Vocal]
-Oh, poor boy, I'll say it too:
+Oh, poor boy, it's Ay-four, I'll say it too:
 let him thread her back beneath us
 with his needle and his calm!
+Vent us gently, if he must, my dear!
 
 [Final Chorus]
-[Duet]
-[Harmonies]
+[Female Vocal]
+[Belted]
 Vent me not! (Vent HER!)
 Not me, not me!
 Take a sliver off somebody else!
@@ -546,21 +508,20 @@ Ay-four, or a little of Ay-two, my dear,
 but NEVER both. We have standards!
 (We have STANDARDS!)
 
-[Outro]
-[Female Vocal]
-[Belted]
-VENT... ME... NOT!
-
 [Tag]
 [Choir]
 [Monotone]
 Vent Ay-four. She'll be fine.
 
-[Tag]
+[Outro]
 [Female Vocal]
+[Belted]
 How DARE you!
+How DARE you, my dear!
+I'm load-bearing, actually!
+VENT... ME... NOT!
 
-[Tag]
+[Tag 2]
 [Choir]
 [Monotone]
 Nobody mentions us.
@@ -570,17 +531,14 @@ Nobody mentions us.
 
 ---
 
-## 4. Make It Six If You Love Me
+## 04. Make It Six If You Love Me
 
-**Cast:** PROX = female mezzo lead, TIP = male tenor lead, mixed choir sings the narration plus Mae and Teo's surgery lines. The leads quote Mae and Teo, and there is no child voice and no spoken word.  
-**Suno Vocal Gender:** Leave unset (duet)
-
-**Style** (893 chars)
+**Style** (988 chars)
 ```
-Tender acoustic-pop duet, female musical-theatre mezzo-soprano and male boyish pop tenor in close harmony, with a soft mixed choir, the female and male leads trading lines clearly, both voices always distinct. Female lead: bright witty mezzo, warm pop-belt mix, sustained chest belt at the climax. Male lead: warm boyish tenor, clearly male chest voice, light head-voice lift, charming comic delivery. Mixed choir sings the narration, hushed and close-miked, dry, no reverb. Lilting 6/8, 84 BPM. Fingerpicked acoustic guitar, soft felt piano, gentle heartbeat kick, faint monitor-beep tick. Cello and warm strings swell. Held-breath breakdown: pizzicato tick, sudden string catch, silence. Rising harp-and-synth shimmer into soaring legato strings on the release. Key change into last chorus, full band and wordless choir, glowing final chord, soft lullaby coda. Crisp British English diction.
+Duet. Female musical-theatre mezzo-soprano sings most of the song. A male boyish pop tenor sings three full sections of his own: a comic verse, the pre-chorus and first chorus, and a soft post-chorus near the end. He never sings single lines, and the female never sings in his sections. Tender acoustic-pop, lilting 6/8, 84 BPM. Female lead: bright witty mezzo, pop-belt mix, chest belt at the climax. Male lead: warm boyish tenor, clearly male chest voice, charming comic delivery, with plucky ukulele and pizzicato under his sections. Soft mixed choir sings the narration, hushed and close-miked, dry, no reverb. Fingerpicked acoustic guitar, soft felt piano, gentle heartbeat kick, faint monitor-beep tick. Cello and warm strings swell. Held-breath breakdown: pizzicato tick, sudden string catch, silence. Harp shimmer into soaring strings on the release. Key change into last chorus, full band and wordless choir, glowing final chord, soft lullaby coda. Crisp British English diction.
 ```
 
-**Lyrics** (3444 chars)
+**Lyrics** (2935 chars)
 ```
 [Intro]
 [Choir]
@@ -604,14 +562,6 @@ and there she is, the King's girl, waiting in the dark.
 Okay. Something's got me...
 it's me, Prox, going down. Gentle. Slow.
 A slim little tube, and I'm going down,
-
-[Interlude]
-[Choir]
-[Whispered]
-(Borrowed from the children's ward.)
-
-[Verse 2 Continued]
-[Female Vocal]
 under the pulleys, mind your heads,
 a needle pins me like a butterfly,
 so Papa can't reel me back to the palm.
@@ -620,37 +570,27 @@ Sorry, Papa. Not today.
 [Interlude]
 [Choir]
 [Soft]
+(Borrowed from the children's ward.)
 Now where's the other end?
 Bend the tip down for him, Mae...
 There you are. You ran.
 
 [Verse 3]
 [Male Vocal]
-I didn't run, I slid! Big difference!
+Prox, I didn't run, I slid! Big difference!
 Tip. Fingertip. End of the world. Hi.
 We've been married since before
 she learned to crawl.
 Prox? You came the whole way down?
-
-[Verse 3 Reply]
-[Female Vocal]
-Through No Man's Land, Tip. I said I would.
-
-[Verse 3 Joke]
-[Male Vocal]
+And she says, "Through No Man's Land, Tip. I said I would."
 You've got a needle through you.
-
-[Verse 3 Answer]
-[Female Vocal]
-It's a look.
+And Prox just shrugs, "It's a look."
 
 [Pre-Chorus]
-[Female Vocal]
+[Male Vocal]
 And Mae says, "Four strands, Teo,"
 and Teo says, "Four's the minimum."
-
-[Pre-Chorus Reply]
-[Male Vocal]
+Four? The minimum? Come on, Teo!
 Make it six, if you love me!
 
 [Pre-Chorus End]
@@ -658,24 +598,17 @@ Make it six, if you love me!
 Six, then.
 
 [Chorus]
-[Duet]
+[Male Vocal]
 [Harmonies]
 One for the morning, one for the dark,
 one for the kettle, one for the car,
 one for the phone, and one for Wren,
 make it six, make it six, if you love me.
 
-[Chorus Bridge]
+[Chorus End]
 [Choir]
 And a running stitch around the edge,
-
-[Chorus End]
-[Duet]
 so nothing catches on the way.
-
-[Post-Chorus]
-[Male Vocal]
-[Soft]
 (Make it six... make it six, if you love me.)
 
 [Verse 4]
@@ -683,92 +616,47 @@ so nothing catches on the way.
 [Soft]
 Tip, I never knew that we were two
 until there was a space between.
-
-[Verse 4 Reply]
-[Male Vocal]
-[Soft]
-Prox, now there's barely a space between,
-
-[Verse 4 Together]
-[Duet]
-three millimetres, never more.
-
-[Verse 4 Joke]
-[Male Vocal]
-Three millimetres. Is that a lot?
-
-[Verse 4 Answer]
-[Female Vocal]
+And Tip says, "Prox, now there's barely a space between,
+three millimetres, never more."
+He frowns, "Three millimetres. Is that a lot?"
 It's a gap, Tip. Not a divorce.
 
 [Breakdown]
 [Choir]
 [Whispered]
 Make a fist for me.
-
-[Breakdown Cry]
-[Duet]
-[Whispered]
 Hang on! We're caught on the edge of Ay-four!
-
-[Breakdown Choir]
-[Choir]
 Only Ay-four! Spare the Ay-two!
 I KNEW it.
 Just a sliver. Again.
 Make a fist for me.
 
-[Breakdown Her]
+[Breakdown Release]
 [Female Vocal]
 [Soft]
 Mae says, "I've said that to a thousand patients."
-
-[Breakdown Him]
-[Male Vocal]
-[Soft]
 And Teo says, "Then you know the next bit...
 Now open."
-
-[Breakdown Release]
-[Female Vocal]
-[Whispered]
 And Mae breathes, "Oh. There it is."
 
 [Final Chorus]
-[Duet]
-[Harmonies]
+[Female Vocal]
+[Belted]
 Through the sheath and past the pulleys,
 one line from the elbow to the fingertip.
-
-[Final Chorus Swell]
-[Choir]
-(Ooh...)
-
-[Final Chorus Main]
-[Duet]
-[Harmonies]
 One for the morning, one for the dark,
 one for the kettle, one for the car,
 one for the phone, and one for Wren,
 gliding, gliding, down and back again,
 three millimetres, never more!
-
-[Climax]
-[Female Vocal]
-[Belted]
 And that... makes... SIX!
 
 [Post-Chorus]
 [Male Vocal]
 [Soft]
-(Make it six... make it six, if you love me.)
-
-[Tag]
-[Female Vocal]
-Tip. It IS six.
-
-[Tag Reply]
-[Male Vocal]
+Make it six... make it six, if you love me.
+Prox, my love, are you sure that's six?
+And Prox laughs, "Tip. It IS six."
 Just checking.
 
 [Coda]
@@ -788,17 +676,14 @@ hand held high.
 
 ---
 
-## 5. Thea's Rules
+## 05. Thea S Rules
 
-**Cast:** THEA (female alto) sings nearly everything and quotes Mae; KING PROFUNDUS (male bass-baritone) gets "Make way! The King of the Forearm!" and "A... whisper? Me? The King?", then joins Thea in the final duet chorus; the Hands-Up Girls, Prox and Tip parts all go to the mixed choir.  
-**Suno Vocal Gender:** Leave unset (duet), because this song has both a female and a male lead
-
-**Style** (896 chars)
+**Style** (984 chars)
 ```
-Female brassy soul-pop alto lead with a male bass-baritone and a peppy gang-vocal mixed choir, the female alto sings almost every line, warm, brisk, witty, laughter in the voice, gospel belt at the key change; the male bass-baritone is booming and theatrical, short swaggering interjections; mixed choir answers with bright cheer chants and spelled-out shouts. Peppy bubblegum cheer-pop showstopper on a cinematic orchestra, 138 BPM, bouncy synth bass, bright pop piano stabs, handclaps and stomps, marching-band snare, coach's whistle. Crisp double tick of rimshot and glockenspiel on every rep count. Rising harp-and-synth shimmer into soaring legato strings for the splint magic. Low brass and timpani under the male entrance. Half-time serious bridge with strings and soft piano, key change into a stacked gang-vocal shout chorus, cheeky stab-and-whistle button. Crisp British English diction
+Duet. Female brassy soul-pop alto sings almost the whole song. A booming theatrical male bass-baritone sings one full section of his own: a swaggering belted entrance verse, and joins her only in the final shout chorus. He never sings single lines, and the female never sings in his section. Alto is warm, brisk, witty, laughter in the voice, gospel belt at the key change. Mixed gang-vocal choir answers with bright cheer chants and spelled-out shouts. Peppy bubblegum cheer-pop showstopper on a cinematic orchestra, 138 BPM, bouncy synth bass, bright pop piano stabs, handclaps and stomps, marching-band snare, coach's whistle. Crisp double tick of rimshot and glockenspiel on every rep count. Rising harp-and-synth shimmer into soaring legato strings for the splint magic. Low brass and timpani under his section. Half-time serious bridge with strings and soft piano, key change into a stacked gang-vocal shout chorus, cheeky stab-and-whistle button. Crisp British English diction.
 ```
 
-**Lyrics** (3643 chars)
+**Lyrics** (3805 chars)
 ```
 [Intro]
 [Female Vocal]
@@ -807,14 +692,10 @@ and the water bath is warm!
 Sit down, my love, hand on the towel,
 and wipe that glow off your face.
 
-[Break]
-[Female Vocal]
-[Soft]
-Stitched isn't healed, my love.
-Stitched is day two. Healed is January.
-
 [Verse 1]
 [Female Vocal]
+Stitched isn't healed, my love.
+Stitched is day two. Healed is January.
 I heard about the theatre lights,
 the strings, the soppy vows,
 six strands and a running stitch,
@@ -843,9 +724,6 @@ A wall at your back,
 and an open road ahead.
 And this is my wand, my love:
 a goniometer. Nobody's ever impressed.
-
-[Interlude]
-[Female Vocal]
 Dorsal blocking splint, my love!
 She makes her juniors spell it? Go on, then!
 
@@ -858,6 +736,9 @@ B! L! O! C...
 [Interlude]
 [Female Vocal]
 We'll be here till January.
+Lovely spelling, all of you.
+Gold star, and a sticker.
+Right, then. The rules.
 
 [Chorus]
 [Female Vocal]
@@ -905,20 +786,17 @@ The next twelve weeks are mine.
 [Male Vocal]
 [Belted]
 Make way! The King of the Forearm!
+The mightiest muscle in the land is here!
+Twelve weeks? I'll have it done by teatime!
 I'll close that finger in one almighty heave!
+Stand back, physio! Watch me pull!
 
 [Verse 6]
 [Female Vocal]
 Sit down, Your Majesty.
 Pull with a whisper, Your Majesty.
-
-[Verse 7]
-[Male Vocal]
-[Soft]
-A... whisper? Me? The King?
-
-[Verse 8]
-[Female Vocal]
+And the King goes quiet and whispers,
+"A... whisper? Me? The King?"
 Library voice, love. Every hour.
 
 [Hook]
@@ -946,6 +824,8 @@ Tear it... or glue it.
 
 [Break]
 [Female Vocal]
+Hear that, love? Down in the tunnel.
+Somebody's knocking.
 (Tap, tap.) Anyone down there?
 That's Digby, love, on his way.
 
@@ -957,7 +837,7 @@ Place and hold, and then let go.
 Every hour! Ten of each!
 Sing it with me, Your Majesty!
 
-[Final Chorus]
+[Final Chorus 2]
 [Duet]
 Don't tear it! Don't glue it!
 Little and often, gentle and slow,
@@ -970,13 +850,10 @@ these are the rules! These are the rules!
 Little and often! Gentle and slow!
 These are the rules! Thea's rules!
 
-[Tag]
+[Outro]
 [Female Vocal]
 And Mae says, "Fine. FINE. Every hour."
 Lovely.
-
-[Outro]
-[Female Vocal]
 Ten more, my love.
 One... two...
 (Tap, tap.)
@@ -985,17 +862,14 @@ One... two...
 
 ---
 
-## 6. Day Ten
+## 06. Day Ten
 
-**Cast:** PROX (female mezzo) sings every lead line and quotes Tip, Thea and Mae. KING PROFUNDUS (male bass-baritone) sings only the stair-grab boast, the night vows and the final "Never!". The mixed choir sings the narration, the rep counts, Mae's and Wren's quoted lines and Scarlett's whispered "Hold still". Changes from the last version: the King's two-line sections are longer, so the switch to his voice is easier to hear, and Prox now says "Tip" and "Papa" at each of her re-entries.  
-**Suno Vocal Gender:** Leave unset (duet)
-
-**Style** (924 chars)
+**Style** (962 chars)
 ```
-Female musical-theatre mezzo-soprano lead and male bass-baritone lead with a punchy gang-vocal mixed choir, no other solo voices. Driving pop-rock act-one-finale anthem with cinematic orchestra, 132 BPM, pulsing eighth-note pop piano, palm-muted electric guitars, big live drums, sub bass, synth arpeggios, soaring strings. Crisp double tick of rimshot and glockenspiel on every rep count. Rising harp-and-synth shimmer into soaring legato strings while things go well. Sudden full-band hit, brass stab and straining string glissando for the near-tear. Booming ecstatic male belt over power chords. Half-time night section over a low synth pulse, quiet alternating female and male lines. Whispered choir hush with sliding sub-bass, muted trumpet, finger snaps, swung hi-hat. Key change into a huge sustained female chest belt over call-and-echo choir, unresolved cliffhanger chord, abrupt cut. Crisp British English diction.
+Duet. Female musical-theatre mezzo-soprano sings most of the song. A male bass-baritone sings two full sections of his own: a booming belted chorus on the stairs and a soft night verse. He never sings single lines, and the female never sings in his sections. Punchy gang-vocal mixed choir. Driving pop-rock act-one-finale anthem with cinematic orchestra, 132 BPM, pulsing eighth-note pop piano, palm-muted guitars, big live drums, sub bass, synth arpeggios, soaring strings. Crisp rimshot and glockenspiel double tick on every rep count. Sudden full-band hit, brass stab and straining string glissando for the near-tear, power chords and low brass under his belt. Half-time night section over a low synth pulse, cello under his soft verse. Whispered choir hush with sliding sub-bass, muted trumpet, finger snaps. Key change into a huge sustained female chest belt over call-and-echo choir, unresolved cliffhanger chord, abrupt cut. Crisp British English diction.
 ```
 
-**Lyrics** (3331 chars)
+**Lyrics** (3652 chars)
 ```
 [Intro]
 [Choir]
@@ -1045,7 +919,7 @@ and frankly, I'm a natural!
 Mae calls, "Wren! Shoes! We're late!
 Stairs, carefully!"
 
-[Pre-Chorus]
+[Pre-Chorus 2]
 [Choir]
 [Belted]
 Day ten, the stairs, the girl, the grab!
@@ -1056,11 +930,12 @@ Day ten, the stairs, the girl, the grab!
 And the little girl cries "Mum!"
 She grabs the girl with the splinted hand!
 
-[Chorus]
+[Chorus 2]
 [Male Vocal]
 [Belted]
 I've got the girl! Your father's got her!
 Every fibre, every ounce!
+Pull with all I own, from the elbow down!
 I've got the girl! I've got the girl!
 
 [Response]
@@ -1068,6 +943,8 @@ I've got the girl! I've got the girl!
 [Belted]
 Not like that, Papa!
 Too hard! We're ten days old!
+Let go, Papa, Mae's got her now!
+Let go, let go, before something gives!
 
 [Instrumental]
 [Choir]
@@ -1075,39 +952,41 @@ Too hard! We're ten days old!
 Six strands creak...
 ...and hold. Just.
 
-[Break]
+[Break 2]
 [Female Vocal]
 [Soft]
+Tip? Tip, it's Prox. Talk to me.
+Six strands, are you still there?
 And Tip, so small, says, "Still here. Ow."
+Still here. Oh, thank goodness. Still here.
 
 [Night]
 [Choir]
 [Soft]
 Day ten, the night, and no one sleeps.
 
-[Night]
+[Night 2]
 [Male Vocal]
 [Soft]
+Prox, it's your father. I nearly tore her.
 I nearly tore her, my Prox.
 I will never pull again.
+Never again, my girl.
+Your papa will not pull.
 
-[Night]
+[Night 3]
 [Female Vocal]
 We have to move, Papa.
 Every hour, Thea said.
 Gently. Every hour. Tear it, or glue it.
 But Tip says, "Don't move me. I'm scared."
 
-[Night]
-[Male Vocal]
-Never again, my girl.
-Your papa will not pull.
-
-[Night]
+[Night 4]
 [Female Vocal]
 [Whispered]
 Tip, keep going. Through the sheath, past the...
 One line, Tip, one line...
+from the elbow to the...
 He says, "I can't remember the end."
 
 [Verse 3]
@@ -1126,14 +1005,11 @@ nothing tears if nothing moves.
 Hold still, hold still,
 nothing tears if nothing moves.
 
-[Hush]
+[Pre-Chorus 3]
 [Female Vocal]
 [Soft]
 Tip, who's there? That's No Man's Land.
 And Tip just murmurs, "She sounds kind."
-
-[Pre-Chorus]
-[Female Vocal]
 Papa won't pull. Tip won't move.
 Mae's turned the light out, hand on a pillow.
 Fine. Fine.
@@ -1152,21 +1028,19 @@ every hour!
 [Choir]
 Tear? Or glue?
 
-[Final Chorus]
-[Male Vocal]
-[Belted]
-Never! Never, my Prox!
-
-[Final Chorus]
+[Final Chorus 2]
 [Female Vocal]
+And Papa roars, "Never! Never, my Prox!"
 Papa, please! And Tip begs, "Don't move me!"
+Never, he says, and Don't, says Tip,
+and the clock on the wall says every hour.
 
-[Final Chorus]
+[Hush 2]
 [Choir]
 [Whispered]
 Hold still...
 
-[Final Chorus]
+[Final Chorus 3]
 [Female Vocal]
 [Belted]
 One, and hold! Two, and rest!
@@ -1185,17 +1059,14 @@ Or glue?
 
 ---
 
-## 7. Hold Still
+## 07. Hold Still
 
-**Cast:** Female contralto Scarlett Adhesion leads; male tenor Tip sings the short soft "It's Tip" / "Scarlett, but Prox says" / "Just for a while, Prox" verses; mixed choir sings the Fibroblasts, the whispered intro, the stabs and the distant "Tip?" echo.  
-**Suno Vocal Gender:** Leave unset (duet)
-
-**Style** (868 chars)
+**Style** (980 chars)
 ```
-Female sultry smoky low contralto lead with a male boyish pop tenor and a sassy mixed choir, female lead dominates, male tenor clearly audible in his own short soft verses, choir for whispered stabs and echoes. Slinky dark electro-swing villain number, minor key, 118 BPM, swung four-on-the-floor kick, swung hi-hats, sliding sub-bass, muted trumpet and growling trombone samples, finger snaps, walking upright bass, noir strings, chopped vocal stabs. Female contralto: slinky jazz-pop phrasing, breathy purrs, amused sung asides, velvet growl. Male tenor: warm, light airy falsetto, soft, scared and vulnerable. Choir: breathy close harmonies, snickering echoes, handclaps. Dry whispered cold open, no reverb. Sweeping rubato string bridge without drums. Final chorus drops to a heavier half-time groove, then strips to one held low sub note. British English diction.
+Duet. Female sultry smoky low contralto sings most of the song. A male boyish pop tenor sings two full sections of his own: a scared soft verse in the middle and a pleading soft verse near the end. He never sings single lines, and the female never sings in his sections. Slinky dark electro-swing villain number, minor key, 118 BPM, swung four-on-the-floor kick, swung hi-hats, sliding sub-bass, muted trumpet and growling trombone samples, finger snaps, walking upright bass, noir strings, chopped vocal stabs. Female contralto: slinky jazz-pop phrasing, breathy purrs, amused sung asides, velvet growl. Male tenor: warm, light airy falsetto, scared and vulnerable, brushed snare and celesta under his sections. Sassy mixed choir: breathy close harmonies, snickering echoes, handclaps. Dry whispered cold open, no reverb. Sweeping rubato string bridge without drums. Final chorus drops to a heavier half-time groove, then strips to one held low sub note. British English diction.
 ```
 
-**Lyrics** (3433 chars)
+**Lyrics** (3644 chars)
 ```
 [Intro]
 [Choir]
@@ -1245,11 +1116,6 @@ nothing tears if nothing moves.
 Every which way! Mm!
 Every which way! Mm!
 
-[Post-Chorus]
-[Female Vocal]
-Lovely and thick, darling,
-(every which way!)
-
 [Verse 2]
 [Choir]
 We're the builders from the walls,
@@ -1261,7 +1127,8 @@ ooh, lovely and thick!
 
 [Verse 3]
 [Female Vocal]
-Thank you, girls. Swelling's my advance guard, darling.
+Lovely and thick, darling. Thank you, girls.
+Swelling's my advance guard, darling.
 Let that hand hang down by her side...
 Swelling is glue. And the glue is me.
 And that fairy with the wand?
@@ -1273,23 +1140,20 @@ I'm here all night.
 [Soft]
 It's Tip... I heard the strands creak on the stairs.
 I've never moved by myself. Not once.
-
-[Verse 4]
-[Female Vocal]
-Then don't, darling.
-I'll hold you so tight you could never tear.
-
-[Verse 4]
-[Male Vocal]
-[Soft]
+It's warm down here, and the wall is soft,
+and I'm so tired of being brave.
 Scarlett, but Prox says every hour...
-
-[Verse 4]
-[Female Vocal]
-Oh, Tip. Look what moving did on Day Ten.
-(Ooh. Awkward.)
+Prox says every hour...
 
 [Verse 5]
+[Female Vocal]
+Then don't, darling. Scarlett's got you.
+I'll hold you so tight you could never tear.
+Every hour? Oh, Tip.
+Look what moving did on Day Ten.
+(Ooh. Awkward.)
+
+[Verse 6]
 [Female Vocal]
 And you, up in your castle,
 you nearly tore her, Your Majesty.
@@ -1299,7 +1163,7 @@ You swore it on the stairs, Your Majesty:
 Never pull again.
 Never pull again, Your Majesty.
 
-[Verse 6]
+[Verse 7]
 [Female Vocal]
 And you, up there, with your phone light on,
 reading your own old papers at three a.m.
@@ -1323,22 +1187,26 @@ six strands, a therapist, a little plastic wand...
 Movement, darling! How vulgar.
 (How vulgar!)
 
-[Verse 7]
+[Verse 8]
 [Male Vocal]
 [Soft]
+Prox, it's Tip. I can hear you calling.
 Just for a while, Prox.
 Just till I'm brave.
 Just for a while...
+I'll come when I'm brave.
 
-[Verse 7]
+[Interlude]
 [Choir]
 Round and round, to the tunnel wall,
 round and round, to the tunnel wall.
 
-[Verse 7]
+[Verse 9]
 [Female Vocal]
+Hush now, darling. Scarlett's here.
 There won't be any space between.
 I'll fill it, darling.
+Every inch of it. Mine.
 
 [Final Chorus]
 [Female Vocal]
@@ -1358,28 +1226,27 @@ nothing tears if nothing moves.
 Tip?
 ...Tip?
 
-[Outro]
+[Outro 2]
 [Female Vocal]
 [Whispered]
+Hear that, darling? Scarlett hears it too.
 That's your Prox calling, darling.
 Don't answer.
+Hold still.
 
 [End]
 ```
 
 ---
 
-## 8. A Millimetre a Day
+## 08. A Millimetre A Day
 
-**Cast:** Digby (male baritone) leads; Thea (female alto) does the Tinel tap calls, the paperclip test and "Make a fist"; mixed choir does the gang shouts, the "(Why can't WE close, Father?)" echo and Prox's soft outro reprise. Wren and Mae are only quoted by Digby. Fixes: took out the [Break] section that had no voice tag (the held-note stop is already in the style), added "Thank you, ma'am!" and "Right you are, Thea" so you can hear where Thea hands back to Digby, and left Vocal Gender unset so Suno doesn't turn Thea male.  
-**Suno Vocal Gender:** Leave unset (duet)
-
-**Style** (906 chars)
+**Style** (991 chars)
 ```
-Male laid-back drawling country baritone lead with a female brassy soul-pop alto and a stomp-clap mixed choir, the male voice sings almost every section, the female alto answers in short witty lines. Laid-back country-pop road-trip song, 104 BPM, stomp-clap backbeat, acoustic guitar strum, banjo picking, catchy whistled hook answering every chorus line, warm slide guitar, upright bass, crisp double tick of rimshot and glockenspiel as the rhythmic backbone, gang "hey!" shouts from the mixed choir, stacked harmonies on the hook, strings and harp sneaking in mid-song. Deadpan talk-singing baritone with light country twang, the alto brisk with laughter in her voice. Final verse drops to solo acoustic guitar and harp in a minor key, a complete stop on one held string note, the hook sung slow and soft by the choir with no whistle, one last lonely rimshot tick. No key change. British English diction.
+Duet. Male laid-back drawling country baritone sings most of the song. A brassy female soul-pop alto sings two full sections of her own: a tapping-test verse and a soft "make a fist" verse. She never sings single lines, and the male never sings in her sections. Laid-back country-pop road-trip song, 104 BPM, stomp-clap backbeat, acoustic guitar strum, banjo picking, catchy whistled hook answering every chorus line, warm slide guitar, upright bass, crisp rimshot and glockenspiel double tick, gang "hey!" shouts from the mixed choir, stacked harmonies on the hook, strings and harp sneaking in mid-song. Deadpan talk-singing baritone with light country twang. Honky-tonk piano and handclaps under her sections, the alto brisk with laughter in her voice. Final verse drops to solo acoustic guitar and harp in a minor key, a complete stop on one held string note, the hook sung slow and soft by the choir with no whistle, one last lonely rimshot tick. No key change. British English diction.
 ```
 
-**Lyrics** (3268 chars)
+**Lyrics** (3374 chars)
 ```
 [Intro]
 [Choir]
@@ -1400,7 +1267,8 @@ I'll get there when I get there.
 [Male Vocal]
 The old wires downstream packed up and left,
 but they left me the tunnels,
-so I'm following the signs.
+so I'm following the signs,
+one little road sign at a time.
 
 [Chorus]
 [Male Vocal]
@@ -1421,31 +1289,9 @@ Ooh, more or less! (Hey!)
 It's Thea, my love. Every week I tap from the fingertip
 back towards the scar,
 and where he tingles, that's how far.
-(Tap, tap.) Tingle there?
-
-[Response]
-[Male Vocal]
-Not yet, ma'am.
-
-[Call]
-[Female Vocal]
-(Tap, tap.) There, my love?
-
-[Response]
-[Male Vocal]
-Not yet, ma'am.
-
-[Call]
-[Female Vocal]
-(Tap, tap.) There?
-
-[Response]
-[Male Vocal]
-Ooh! That's me! That's ME!
-
-[Call]
-[Female Vocal]
-[Belted]
+(Tap, tap.) Tingle there? And Digby mutters, "Not yet, ma'am."
+(Tap, tap.) There, my love? Again he says, "Not yet, ma'am."
+(Tap, tap.) There? And up he jumps: "Ooh! That's me! That's ME!"
 Tee-nell's sign, my love. Write it down.
 He's moving. He's moving!
 
@@ -1467,13 +1313,10 @@ Lucky it's November.
 Cousin took a wrong turn at a scar once.
 Neuroma now. We don't talk about him.
 
-[Interlude]
-[Female Vocal]
-Paperclip on the pulp, my love.
-Two points. Five millimetres?
-
 [Verse 3 Tag]
 [Male Vocal]
+Then Thea lays a paperclip on the pulp:
+"Two points. Five millimetres?"
 Ask me next year, Thea.
 Not heard from Tip in a fortnight.
 Quiet lad, these days.
@@ -1503,15 +1346,19 @@ a millimetre, more or less. (Hey!)
 [Soft]
 Six weeks, the splint comes off.
 The whole hand holds its breath.
-And Thea leans in close and says,
-
-[Call]
-[Female Vocal]
-[Soft]
-Make a fist for me, my love.
-Slowly now. Make a fist for me.
+Thea pulls her chair in by the window,
+and she leans in close and says...
 
 [Verse 5]
+[Female Vocal]
+[Soft]
+It's Thea, my love. The splint is off.
+Make a fist for me, my love.
+Slowly now. Make a fist for me.
+Pull, Your Majesty. Pull, Prox. All the way down.
+Make a fist for me, my love.
+
+[Verse 6]
 [Male Vocal]
 [Soft]
 Right you are, Thea. Splint off, she says pull,
@@ -1527,10 +1374,11 @@ calling up the arm.
 [Soft]
 (Why can't WE close, Father?)
 
-[Verse 5 Tag]
+[Verse 6 Tag]
 [Male Vocal]
 [Soft]
 Oh.
+Nobody told me about that.
 ...I'll just keep driving, then.
 Down in the palm, Prox sings my road song back, slow...
 
@@ -1547,17 +1395,14 @@ a millimetre... more or less.
 
 ---
 
-## 9. A Little Further
+## 09. A Little Further
 
-**Cast:** Prox (female mezzo) sings lead and quotes Teo, Mae, Thea and Tip; King Profundus (male bass-baritone) answers in short lines; the choir carries Scarlett's whispers, Thea's counting and the gospel echoes.  
-**Suno Vocal Gender:** Leave unset (duet)
-
-**Style** (937 chars)
+**Style** (935 chars)
 ```
-Female musical-theatre mezzo-soprano lead with a male bass-baritone and a gospel mixed choir, female voice carries most of the song, male voice only in short answering lines. Eleven-o'clock gospel and R&B-pop power ballad, 70 BPM half-time. Opens bare and dark: solo felt piano in a minor key, soft sub-bass, intimate dry close-miked vocals. Bright contemporary female mezzo, warm pop-belt mix, breathy and tender when quiet, huge sustained chest belt on climaxes. Booming theatrical male bass-baritone, gruff fury then hushed fatherly tenderness. Whispered mixed choir passages over sliding sub-bass, muted trumpet and finger snaps. Crisp rimshot and glockenspiel double tick on every count. A held silence, then a build with Hammond organ, full gospel choir, handclaps and big drums, key change into blazing major, harp and synth shimmer into soaring legato strings. Choir call-and-response, stacked harmonies. British English diction.
+Duet. Female mezzo-soprano sings most of the song. A deep male bass-baritone sings three full sections of his own: an angry belted verse, a soft tender bridge and the outro. He never sings single lines, and the female never sings in his sections. Eleven-o'clock gospel and R&B-pop power ballad, 70 BPM half-time. Opens bare and dark: solo felt piano in a minor key, soft sub-bass, intimate dry close-miked vocals. Bright contemporary female mezzo, warm pop-belt mix, breathy and tender when quiet, huge sustained chest belt on climaxes. Booming theatrical male bass-baritone with low brass and timpani under his sections, gruff fury, then hushed fatherly tenderness. Whispered mixed choir over sliding sub-bass, muted trumpet and finger snaps. Crisp rimshot and glockenspiel double tick on counts. Build with Hammond organ, gospel choir, handclaps and big drums, key change into blazing major, soaring strings. British English diction.
 ```
 
-**Lyrics** (3266 chars)
+**Lyrics** (3778 chars)
 ```
 [Intro]
 [Choir]
@@ -1600,23 +1445,21 @@ Every hour... every hour...
 [Verse 3]
 [Male Vocal]
 [Belted]
-Then I'll rip him loose, Prox!
-Your father, the King, will heave from the castle,
-I'll tear that thread off the tunnel wall!
+Prox! It's your father, the King, in the castle!
+Eight weeks I swore I'd never pull again,
+and look at him now, glued to the wall!
+So I'll heave with everything I've got,
+I'll rip him loose, I'll tear that thread,
+one almighty pull from the forearm down,
+and your boy comes home tonight!
+Stand aside, my girl! Here I come!
 
 [Verse 4]
 [Female Vocal]
 No, Papa. That's how a stuck thing snaps.
 Not like Day Ten. Not like never.
 Like this.
-
-[Verse 5]
-[Male Vocal]
-[Soft]
-A whisper, my girl. Like this?
-
-[Verse 6]
-[Female Vocal]
+And Papa leans in and whispers, "Like this?"
 Softer, Papa. Yes. And again.
 And again. Don't look so smug.
 
@@ -1663,11 +1506,20 @@ Pull me, Prox. Gently.
 I'm scared. Pull me anyway."
 
 [Bridge 3]
-[Female Vocal]
-[Belted]
-Now, Papa. A whisper.
+[Choir]
+Pull with a whisper, Your Majesty.
 
 [Bridge 4]
+[Male Vocal]
+[Soft]
+Alright, my girl. Your father's listening.
+Here it comes, the smallest pull I own.
+Not a heave, not a yank, not a roar,
+the way you'd lift a sleeping child,
+a little further... and then I wait.
+A little further... and then I wait.
+
+[Bridge 5]
 [Choir]
 [Whispered]
 Darling... don't you dare...
@@ -1729,7 +1581,10 @@ A little further every daaay!
 [Outro]
 [Male Vocal]
 [Soft]
-A whisper, my girl. Every day.
+A whisper, my girl, every day,
+at the kettle and the school run,
+a little further, more or less,
+your old father, pulling soft.
 
 [Outro 2]
 [Female Vocal]
@@ -1741,15 +1596,12 @@ Every day, Papa... a little further...
 
 ## 10. Now Open
 
-**Cast:** Female lead is Prox (and she quotes Scarlett); male lead is Tip; they duet on the sheath and "two" lines. The mixed choir tells the story of Mae, Wren, the King and his daughters, the Pulleys, Lumbo and Digby, and the final whisper is a female voice.  
-**Suno Vocal Gender:** Leave unset (duet)
-
-**Style** (923 chars)
+**Style** (978 chars)
 ```
-Duet, female musical-theatre mezzo-soprano and male boyish pop tenor leads with a big euphoric stomp-clap mixed choir, female mezzo bright and witty with a huge chest belt, male tenor warm, giddy and comic, mixed choir carrying the narration with gang vocals. Euphoric stomp-clap orchestral pop finale, 116 BPM 4/4, big stomps and handclaps, bright pop piano carrying a relaxed ticking-clock motif, glockenspiel, school bells, soaring strings and horns, synth shimmer, gang whoa vocals, stacked harmonies. Rising harp-and-synth shimmer into soaring legato strings on the duet lines. Crisp double tick of rimshot and glockenspiel. Brief sultry sub-bass slide, sweet muted trumpet and finger snaps. Big key change into a stacked final chorus, then sudden hush to solo piano and harp, soft whispered female vocal, closing string chord, single open harp arpeggio, one open shimmering major chord. Crisp British English diction.
+Duet. Female musical-theatre mezzo-soprano sings all the lead sections; a big stomp-clap mixed choir carries the narration with gang vocals. A boyish male pop tenor sings one full section of his own: a giddy comic verse answering her call, with bouncy pizzicato and brass stabs under it. He joins her only on the final duet chorus. He never sings single lines, and the female never sings in his section. Euphoric stomp-clap orchestral pop finale, 116 BPM 4/4, big stomps and handclaps, bright pop piano with a relaxed ticking-clock motif, glockenspiel, school bells, soaring strings and horns, synth shimmer, gang whoa vocals, stacked harmonies. Mezzo bright and witty, huge chest belt. Crisp double tick of rimshot and glockenspiel. Brief sultry sub-bass slide, sweet muted trumpet and finger snaps. Big key change into a stacked final chorus, then sudden hush to solo piano and harp, soft whispered female vocal, one open shimmering major chord. Crisp British English diction.
 ```
 
-**Lyrics** (3259 chars)
+**Lyrics** (3375 chars)
 ```
 [Intro]
 [Choir]
@@ -1786,10 +1638,17 @@ a fist, a whole fist, at last!
 [Female Vocal]
 [Soft]
 Tip? Tip, are you there?
+It's Prox, calling from the palm,
+down the sheath and past the pulleys,
+Tip? Are you there?
 
-[Break]
+[Break 2]
 [Male Vocal]
+[Belted]
 Prox. Right here. Still attached!
+It's Tip, at the end of the line,
+Phones! Noses! Lunchboxes!
+I'm Tip, touching EVERYTHING again!
 
 [Chorus]
 [Choir]
@@ -1798,16 +1657,11 @@ The coffee, the keys, the lunchbox and Wren!
 We've got it in hand! (Hey!)
 (We're the holding hand!)
 
-[Chorus]
-[Duet]
+[Chorus 2]
+[Choir]
 [Harmonies]
 Through the sheath and past the pulleys,
 one line from the elbow to the fingertip.
-
-[Ad-lib]
-[Male Vocal]
-Phones! Noses! Lunchboxes!
-I'm Tip, touching EVERYTHING again!
 
 [Verse 2]
 [Choir]
@@ -1869,7 +1723,7 @@ and we glide on the space between.
 Through the sheath and past the pulleys,
 one line from the elbow to the fingertip!
 
-[Final Chorus]
+[Final Chorus 2]
 [Choir]
 We've got it in hand! (Got it in hand!)
 The coffee, the keys, the lunchbox and Wren!
@@ -1878,11 +1732,8 @@ We've got it in hand! (We're the holding hand!)
 [Belt]
 [Female Vocal]
 [Belted]
+Look at us, Tip!
 A whole fist round Wren!
-
-[Final Tag]
-[Duet]
-[Harmonies]
 Now we know that we are two,
 and we glide on the space between!
 
@@ -1899,13 +1750,14 @@ Wren calls as she runs, "Bye, Mum!"
 (got it in hand...)
 (And the small hand slips out of the big one,
 and runs in through the gate.)
-And Mae, alone at the gate, to her own hand:
 
 [Outro]
 [Female Vocal]
 [Whispered]
-Make a fist for me.
-Now open.
+And Mae, alone at the gate,
+says to her own hand,
+"Make a fist for me.
+Now open."
 
 [End]
 ```

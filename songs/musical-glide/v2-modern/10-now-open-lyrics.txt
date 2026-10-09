@@ -33,10 +33,17 @@ a fist, a whole fist, at last!
 [Female Vocal]
 [Soft]
 Tip? Tip, are you there?
+It's Prox, calling from the palm,
+down the sheath and past the pulleys,
+Tip? Are you there?
 
-[Break]
+[Break 2]
 [Male Vocal]
+[Belted]
 Prox. Right here. Still attached!
+It's Tip, at the end of the line,
+Phones! Noses! Lunchboxes!
+I'm Tip, touching EVERYTHING again!
 
 [Chorus]
 [Choir]
@@ -45,16 +52,11 @@ The coffee, the keys, the lunchbox and Wren!
 We've got it in hand! (Hey!)
 (We're the holding hand!)
 
-[Chorus]
-[Duet]
+[Chorus 2]
+[Choir]
 [Harmonies]
 Through the sheath and past the pulleys,
 one line from the elbow to the fingertip.
-
-[Ad-lib]
-[Male Vocal]
-Phones! Noses! Lunchboxes!
-I'm Tip, touching EVERYTHING again!
 
 [Verse 2]
 [Choir]
@@ -116,7 +118,7 @@ and we glide on the space between.
 Through the sheath and past the pulleys,
 one line from the elbow to the fingertip!
 
-[Final Chorus]
+[Final Chorus 2]
 [Choir]
 We've got it in hand! (Got it in hand!)
 The coffee, the keys, the lunchbox and Wren!
@@ -125,11 +127,8 @@ We've got it in hand! (We're the holding hand!)
 [Belt]
 [Female Vocal]
 [Belted]
+Look at us, Tip!
 A whole fist round Wren!
-
-[Final Tag]
-[Duet]
-[Harmonies]
 Now we know that we are two,
 and we glide on the space between!
 
@@ -146,12 +145,13 @@ Wren calls as she runs, "Bye, Mum!"
 (got it in hand...)
 (And the small hand slips out of the big one,
 and runs in through the gate.)
-And Mae, alone at the gate, to her own hand:
 
 [Outro]
 [Female Vocal]
 [Whispered]
-Make a fist for me.
-Now open.
+And Mae, alone at the gate,
+says to her own hand,
+"Make a fist for me.
+Now open."
 
 [End]

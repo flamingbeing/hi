@@ -1,5 +1,5 @@
 [Intro]
-[Female Vocal]
+[Choir]
 [Soft]
 Day nought, the dark of the palm,
 the finger in a bandage, and Mae can't sleep.
@@ -27,8 +27,12 @@ Nobody ever thanks the lumbrical!
 [Male Vocal]
 [Belted]
 Prox! It's your father! Come home!
+Up the tunnel, up the arm, back where you belong!
+I'll heave with every fibre in the forearm,
+I'll pull and I'll pull till you're home with me!
+Prox! Come HOME!
 
-[Patter]
+[Patter 2]
 [Choir]
 [Staccato]
 Lumbo! He's pulling, he's pulling, he's pulling,
@@ -39,15 +43,7 @@ so the harder he heaves, the straighter it goes!
 Paradoxical extension, Mae says. Lovely.
 Lumbrical plus! Nobody knows what he does,
 and NOW they do!
-
-[Call]
-[Male Vocal]
-[Belted]
-Prox! Come HOME!
-
-[Interjection]
-[Choir]
-Lumbo's sorry! Sorry!
+(Lumbo's sorry! Sorry!)
 
 [Verse 2]
 [Female Vocal]
@@ -65,6 +61,8 @@ He only bends when I pull.
 [Pre-Chorus]
 [Female Vocal]
 [Soft]
+And I pull, and nothing answers.
+I pull, and the tunnel's empty.
 Through the sheath and past the pulleys,
 one line from the elbow to the...
 
@@ -112,16 +110,20 @@ How, exactly?
 [Belted]
 Prox, it's Papa. Come home, my girl, stay where it's safe,
 up in the forearm, close to me.
-No Man's Land is no place for a daughter of mine.
+No Man's Land is no place for a daughter of mine,
+and I've lost one half of the name already.
 Come home, my girl, stay where it's safe.
 
-[Bridge]
+[Bridge 2]
 [Female Vocal]
 [Soft]
+It's Prox, Papa. Listen to me.
+I came when you called. I always came.
+But this time the pulling's the problem.
 You pulled me here, Papa.
 You can't pull me home.
 
-[Patter]
+[Patter 3]
 [Choir]
 [Staccato]
 Lumbo! Finger's gone straight again, Your Majesty!
@@ -130,7 +132,7 @@ And news from Above, the news from Above!
 The surgeon comes on Thursday! Day two!
 
 [Key Change]
-[Female Vocal]
+[Choir]
 [Belted]
 Day two!
 
@@ -144,7 +146,7 @@ I'm coming down through No Man's Land.
 I never knew that we were two
 until there was a space between.
 
-[Post-Chorus]
+[Post-Chorus 2]
 [Female Vocal]
 [Harmonies]
 We were two! (We were two!)
@@ -158,7 +160,7 @@ and this time I'm counting!
 And Lumbo comes too. He has to. He's attached.
 
 [Tag]
-[Female Vocal]
+[Choir]
 [Whispered]
 Day two.
 
