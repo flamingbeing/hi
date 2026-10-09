@@ -31,7 +31,7 @@ The pressure's drifting low.
 [Pre-Chorus]
 [Toms build, rising melody]
 [Male vocal, climbing]
-A little metaraminol,
+A little phenylephrine,
 It comes back, then it slides,
 The heart rate starts to run away,
 And something turns inside.
@@ -59,7 +59,7 @@ Check the field and check the screen.
 
 Maybe something in the heart,
 Maybe something we can't see,
-But the metaraminol's not holding,
+But the phenylephrine's not holding,
 Second dose, then number three.
 
 Then the airway pressures climbing,
