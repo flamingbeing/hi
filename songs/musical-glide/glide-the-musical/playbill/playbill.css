@@ -127,3 +127,4 @@ img { display: block; max-width: 100%; }
 .backart img { width: 100%; border-radius: 6pt; margin-top: 0.3in; }
 .backline { font-family: 'Playfair Display', serif; font-style: italic; font-size: 24pt; color: var(--burgundy); margin-top: 18pt; line-height: 1.25; }
 .small { font-family: 'Inter', sans-serif; font-size: 7pt; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); margin-top: 16pt; }
+.portrait:empty{display:none}
