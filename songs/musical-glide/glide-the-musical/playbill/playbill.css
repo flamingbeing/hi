@@ -128,3 +128,27 @@ img { display: block; max-width: 100%; }
 .backline { font-family: 'Playfair Display', serif; font-style: italic; font-size: 24pt; color: var(--burgundy); margin-top: 18pt; line-height: 1.25; }
 .small { font-family: 'Inter', sans-serif; font-size: 7pt; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); margin-top: 16pt; }
 .portrait:empty{display:none}
+/* one cast member per page */
+.cast .castcard { flex-direction: column; gap: 8pt; }
+.cast .portrait { flex: none; }
+.cast .portrait img { width: 100%; max-height: 3.7in; object-fit: contain; border-radius: 6pt; }
+.cast .castbody h3 { font-size: 20pt; }
+.cast .castbody p { font-size: 11pt; }
+.notepage .note { font-size: 11.5pt; }
+.timeline img { margin-top: 1in; }
+.themespage .twocol { flex-direction: column; }
+.themespage .box ul { font-size: 10pt; }
+.themespage .motifs .mline { font-size: 10pt; }
+.map img { margin-top: .4in; }
+.map img { margin: 4pt auto 0; max-height: 6.4in; width: auto; }
+.timeline img { margin: 4pt auto 0; max-height: 6.6in; width: auto; }
+.mappage .caption { text-align: center; }
+.map img { height: 6.3in; }
+.timeline img { height: 6.6in; }
+.map, .timeline { position: relative; height: 6.3in; }
+.map img, .timeline img {
+  position: absolute; left: 50%; top: 50%; margin: 0; max-height: none; border: none;
+  transform: translate(-50%, -50%) rotate(90deg);
+}
+.map img { width: 6.2in; height: 3.47in; }
+.timeline img { width: 6.4in; height: 1.92in; }

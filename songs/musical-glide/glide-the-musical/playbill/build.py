@@ -85,8 +85,8 @@ for i, c in enumerate(C['cast']):
 
 
 cast_pages = ''.join(
-    f'<section class="page cast"><div class="kicker">Who&rsquo;s Who in the Kingdom</div>{"".join(cast_cards[i:i + 2])}<div class="folio"></div></section>'
-    for i in range(0, len(cast_cards), 2))
+    f'<section class="page cast"><div class="kicker">Who&rsquo;s Who in the Kingdom</div>{card}</section>'
+    for card in cast_cards)
 
 numbers = {1: [], 2: []}
 for s in C['songs']:
@@ -133,8 +133,11 @@ page = f'''<!doctype html>
   <div class="subsub">A Fairytale in Twelve Weeks</div>
   <div class="rule"></div>
   <div class="credits">{credits}</div>
-  <div class="rule"></div>
-  <h3 class="notehead">A Note from the Surgeon</h3>
+</section>
+
+<section class="page notepage">
+  <div class="kicker">From the Creator</div>
+  <h2>A Note from the Surgeon</h2>
   <div class="note">{paras(C["note_from_the_surgeon"])}</div>
 </section>
 
@@ -149,7 +152,11 @@ page = f'''<!doctype html>
   <div class="kicker">Time &amp; Place</div>
   <h2>Twelve Weeks in the Left Hand of Doctor Mae</h2>
   <div class="timeline">{svg("timeline.svg")}</div>
-  <h2 class="mt">Musical Numbers</h2>
+</section>
+
+<section class="page numberspage">
+  <div class="kicker">Running Order</div>
+  <h2>Musical Numbers</h2>
   <div class="numbers">
     <h4>Act One</h4><ol>{"".join(numbers[1])}</ol>
     <h4>Act Two</h4><ol>{"".join(numbers[2])}</ol>
@@ -163,6 +170,11 @@ page = f'''<!doctype html>
   <h2>Where It All Happens</h2>
   <div class="map">{svg("anatomy.svg")}</div>
   <p class="caption">The ring finger of Doctor Mae&rsquo;s left hand, side view. Zone II, between the start of the tunnel and Big Sister&rsquo;s anchor, is the No Man&rsquo;s Land of old Doctor Bunnell&rsquo;s map, and Scarlett&rsquo;s favourite haunt.</p>
+</section>
+
+<section class="page themespage">
+  <div class="kicker">Programme Notes</div>
+  <h2>Themes &amp; Tips</h2>
   <div class="twocol">
     <div class="box"><h4>Recurring Themes</h4><ul class="motifs">{motifs}</ul></div>
     <div class="box teal"><h4>From Thea&rsquo;s Clinic</h4><ul class="tips">{tips}</ul></div>
