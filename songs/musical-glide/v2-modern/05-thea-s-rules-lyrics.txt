@@ -1,14 +1,18 @@
-[Intro | THEA - warm brassy soul-pop alto | whistle, handclaps, TAP]
-Day three, the clinic,
+[Intro]
+[Female Vocal]
+Day three, the clinic, I'm Thea, my love,
 and the water bath is warm!
 Sit down, my love, hand on the towel,
 and wipe that glow off your face.
 
-[Stop | THEA - brassy alto, spoken | band out, one stab]
+[Break]
+[Female Vocal]
+[Soft]
 Stitched isn't healed, my love.
 Stitched is day two. Healed is January.
 
-[Verse 1 | THEA - brassy soul-pop alto, brisk, witty | synth bass, piano stabs]
+[Verse 1]
+[Female Vocal]
 I heard about the theatre lights,
 the strings, the soppy vows,
 six strands and a running stitch,
@@ -17,14 +21,14 @@ Lovely. Here's the boring bit:
 the space between that matters now
 is you and the tunnel wall, a drop of water wide.
 
-[Pre-Chorus | PROX - bright pop mezzo, wry | GLIDE shimmer]
-Not just together...
-[TIP - boyish pop tenor]
-...gliding?
-[PROX and TIP - harmony]
+[Pre-Chorus]
+[Choir]
+[Harmonies]
+Not just together... gliding?
 Not just together. Gliding.
 
-[Verse 2 | THEA - brassy alto, winking | glockenspiel, bubbling water]
+[Verse 2]
+[Female Vocal]
 Off with the plaster, the heavy old slab,
 it's had a lovely run.
 In goes the sheet to the water bath,
@@ -38,83 +42,90 @@ and an open road ahead.
 And this is my wand, my love:
 a goniometer. Nobody's ever impressed.
 
-[Cheer Break | MAE - dry woman's voice from above | stomps, snare roll]
-Dorsal blocking splint. I make my juniors spell it.
-[THEA - brassy alto]
-Go on, then.
-[HANDS-UP GIRLS - bubblegum girl-group trio]
+[Interlude]
+[Female Vocal]
+Dorsal blocking splint, my love!
+She makes her juniors spell it? Go on, then!
+
+[Chant]
+[Choir]
+[Shouted]
 D! O! R! S! A! L!
-[MAE - dry voice from above]
-And "blocking".
-[HANDS-UP GIRLS - cheer shouts]
 B! L! O! C...
-[THEA - brassy alto]
+
+[Interlude]
+[Female Vocal]
 We'll be here till January.
 
-[Chorus | THEA - brassy soul-pop alto | full band, handclaps, TAP]
-These are my rules!
-[GIRLS - bright echo]
-(Thea's rules!)
-[THEA - brassy alto]
-Move it early!
-[GIRLS - bright echo]
-(Move it early!)
-[THEA - brassy alto]
+[Chorus]
+[Female Vocal]
+These are my rules! (Thea's rules!)
+Move it early! (Move it early!)
 The good hand bends it down for you,
 place and hold, and then let go.
-[GIRLS - bright echo]
-(Place and hold, and then let go!)
-[THEA - brassy alto]
 Straight inside the splint, my love,
 but never, never past it!
 Every hour, ten of each!
-[ALL - gang vocals]
-Little and often! (Little and often!)
-Gentle and slow! (Gentle and slow!)
-Hand up high, never past the wall,
-these are the rules! (THEA'S RULES!)
 
-[Verse 3 | THEA - rapid-fire brassy alto | stop-time hits]
+[Post-Chorus]
+[Choir]
+Little and often! Gentle and slow!
+Place and hold, and then let go!
+Hand up high, never past the wall,
+these are the rules! Thea's rules!
+
+[Verse 3]
+[Female Vocal]
+[Fast]
 Hand above your heart!
-[MAE - dry voice from above]
-It's in a sling. It's fine.
-[THEA - brassy alto]
-Your heart, my love, not your belly button.
+"It's in a sling, it's fine," she says?
+Your heart, my love, not your belly button!
 Look round my waiting room:
 every hand held up like they've got a question.
-[HANDS-UP GIRLS - cheeky trio]
-(Ooh, ooh, Miss! Me, Miss!)
-[THEA - brassy alto]
-Swelling is glue!
-[GIRLS - bright echo]
-(Swelling is glue!)
-[MAE - dry voice]
-My old boss swore by rubber bands...
-[THEA - brassy alto]
-No more rubber bands, my love!
-[MAE - dry voice]
-I wrote the protocol!
-[THEA - brassy alto]
-I've read it. Ten more.
+
+[Hook]
+[Choir]
+Ooh, ooh, Miss! Me, Miss!
+
+[Verse 4]
+[Female Vocal]
+[Fast]
+Swelling is glue, my love! (Swelling is glue!)
+"My old boss swore by rubber bands"?
+No more rubber bands!
+"I wrote the protocol!" I've read it. Ten more.
 In here you're not the surgeon, my love.
 You're the hand.
 The operation took him forty minutes.
 The next twelve weeks are mine.
 
-[Verse 4 | KING PROFUNDUS - booming bass-baritone, rock swagger | low brass, timpani]
+[Verse 5]
+[Male Vocal]
+[Belted]
 Make way! The King of the Forearm!
 I'll close that finger in one almighty heave!
-[THEA - brassy alto]
+
+[Verse 6]
+[Female Vocal]
 Sit down, Your Majesty.
 Pull with a whisper, Your Majesty.
-[KING - booming bass]
-A... whisper?
-[THEA - brassy alto]
-Library voice, love. Every hour.
-[HANDS-UP GIRLS - teasing echo]
-(Pull with a whisper, Your Majesty!)
 
-[Bridge | THEA - warm alto, serious, half-time | strings, soft piano, drums out]
+[Verse 7]
+[Male Vocal]
+[Soft]
+A... whisper? Me? The King?
+
+[Verse 8]
+[Female Vocal]
+Library voice, love. Every hour.
+
+[Hook]
+[Choir]
+Pull with a whisper, Your Majesty!
+
+[Bridge]
+[Female Vocal]
+[Soft]
 Now hush, all of you. Listen.
 Day five to day twenty-one,
 the repair is the weakest
@@ -125,36 +136,45 @@ Sit still, and the walls send builders,
 and builders build every which way.
 Two ways to lose a tendon:
 tear it, or glue it.
-[PROX - bright pop mezzo, hushed]
-Tear it...
-[TIP - boyish tenor, hushed]
-...or glue it.
 
-[Break | THEA - brisk alto | TAP]
-(Tap, tap.)
-Anyone down there?
-[DIGBY - drawling deadpan baritone, distant]
-Ma'am, I'm on my way.
+[Bridge Echo]
+[Choir]
+[Whispered]
+Tear it... or glue it.
 
-[Shout Chorus | key change, THEA gospel belt | full band, strings]
-These are my rules!
-[ALL - stacked gang vocals]
-(Thea's rules!)
-Little and often! Gentle and slow!
+[Break]
+[Female Vocal]
+(Tap, tap.) Anyone down there?
+That's Digby, love, on his way.
+
+[Final Chorus]
+[Female Vocal]
+[Belted]
+These are my rules! (Thea's rules!)
 Place and hold, and then let go.
-Don't tear it! (Don't tear it!)
-Don't glue it! (Don't glue it!)
-Hand up high, never past the wall,
-these are the rules! (THEA'S RULES!)
-[THEA - gospel belt]
 Every hour! Ten of each!
+Sing it with me, Your Majesty!
 
-[Tag | MAE - dry voice from above, grudging laugh | held chord]
-Fine. FINE. Every hour.
-[THEA - warm alto]
+[Final Chorus]
+[Duet]
+Don't tear it! Don't glue it!
+Little and often, gentle and slow,
+hand up high, never past the wall,
+these are the rules! These are the rules!
+
+[Post-Chorus]
+[Choir]
+[Shouted]
+Little and often! Gentle and slow!
+These are the rules! Thea's rules!
+
+[Tag]
+[Female Vocal]
+And Mae says, "Fine. FINE. Every hour."
 Lovely.
 
-[Outro | THEA - brassy alto | stab-and-whistle button, TAP]
+[Outro]
+[Female Vocal]
 Ten more, my love.
 One... two...
 (Tap, tap.)

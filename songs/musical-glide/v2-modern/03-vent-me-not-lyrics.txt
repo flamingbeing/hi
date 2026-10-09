@@ -1,33 +1,40 @@
-[Intro | staccato strings, woodblock tick, piccolo flourish, stomp-clap]
-
-[Verse 1 | THE PULLEYS - two grand posh wobbling operatic sopranos and a dry deadpan alto, bouncy, crisp British diction]
+[Verse 1]
+[Choir]
 Day one, the finger tunnel,
 and the pulleys cannot sleep!
 Five little rings to hold her close,
 and a reputation to keep!
 
-[Patter 1 | A2 and A4 - posh wobbling operatic sopranos trading lines, rapid tongue-twister patter, scandalised]
+[Patter 1]
+[Female Vocal]
+[Fast]
+I'm A-four, my dear, and I'm load-bearing, actually!
 Have you heard? Have you HEARD?
 There's a surgeon in tomorrow!
 Oh, the horror! Oh, the scalpel!
 Oh, the sorrow, sorrow, sorrow!
-He may VENT us! (Vent us, dear?)
+He may VENT us! Vent us, sister?
 A little slit to let her through!
-A little slit in ME, my dear?
+A little slit in ME, A-two?
 Or a little slit in YOU?
 
-[Break | A1 - dry deadpan alto, flat half-spoken, bored, pizzicato plinks]
-Calm down. I'm A-one. I get cut every week.
+[Break]
+[Choir]
+[Monotone]
+Calm down, says A-one. I get cut every week.
 Tuesday. Trigger finger. Local. Again.
 At least it wasn't a rugby shirt.
 
-[Pre-Chorus | A2 and A4 - wobbling operatic sopranos, building, stomp-clap]
+[Pre-Chorus]
+[Female Vocal]
 And if he must, and if he MUST,
 then which of us? (Not me!)
 And if he must, and if he MUST,
 then which of us? (Not ME!)
 
-[Chorus | A2 and A4 - posh operatic sopranos ping-ponging, A1 deadpan echo, handclaps, big hook]
+[Chorus]
+[Female Vocal]
+[Belted]
 Vent me not! (Vent HER!)
 Not me, not me!
 Take a sliver off somebody else!
@@ -38,7 +45,9 @@ A-four, or a little of A-two, my dear,
 but NEVER both. We have standards!
 (We have STANDARDS!)
 
-[Patter 2 | A2 and A4 - wobbling operatic sopranos, faster, gasping, piccolo runs]
+[Patter 2]
+[Female Vocal]
+[Fast]
 Cut us both and off she sails,
 clean off the bone, a BOWSTRING! (Bowstring!)
 Every time the finger bends
@@ -46,17 +55,21 @@ she'd stand out like a harp string! (Twang!)
 Lifting off the bone in PUBLIC!
 Lifting off the bone in PUBLIC!
 Whatever would the knuckles say?
-(What WOULD the knuckles say?)
+What WOULD the knuckles say?
 
-[Post-Chorus | A2 and A4 - posh operatic sopranos, handclaps, quick hook]
+[Post-Chorus]
+[Female Vocal]
 Vent me not! (Vent HER!)
 Not me, not me!
 Take a sliver off somebody else!
 
-[Break | A3 AND A5 - two small sulky voices in flat unison, deadpan, triangle ping]
+[Break]
+[Choir]
+[Monotone]
 Nobody mentions us.
 
-[Verse 2 | TIP - warm boyish pop tenor, charming comic swagger, finger snaps, pop piano]
+[Verse 2]
+[Male Vocal]
 Evening, ladies. Tip.
 The fingertip's boy, from the end of the world.
 Through the sheath and past the-
@@ -68,7 +81,9 @@ Last stop on the line, top of the bill,
 every fist you've ever made
 finishes with me!
 
-[Bridge | TIP - light airy falsetto, half-time, soft and vulnerable, felt piano and strings]
+[Bridge]
+[Male Vocal]
+[Soft]
 But ladies, quick confession,
 now the tunnel's gone so still.
 I've never moved. Not once. Not by myself.
@@ -76,13 +91,19 @@ I only bend when Prox pulls.
 And she's up there in the palm,
 and I'm down here by A-four...
 
-[Break | A4 - posh wobbling operatic soprano, sympathetic coo, harp]
+[Break]
+[Female Vocal]
+[Soft]
 By ME? Oh, poor boy. Poor boy.
 
-[Bridge | TIP - light airy falsetto, scared, almost whispered]
+[Bridge]
+[Male Vocal]
+[Whispered]
 ...and I don't know the way to her.
 
-[Drop | A1 - dry deadpan alto as spooky narrator, half-time, sliding sub-bass, muted trumpet, finger snaps]
+[Drop]
+[Choir]
+[Whispered]
 On old Doctor Bunnell's map
 they call it No Man's Land.
 Zone Two, from the crease of the palm
@@ -90,27 +111,36 @@ to where Big Sister lands.
 Tight little tunnel, close little walls,
 and someone's moved in there.
 Her name is Scarlett Adhesion.
-(Scarlett Adhesion!)
-She moves into any space that stops moving.
-
-[Drop | THE PULLEYS - whispering trio, swung electro-swing hi-hat, sub-bass slide, spooky]
 Scarlett Adhesion...
 she moves into any space that stops moving.
 
-[Spoken | TIP - boyish pop tenor, trembling bravado]
+[Interlude]
+[Male Vocal]
 Then I'll just keep moving.
 
-[Spoken | A1 - dry deadpan alto, flat]
-You just said you can't.
+[Interlude]
+[Female Vocal]
+You just said you can't, dear.
 
-[Spoken | TIP - boyish tenor, tiny voice]
+[Interlude]
+[Male Vocal]
 ...Ah.
 
-[Final Chorus | THE PULLEYS and TIP - posh operatic sopranos, deadpan alto, boyish pop tenor, half-step key lift, gang vocals]
-So let the surgeon come tomorrow,
+[Pre-Chorus]
+[Male Vocal]
+Alright, A-four, I'll say it:
+so let the surgeon come tomorrow,
 let him fetch her from the palm,
+
+[Pre-Chorus]
+[Female Vocal]
+Oh, poor boy, I'll say it too:
 let him thread her back beneath us
 with his needle and his calm!
+
+[Final Chorus]
+[Duet]
+[Harmonies]
 Vent me not! (Vent HER!)
 Not me, not me!
 Take a sliver off somebody else!
@@ -121,16 +151,23 @@ A-four, or a little of A-two, my dear,
 but NEVER both. We have standards!
 (We have STANDARDS!)
 
-[Outro | A2 and A4 - huge wobbling operatic sopranos, three big orchestral hits, full stop]
+[Outro]
+[Female Vocal]
+[Belted]
 VENT... ME... NOT!
 
-[Spoken | A1 - dry deadpan alto, bored]
-(Vent A-four. She'll be fine.)
+[Tag]
+[Choir]
+[Monotone]
+Vent A-four. She'll be fine.
 
-[Spoken | A4 - posh wobbling operatic soprano, outraged]
+[Tag]
+[Female Vocal]
 How DARE you!
 
-[Spoken | A3 AND A5 - two small sulky voices in flat unison]
-(Nobody mentions us.)
+[Tag]
+[Choir]
+[Monotone]
+Nobody mentions us.
 
 [End]

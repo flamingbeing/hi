@@ -1,35 +1,37 @@
-[Intro | FIBROBLASTS - sassy breathy girl-group trio, finger snaps, sub-bass slide]
+[Intro]
+[Choir]
+[Whispered]
 Week three, week four,
 the kingdom's gone so quiet.
 (Shh... shh...)
+"Doing them every hour?"
+"Every hour."
+Mm-hm. She isn't.
 
-[Spoken | THEA - warm brassy alto, dry close-miked, from above]
-Doing them every hour, my love?
-[Spoken | MAE - dry close-miked woman, a beat too quick]
-Every hour.
-[Interlude | FIBROBLASTS - snickering echoes, chopped stabs]
-Every hour! (Every hour!)
-(Mm-hm. She isn't.)
-
-[Verse 1 | SCARLETT - smoky low contralto, slinky jazz-pop, breathy purr]
-The splint is on, the lights are low,
-and nobody's pulling tonight.
+[Verse 1]
+[Female Vocal]
+[Soft]
 Don't scream, darling. I'm nobody new.
 They call me Scarlett. Scarlett Adhesion.
 (Ad-he-sion!)
+The splint is on, the lights are low,
+and nobody's pulling tonight.
 Scar tissue, in the wrong place.
 Queen of No Man's Land.
 Any space that stops moving?
 Mine.
 
-[Pre-Chorus | SCARLETT - purring half-spoken contralto, walking bass, snaps]
+[Pre-Chorus]
+[Female Vocal]
 Every wound sends for me, darling.
 Healing needs me.
 Somebody has to hold it shut.
 (Somebody has to!)
 Might as well be me.
 
-[Chorus | SCARLETT - velvet growl, FIBROBLASTS harmonies, swung kick, sub-bass slide]
+[Chorus]
+[Female Vocal]
+[Harmonies]
 Hold still, hold still,
 nothing tears if nothing moves.
 (Shh... shh...)
@@ -39,67 +41,79 @@ Hold still, hold still,
 nothing tears if nothing moves.
 (Nothing tears! Nothing moves!)
 
-[Post-Chorus | FIBROBLASTS - chopped girl-group stabs, handclaps]
-Every which way! (Mm!)
-Every which way! (Mm!)
-[Ad-lib | SCARLETT - smoky purr over the girls]
-Lovely and thick, darling,
-[Post-Chorus | FIBROBLASTS - stacked stab]
-every which way!
+[Post-Chorus]
+[Choir]
+Every which way! Mm!
+Every which way! Mm!
 
-[Verse 2 | FIBROBLASTS - sassy girl-group patter, snickering, snaps]
+[Post-Chorus]
+[Female Vocal]
+Lovely and thick, darling,
+(every which way!)
+
+[Verse 2]
+[Choir]
 We're the builders from the walls,
 we clock on when the moving stops.
 Collagen, Type Three, Type Three,
 no plans, no ruler, no straight lines,
 crossways, sideways, any old how,
-(Ooh, lovely and thick!)
-[Verse 2 | SCARLETT - smoky aside, muted trumpet]
-Swelling's my advance guard, darling.
+ooh, lovely and thick!
+
+[Verse 3]
+[Female Vocal]
+Thank you, girls. Swelling's my advance guard, darling.
 Let that hand hang down by her side...
 Swelling is glue. And the glue is me.
 And that fairy with the wand?
 Twenty minutes, once a fortnight.
 I'm here all night.
 
-[Verse 3 | TIP - warm boyish pop tenor, soft, scared, airy falsetto]
-I heard the strands creak on the stairs.
+[Verse 4]
+[Male Vocal]
+[Soft]
+It's Tip... I heard the strands creak on the stairs.
 I've never moved by myself. Not once.
-[Verse 3 | SCARLETT - velvet contralto, tender and poisonous]
+
+[Verse 4]
+[Female Vocal]
 Then don't, darling.
 I'll hold you so tight you could never tear.
-[Verse 3 | TIP - boyish tenor, small, unsure]
-But Prox says every hour...
-[Verse 3 | SCARLETT - soft purr]
-And look what moving did on Day Ten.
-[Verse 3 | FIBROBLASTS - snickering trio]
+
+[Verse 4]
+[Male Vocal]
+[Soft]
+Scarlett, but Prox says every hour...
+
+[Verse 4]
+[Female Vocal]
+Oh, Tip. Look what moving did on Day Ten.
 (Ooh. Awkward.)
 
-[Verse 4 | SCARLETT - silky contralto, mock curtsey, trombone growl]
+[Verse 5]
+[Female Vocal]
 And you, up in your castle,
 you nearly tore her, Your Majesty.
+"I felt her stretch," he says, "I felt her creak."
+You swore it on the stairs, Your Majesty:
+"No pull at all. Not even a whisper."
 Never pull again.
-[Verse 4 | KING PROFUNDUS - booming bass-baritone, broken, gruff tenderness]
-I felt her stretch. I felt her creak.
-I swore it on the stairs.
-No pull at all.
-Not even a whisper.
-[Verse 4 | SCARLETT - satisfied purr]
 Never pull again, Your Majesty.
 
-[Verse 5 | SCARLETT - sung upward, menacing purr]
+[Verse 6]
+[Female Vocal]
 And you, up there, with your phone light on,
 reading your own old papers at three a.m.
 (Page nine. The rupture rates.)
 You of all people know what a rupture costs.
 Back to theatre. Graft. Two stages.
+"Just tonight," she says.
 Hold still, Doctor.
-[Spoken | MAE - dry close-miked woman, tired, from above]
-...Just tonight.
-[Verse 5 | SCARLETT - whispered triumph, finger snaps]
 Hold still, Doctor.
 
-[Bridge | SCARLETT - rubato contralto, nostalgic strings, no drums]
+[Bridge]
+[Female Vocal]
+[Soft]
 Three weeks in plaster, those were the days...
 And those darling rubber bands,
 a hook on the nail and a band to the wrist,
@@ -107,23 +121,29 @@ they kept you curled so sweetly,
 curled up stiff for the rest of your life...
 Now it's all "early active motion",
 six strands, a therapist, a little plastic wand...
-[Bridge | SCARLETT - spoken aside, beat slams back]
 Movement, darling! How vulgar.
-[Bridge | FIBROBLASTS - chopped stab]
 (How vulgar!)
 
-[Verse 6 | TIP - fading boyish tenor, breathy falsetto]
+[Verse 7]
+[Male Vocal]
+[Soft]
 Just for a while, Prox.
 Just till I'm brave.
 Just for a while...
-[Verse 6 | FIBROBLASTS - hypnotic girl-group harmony]
+
+[Verse 7]
+[Choir]
 Round and round, to the tunnel wall,
 round and round, to the tunnel wall.
-[Verse 6 | SCARLETT - close and cruel, low contralto]
+
+[Verse 7]
+[Female Vocal]
 There won't be any space between.
 I'll fill it, darling.
 
-[Final Chorus | SCARLETT - darkest velvet growl, FIBROBLASTS, heavy half-time drop]
+[Final Chorus]
+[Female Vocal]
+[Harmonies]
 Hold still, hold still,
 nothing tears if nothing moves.
 (Shh... shh...)
@@ -133,14 +153,16 @@ Hold still, hold still,
 nothing tears if nothing moves.
 (Every which way... every which way...)
 
-[Outro | PROX - bright mezzo, desperate, bare sub-bass]
-Papa, pull! Gently, please!
-[Outro | KING PROFUNDUS - low bass-baritone, ashamed]
-I swore.
-[Outro | PROX - bright mezzo, small, alone]
+[Outro]
+[Choir]
+[Whispered]
 Tip?
 ...Tip?
 
-[Silence]
+[Outro]
+[Female Vocal]
+[Whispered]
+That's your Prox calling, darling.
+Don't answer.
 
-[End | single held low sub note, fade]
+[End]

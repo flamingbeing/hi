@@ -1,28 +1,37 @@
-[Intro | ENSEMBLE, punchy gang vocals, driving piano, bright]
+[Intro]
+[Choir]
 Day ten. The skin stitches came out today.
 The tendon ones never will.
-(Hey!)
+Hey!
 
-[Verse 1 | PROX, bright witty mezzo, conversational, harp shimmer]
+[Verse 1]
+[Female Vocal]
 Every hour Papa pulls a little way,
 and Tip comes gliding home.
 Straight inside the splint and never past it.
-Honestly? I could do this in my sleep.
-(Don't do it in your sleep!)
+I'm Prox, and honestly? I could do this in my sleep.
 
-[Verse 2 | TIP, boyish pop tenor, charming comic delivery, palm-muted guitars]
-Six strands, as promised, neat and tight.
-Theirs came out. Mine stay in. I'm told that's normal.
-I've never felt so well dressed
+[Interlude]
+[Choir]
+Don't do it in your sleep!
+
+[Verse 2]
+[Female Vocal]
+Tip says, "Six strands, as promised, neat and tight.
+Theirs came out. Mine stay in. I'm told that's normal."
+He's never felt so well dressed
 for a bit that pokes the phone.
 
-[Pre-Chorus | ENSEMBLE, rimshot-glockenspiel ticks, building]
+[Pre-Chorus]
+[Choir]
 One, and hold. Two, and rest.
 One, and hold. Two, and rest.
 Day five to twenty-one, the weakest days,
 so gently, gently...
 
-[Chorus | PROX and ENSEMBLE, big drums, stacked harmonies, bright]
+[Chorus]
+[Female Vocal]
+[Harmonies]
 Papa pulls, and Tip comes too,
 and I count for both of us!
 Every hour! (Every hour!)
@@ -32,118 +41,144 @@ Hand up high, and never past the wall,
 ten days old and on the mend,
 and frankly, I'm a natural!
 
-[Build | MAE, dry woman's voice, rushed, close-miked]
-Wren! Shoes! We're late! Stairs, carefully!
+[Build]
+[Choir]
+Mae calls, "Wren! Shoes! We're late!
+Stairs, carefully!"
 
-[Pre-Chorus | ENSEMBLE chant, stomps, rising, urgent]
+[Pre-Chorus]
+[Choir]
+[Belted]
 Day ten, the stairs, the girl, the grab!
 Day ten, the stairs, the girl, the grab!
 
-[Break | full-band hit, WREN, small child's voice, spoken]
-Mum!
-
-[Break | ENSEMBLE, shouted gang vocals, brass stab]
+[Break]
+[Choir]
+And the little girl cries "Mum!"
 She grabs the girl with the splinted hand!
 
-[Chorus | KING PROFUNDUS, booming bass-baritone, power chords, ecstatic]
-I've got the girl! I've got the girl!
+[Chorus]
+[Male Vocal]
+[Belted]
+I've got the girl! Your father's got her!
 Every fibre, every ounce!
 I've got the girl! I've got the girl!
 
-[Response | PROX, mezzo, huge chest belt, desperate]
+[Response]
+[Female Vocal]
+[Belted]
 Not like that, Papa!
-
-[Response | PROX and TIP, high together, strings straining]
 Too hard! We're ten days old!
 
-[Instrumental | straining string glissando, whispered ENSEMBLE, single drum hit]
+[Instrumental]
+[Choir]
+[Whispered]
 Six strands creak...
 ...and hold. Just.
 
-[Break | WREN, small child's voice, spoken, dry]
-I'm okay.
+[Break]
+[Female Vocal]
+[Soft]
+And Tip, so small, says, "Still here. Ow."
 
-[Break | TIP, boyish tenor, soft, shaky]
-Still here. Ow.
-
-[Night | half-time, low synth pulse, ENSEMBLE hushed]
+[Night]
+[Choir]
+[Soft]
 Day ten, the night, and no one sleeps.
 
-[Night | KING PROFUNDUS, bass-baritone, broken, gruff]
-I nearly tore her.
+[Night]
+[Male Vocal]
+[Soft]
+I nearly tore her, my Prox.
 I will never pull again.
 
-[Night | TIP, boyish tenor, vulnerable, scared]
-Don't move me. I'm scared.
+[Night]
+[Female Vocal]
+We have to move, Papa.
+Every hour, Thea said.
+Gently. Every hour. Tear it, or glue it.
+But Tip says, "Don't move me. I'm scared."
 
-[Night | PROX, mezzo, breathy, pleading]
-We have to move.
-Every hour, she said.
+[Night]
+[Male Vocal]
+Never again, my girl.
+Your papa will not pull.
 
-[Night | THEA, brassy soul-pop alto, distant echo]
-Gently. Every hour.
-Tear it, or glue it.
+[Night]
+[Female Vocal]
+[Whispered]
+Tip, keep going. Through the sheath, past the...
+One line, Tip, one line...
+He says, "I can't remember the end."
 
-[Night | KING PROFUNDUS, bass-baritone, quiet, stubborn]
-Never again.
-
-[Night | TIP, airy falsetto, fading]
-Through the sheath... past the...
-
-[Night | PROX, mezzo, urgent whisper]
-Tip, keep going. One line...
-
-[Night | TIP, boyish tenor, lost]
-I can't remember the end.
-
-[Verse 3 | MAE, soft untrained alto, tired, dry close-miked]
+[Verse 3]
+[Choir]
+[Soft]
 Ten o'clock, the kettle's cold,
 the hand is throbbing, propped up high.
-I nearly snapped it on the stairs.
-Maybe I'll skip them tonight.
-Hold still.
+She nearly snapped it on the stairs,
+and Mae says, "Maybe I'll skip them tonight. Hold still."
 
-[Hush | SCARLETT, smoky low contralto, breathy purr, sliding sub-bass, finger snaps]
+[Hush]
+[Choir]
+[Whispered]
 Hold still, hold still,
 nothing tears if nothing moves.
 Hold still, hold still,
 nothing tears if nothing moves.
 
-[Hush | PROX, mezzo, frightened, spoken]
-Who's there? That's No Man's Land.
+[Hush]
+[Female Vocal]
+[Soft]
+Tip, who's there? That's No Man's Land.
+And Tip just murmurs, "She sounds kind."
 
-[Hush | TIP, boyish tenor, drowsy, soft]
-She sounds kind.
-
-[Pre-Chorus | PROX, mezzo, quiet resolve, kick rebuilding, synth arpeggio]
+[Pre-Chorus]
+[Female Vocal]
 Papa won't pull. Tip won't move.
 Mae's turned the light out, hand on a pillow.
 Fine. Fine.
 Somebody round here has to count.
 
-[Final Chorus | key change, PROX huge chest belt, stacked call-and-echo ENSEMBLE, full band]
-If you won't pull, and he won't move,
+[Final Chorus]
+[Female Vocal]
+[Belted]
+If you won't pull, Papa, and he won't move,
 then I'll count for both of us!
-Every hour! (Tear?) Every hour! (Or glue?)
+Every hour! Every hour!
 One, and hold, two, and rest,
 every hour!
 
-[Final Chorus | KING PROFUNDUS, booming bass-baritone, stubborn]
-Never!
+[Call]
+[Choir]
+Tear? Or glue?
 
-[Final Chorus | TIP, airy falsetto, scared]
-Don't move me!
+[Final Chorus]
+[Male Vocal]
+[Belted]
+Never! Never, my Prox!
 
-[Final Chorus | SCARLETT, smoky low contralto, velvet purr]
+[Final Chorus]
+[Female Vocal]
+Papa, please! And Tip begs, "Don't move me!"
+
+[Final Chorus]
+[Choir]
+[Whispered]
 Hold still...
 
-[Final Chorus | PROX, mezzo, massive sustained belt, driving guitars]
-One, and hold! (Tear?) Two, and rest! (Or glue?)
+[Final Chorus]
+[Female Vocal]
+[Belted]
+One, and hold! Two, and rest!
 I said I'd do it in my sleep,
 so nobody's sleeping!
 Ten days old, and I can count to ten!
 Eeev-ery hour!
 
-[Outro | unresolved cliffhanger chord, abrupt cut]
-(Tear?)
-(Or glue?)
+[Outro]
+[Choir]
+Tear?
+Or glue?
+
+[End]

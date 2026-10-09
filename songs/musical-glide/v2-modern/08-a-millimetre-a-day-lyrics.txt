@@ -1,7 +1,9 @@
-[Intro | whistled hook, stomp-clap, acoustic strum, TAP double tick]
+[Intro]
+[Choir]
 (Tap, tap.)
 
-[Verse 1 | DIGBY - laid-back drawling comic baritone, light country twang, deadpan talk-singing]
+[Verse 1]
+[Male Vocal]
 Week four, and the tingle's on the move.
 Name's Digby. Digital nerve.
 My side of the family's ulnar.
@@ -11,12 +13,14 @@ with a thread finer than a hair.
 Packed a bag, no sat-nav,
 I'll get there when I get there.
 
-[Pre-Chorus | DIGBY - drawling baritone, deadpan, walking upright bass, claps building]
+[Pre-Chorus]
+[Male Vocal]
 The old wires downstream packed up and left,
 but they left me the tunnels,
 so I'm following the signs.
 
-[Chorus | DIGBY - drawling comic baritone, gang "hey!", stomp-clap, whistle answers]
+[Chorus]
+[Male Vocal]
 A little further every day, (tap, tap!)
 a millimetre, more or less. (Hey!)
 You can't rush a nerve, my friend.
@@ -24,36 +28,53 @@ I'd only get lost. (He'd only get lost!)
 A little further every day, (tap, tap!)
 a millimetre, more or less. (Hey!)
 
-[Post-Chorus | ENSEMBLE - gang vocals, whistled hook, TAP]
+[Post-Chorus]
+[Choir]
 Ooh, more or less! (Tap, tap!)
 Ooh, more or less! (Hey!)
 
-[Verse 2 | THEA - warm brassy soul-pop alto, brisk witty delivery, laughter in the voice]
-Every week I tap from the fingertip
+[Verse 2]
+[Female Vocal]
+It's Thea, my love. Every week I tap from the fingertip
 back towards the scar,
 and where he tingles, that's how far.
 (Tap, tap.) Tingle there?
-[Verse 2 | DIGBY - deadpan drawling baritone]
-Not yet, ma'am.
-[Verse 2 | THEA - brassy alto, teasing]
-(Tap, tap.) There?
-[Verse 2 | DIGBY - deadpan drawling baritone]
-Not yet, ma'am.
-[Verse 2 | THEA - brassy alto, laughing]
-(Tap, tap.) There?
-[Verse 2 | DIGBY - drawling baritone, suddenly delighted]
-Ooh! That's me! That's ME!
-[Verse 2 | THEA - warm brassy soul-pop alto]
-Tee-nell's sign, my love. He's moving.
-Write it down. He's moving!
 
-[Chorus 2 | DIGBY - drawling comic baritone, slide guitar licks, handclaps, whistle answers]
-A little further every day, (tap, tap!)
+[Response]
+[Male Vocal]
+Not yet, ma'am.
+
+[Call]
+[Female Vocal]
+(Tap, tap.) There, my love?
+
+[Response]
+[Male Vocal]
+Not yet, ma'am.
+
+[Call]
+[Female Vocal]
+(Tap, tap.) There?
+
+[Response]
+[Male Vocal]
+Ooh! That's me! That's ME!
+
+[Call]
+[Female Vocal]
+[Belted]
+Tee-nell's sign, my love. Write it down.
+He's moving. He's moving!
+
+[Chorus 2]
+[Male Vocal]
+Thank you, ma'am! A little further every day, (tap, tap!)
 a millimetre, more or less. (Hey!)
 Tap, tap, that's the front of me.
 The rest of me's a guess.
 
-[Verse 3 | DIGBY - drawling deadpan baritone, half-spoken postcards, banjo picking]
+[Verse 3]
+[Male Vocal]
 Postcard from the middle bone:
 weather's numb, wish you could feel it here.
 Next stop, the last joint.
@@ -62,26 +83,31 @@ Ice lollies? Hateful, all winter.
 Lucky it's November.
 Cousin took a wrong turn at a scar once.
 Neuroma now. We don't talk about him.
-[Verse 3 | THEA - brisk brassy alto, paperclip on the pulp]
+
+[Interlude]
+[Female Vocal]
+Paperclip on the pulp, my love.
 Two points. Five millimetres?
-[Verse 3 | DIGBY - deadpan drawl]
-Ask me next year.
+
+[Verse 3 Tag]
+[Male Vocal]
+Ask me next year, Thea.
 Not heard from Tip in a fortnight.
 Quiet lad, these days.
 
-[Bridge | WREN - small bright child's voice, dry close-miked, from above]
-I'll do the bagel, Mum. On the board.
-[Bridge | MAE - warm dry adult woman's voice, half-spoken, close-miked, long pause first]
-...Go on, then.
-[Bridge | DIGBY - drawling baritone, strings and harp sneaking in]
-Up above, the little one's got the knife,
-the bagel flat upon the board,
-and Mae said, "Go on, then,"
-and sat on her right hand, just in case.
+[Bridge]
+[Male Vocal]
+[Soft]
+Up above, the little one says,
+"I'll do the bagel, Mum. On the board,"
+and Mae says, "Go on, then,"
+and sits on her right hand, just in case.
 And Teo's doing Mae's Tuesday list.
 She's taking it well. (She's not.)
 
-[Chorus 3 | DIGBY - drawling baritone, warmer, full strings, harp glissando, stacked harmonies]
+[Chorus 3]
+[Male Vocal]
+[Harmonies]
 A little further every day, (tap, tap!)
 a millimetre, more or less. (Hey!)
 From the scar down to the fingertip,
@@ -89,33 +115,48 @@ it's a long old space between.
 A little further every day, (tap, tap!)
 a millimetre, more or less. (Hey!)
 
-[Verse 4 | DIGBY - drawling baritone, band drops out, solo acoustic guitar and harp, minor key]
+[Verse 4]
+[Male Vocal]
+[Soft]
 Six weeks, the splint comes off.
 The whole hand holds its breath.
-[Verse 4 | THEA - warm brassy alto, soft and gentle, close-miked]
-Make a fist for me.
+And Thea leans in close and says,
 
-[Stop | complete silence, one held string note]
+[Call]
+[Female Vocal]
+[Soft]
+Make a fist for me, my love.
+Slowly now. Make a fist for me.
 
-[Verse 5 | DIGBY - drawling baritone, very quiet, deadpan gone, harp and low strings]
-Splint off, Thea says pull,
+[Verse 5]
+[Male Vocal]
+[Soft]
+Right you are, Thea. Splint off, she says pull,
 and the King, for once, does as he's told.
 Even the King pulls. Prox pulls.
 Tip won't come.
 The fingertip won't bend.
 And middle and little stop short beside her,
 calling up the arm.
-[Verse 5 | MIDDLE AND LITTLE - two small distant girls' voices in unison, echoing]
+
+[Echo]
+[Choir]
+[Soft]
 (Why can't WE close, Father?)
-[Verse 5 | DIGBY - quiet baritone, half-spoken]
+
+[Verse 5 Tag]
+[Male Vocal]
+[Soft]
 Oh.
 ...I'll just keep driving, then.
+Down in the palm, Prox sings my road song back, slow...
 
-[Outro | PROX - bright contemporary musical-theatre mezzo-soprano, breathy tenderness, alone, slow, minor, solo harp, no whistle]
+[Outro]
+[Choir]
+[Soft]
 A little further every day,
 a millimetre, more or less.
 A little further every day...
 a millimetre... more or less.
 
-[End | silence, then one last lonely rimshot tick]
-(Tap.)
+[End]

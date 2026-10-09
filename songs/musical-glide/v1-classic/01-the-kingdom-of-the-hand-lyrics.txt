@@ -1,8 +1,11 @@
-[Intro | 6/8 pastoral, harp glissando, legato clarinet, hushed chorus, morning light]
+[Intro]
+[Choir]
+[Soft]
 A Tuesday in October, a quarter to eight,
 in the left hand of Doctor Mae...
 
-[Verse 1 | CHORUS - big warm mixed chorus, lilting 6/8, swelling strings, celesta]
+[Verse 1]
+[Choir]
 We're the holding hand, the holding hand!
 We hold the coffee and the phone,
 we hold the wheel, and we hold Wren
@@ -13,43 +16,56 @@ the proudest hand in all the land!
 She says "Make a fist for me. Now open."
 to a thousand hands!
 
-[Verse 2 | KING PROFUNDUS - booming regal bass-baritone, rich vibrato, low brass, timpani]
-High in my forearm castle
-I rule the only way I know:
-I am King Profundus,
-and I PULL, and the fingers close!
+[Verse 2]
+[Choir]
+[Belted]
+High in the forearm castle
+rules King Profundus, and he PULLS,
+and the fingers close!
 Three daughters on one muscle,
-and the ring one is my pride.
-I have never let one go...
+and the ring one is his pride.
+He has never let one go...
 
-[Pre-Chorus | CHORUS - glockenspiel sparkle, building, dancing flutes]
+[Pre-Chorus]
+[Choir]
 Down the ring finger, side by side,
 the King's own daughter and the fingertip's boy,
 Proxantip! Proxantip!
 So long together they forgot that they were two!
 
-[Chorus | PROX and TIP in unison - bright young mezzo and gentle lyric tenor as one voice, harp glissando into legato clarinet]
+[Verse 3]
+[Female Vocal]
+I'm Prox, the King's own girl, the puller in the palm,
+and where I go, my Tip goes too.
+
+[Verse 4]
+[Male Vocal]
+I'm Tip, the fingertip's boy, at the end of the world,
+and I only bend when Prox pulls through.
+
+[Chorus]
+[Duet]
+[Harmonies]
 Through the sheath and past the pulleys,
 one line from the elbow to the fingertip.
 
-[Verse 3 | CHORUS - march begins, pizzicato strings, woodwind countermelody]
+[Verse 5]
+[Choir]
 Big Sister splits and hugs her from beneath,
-and the pulleys hold her down!
+and the pulleys hold her to the bone,
+or else she'd bowstring!
+And Lumbo, the little worm nobody thanks,
+and Digby, ulnar side, who feels everything!
 
-[Interlude | THE PULLEYS - two grand wobbling dowager sopranos, operetta trill]
-We hold her to the bone, or else she'd bowstring!
-
-[Interlude | LUMBO - quick nasal comic tenor, fretful patter]
-Lumbo! Nobody knows what I do!
-
-[Interlude | DIGBY - dry drawling comic baritone, country twang, deadpan]
-Ulnar side. I feel everything.
-
-[Chorus | PROX and TIP in unison - mezzo and tenor as one voice, harp glissando, legato clarinet, full strings]
+[Chorus]
+[Duet]
+[Harmonies]
 Through the sheath and past the pulleys,
 one line from the elbow to the fingertip.
 
-[Verse 4 | CHORUS - bright stomping march, ringing French horns, 112 BPM, proud and comic]
+[Verse 6]
+[Choir]
+[Belted]
 And every patient, every Christmas,
 she shows the photos on her phone:
 never the avocado,
@@ -59,40 +75,47 @@ she says it slow, she says it twice:
 never the avocado,
 never the bagel in your palm!
 
-[Break | MAE - warm adult woman, dry close-miked, half-spoken, rushing]
-Wren, hold still! Sun cream!
-Shoes on! Teeth! Book bag!
+[Verse 7]
+[Choir]
+[Fast]
+She says, "Wren, hold still! Sun cream!
+Shoes on! Teeth! Book bag!"
+Wren says, "I can cut it! On my own!"
+"Knives are sharp. Give it here, you'll be late."
 
-[Break | WREN - small bright child's voice, spoken]
-I can cut it!
-On my own!
-
-[Break | MAE - dry close-miked, half-spoken, distracted]
-Knives are sharp. Give it here, you'll be late.
-
-[Verse 5 | CHORUS - hushed and tense, ticking pizzicato, slowing clarinet, thinning strings]
+[Verse 8]
+[Choir]
+[Soft]
 And she holds the bagel in her palm,
 the ring finger curled around,
 the clock on the wall, the knife in her right,
 the bread knife sawing down...
-(never the bagel... never the bagel...)
+never the bagel... never the bagel...
 
-[Final Chorus | PROX and TIP in unison - bright, unaware, harp rising, cut off]
+[Final Chorus]
+[Duet]
 Through the sheath and past the pulleys,
 one line from the elbow to the-
 
-[Stop | sudden full stop, dead silence]
+[Stop]
 
-[Break | tense string tremolo, PROX - small frightened mezzo, alone]
-Tip?
+[Verse 9]
+[Female Vocal]
+[Whispered]
+Tip? ...Tip? Tip, it's Prox!
 
-[Break | TIP - lyric tenor, far away, frightened]
-Prox?
+[Verse 10]
+[Male Vocal]
+[Soft]
+Prox? ...Prox! It's me, it's Tip!
 
-[Break | KING PROFUNDUS - booming bass-baritone roar, crashing low brass, timpani]
-Come home! Come home!
+[Chant]
+[Choir]
+[Belted]
+And the King roars, "Come home! Come home!"
 
-[Verse 6 | CHORUS - urgent, string tremolo, falling strings, timpani rolls]
+[Verse 11]
+[Choir]
 The King hauls back his daughter,
 he drags her to the palm,
 and as Mae opens up her hand
@@ -100,18 +123,21 @@ Tip slides away, away,
 down, down the finger
 to the end of the world.
 
-[Break | DIGBY - dry drawling baritone, faint, deadpan]
-Half of me's gone quiet.
+[Bridge]
+[Choir]
+[Whispered]
+And Digby whispers, half of me's gone quiet.
+She looks at the cascade, holds the middle joint,
+bends the tip... nothing.
 
-[Break | MAE - half-sung through her teeth, dry close-miked, steady]
-Look at the cascade.
-Hold the middle joint. Bend the tip.
-...Nothing.
-
-[Break | CHORUS - stabbing brass, alarmed, full voices]
+[Chant]
+[Choir]
+[Belted]
 Zone Two! No Man's Land!
 
-[Outro | MAE - spoken, dry, close-miked, weary, string tremolo, unresolved chord]
-Of course it's Zone Two.
+[Outro]
+[Choir]
+[Soft]
+And Mae says, "Of course it's Zone Two."
 
 [End]

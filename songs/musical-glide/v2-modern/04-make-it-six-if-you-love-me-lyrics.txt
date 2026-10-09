@@ -1,137 +1,202 @@
-[Intro | Fingerpicked guitar | Monitor-beep tick | Hushed 6/8]
+[Intro]
+[Choir]
+[Soft]
 (Ooh... ooh...)
 
-[Verse 1 | DR. TEO - calm warm low baritone, half-sung | Close-miked, dry | Unhurried]
+[Verse 1]
+[Choir]
+[Soft]
 Day two, the theatre lights,
 and Mae is wide awake.
 No tourniquet, no sleep,
 just a needle of local and a steady hand.
-
-[Spoken | MAE - warm dry adult woman's voice, close-miked | Deadpan]
-They cut my ring off in A and E.
-[DR. TEO - calm low baritone, spoken]
-Standard.
-
-[Verse 2 | DR. TEO - calm low baritone, half-sung | Felt piano | Harp plucks]
-I draw a lightning bolt along the finger,
-zig, then zag, the way you taught me.
-[MAE - warm dry adult woman's voice, close-miked, spoken]
-Bigger.
-[DR. TEO - patient, spoken]
-Mae.
-[DR. TEO - calm low baritone, half-sung]
-A little window in the palm,
+Teo, the boy she trained, draws a lightning bolt,
+zig, then zag, the way she taught him,
+a little window in the palm,
 and there she is, the King's girl, waiting in the dark.
 
-[Verse 3 | PROX - bright mezzo-soprano, breathy wonder | Strings enter | Conversational]
-Okay. Something's got me. Gentle. Slow.
+[Verse 2]
+[Female Vocal]
+Okay. Something's got me...
+it's me, Prox, going down. Gentle. Slow.
 A slim little tube, and I'm going down,
-[DR. TEO - dry aside, close-miked]
+
+[Interlude]
+[Choir]
+[Whispered]
 (Borrowed from the children's ward.)
-[PROX - bright mezzo, amazed, witty]
+
+[Verse 2 Continued]
+[Female Vocal]
 under the pulleys, mind your heads,
 a needle pins me like a butterfly,
 so Papa can't reel me back to the palm.
 Sorry, Papa. Not today.
 
-[Spoken | DR. TEO - calm low baritone, puzzled | Close-miked | Harp shimmer]
+[Interlude]
+[Choir]
+[Soft]
 Now where's the other end?
-Let me bend the tip down for you, Mae...
+Bend the tip down for him, Mae...
 There you are. You ran.
 
-[Verse 4 | TIP - warm boyish pop tenor, comic | Guitar strum lifts | Bright]
+[Verse 3]
+[Male Vocal]
 I didn't run, I slid! Big difference!
 Tip. Fingertip. End of the world. Hi.
 We've been married since before
 she learned to crawl.
 Prox? You came the whole way down?
-[PROX - bright mezzo, warm belt-mix, laughing through tears]
+
+[Verse 3 Reply]
+[Female Vocal]
 Through No Man's Land, Tip. I said I would.
-[TIP - boyish tenor, cheeky]
+
+[Verse 3 Joke]
+[Male Vocal]
 You've got a needle through you.
-[PROX - mezzo, dry]
+
+[Verse 3 Answer]
+[Female Vocal]
 It's a look.
 
-[Pre-Chorus | MAE and DR. TEO - dry voices from above | Heartbeat kick builds]
-[MAE - warm dry adult woman's voice, close-miked, spoken]
-Four strands, Teo.
-[DR. TEO - calm baritone, spoken]
-Four's the minimum.
-[TIP - boyish pop tenor, cheeky falsetto flick]
-Make it six, if you love me.
-[DR. TEO - amused, spoken]
+[Pre-Chorus]
+[Female Vocal]
+And Mae says, "Four strands, Teo,"
+and Teo says, "Four's the minimum."
+
+[Pre-Chorus Reply]
+[Male Vocal]
+Make it six, if you love me!
+
+[Pre-Chorus End]
+[Choir]
 Six, then.
 
-[Chorus | PROX and TIP - mezzo and boyish tenor, close pop harmony | Full band | Strings swell]
+[Chorus]
+[Duet]
+[Harmonies]
 One for the morning, one for the dark,
 one for the kettle, one for the car,
 one for the phone, and one for Wren,
 make it six, make it six, if you love me.
-[DR. TEO - calm low baritone, half-sung]
+
+[Chorus Bridge]
+[Choir]
 And a running stitch around the edge,
-[PROX and TIP - stacked harmony]
+
+[Chorus End]
+[Duet]
 so nothing catches on the way.
-[TIP - light airy falsetto tag]
+
+[Post-Chorus]
+[Male Vocal]
+[Soft]
 (Make it six... make it six, if you love me.)
 
-[Verse 5 | PROX - mezzo, breathy tenderness | Band drops to felt piano | Intimate]
-I never knew that we were two
+[Verse 4]
+[Female Vocal]
+[Soft]
+Tip, I never knew that we were two
 until there was a space between.
-[TIP - boyish tenor, airy falsetto]
-Now there's barely a space between,
-[PROX and TIP - close harmony]
+
+[Verse 4 Reply]
+[Male Vocal]
+[Soft]
+Prox, now there's barely a space between,
+
+[Verse 4 Together]
+[Duet]
 three millimetres, never more.
-[TIP - boyish tenor, spoken, worried]
+
+[Verse 4 Joke]
+[Male Vocal]
 Three millimetres. Is that a lot?
-[PROX - mezzo, fond, spoken]
+
+[Verse 4 Answer]
+[Female Vocal]
 It's a gap, Tip. Not a divorce.
 
-[Breakdown | DR. TEO - calm low baritone, half-spoken | Held breath | Pizzicato tick]
+[Breakdown]
+[Choir]
+[Whispered]
 Make a fist for me.
-[Sudden string catch | Silence]
-[PROX and TIP - tense whisper]
-Hang on! We're caught on the edge of A-four!
-[THE PULLEYS - A2, grand posh wobbling operatic soprano, relieved gasp]
-Only A-four! Spare the A-two!
-[A4 - posh operatic soprano, wounded]
-I KNEW it.
-[DR. TEO - dry gentle humour]
-Just a sliver.
-Again. Make a fist for me.
-[Closing string chord]
-[MAE - warm dry adult woman's voice, close-miked, soft untrained sung alto, softer]
-I've said that to a thousand patients.
-[DR. TEO - calm baritone, kind]
-Then you know the next bit.
-Now open.
-[Single open harp arpeggio]
-[MAE - warm dry adult woman's voice, close-miked, astonished whisper]
-Oh. There it is.
 
-[Final Chorus | PROX and TIP - pop-belt mezzo and airy tenor, two-part harmony | Key change up | GLIDE shimmer into soaring strings | Wordless choir]
+[Breakdown Cry]
+[Duet]
+[Whispered]
+Hang on! We're caught on the edge of A-four!
+
+[Breakdown Choir]
+[Choir]
+Only A-four! Spare the A-two!
+I KNEW it.
+Just a sliver. Again.
+Make a fist for me.
+
+[Breakdown Her]
+[Female Vocal]
+[Soft]
+Mae says, "I've said that to a thousand patients."
+
+[Breakdown Him]
+[Male Vocal]
+[Soft]
+And Teo says, "Then you know the next bit...
+Now open."
+
+[Breakdown Release]
+[Female Vocal]
+[Whispered]
+And Mae breathes, "Oh. There it is."
+
+[Final Chorus]
+[Duet]
+[Harmonies]
 Through the sheath and past the pulleys,
 one line from the elbow to the fingertip.
+
+[Final Chorus Swell]
+[Choir]
 (Ooh...)
+
+[Final Chorus Main]
+[Duet]
+[Harmonies]
 One for the morning, one for the dark,
 one for the kettle, one for the car,
 one for the phone, and one for Wren,
 gliding, gliding, down and back again,
 three millimetres, never more!
-[PROX - huge sustained chest belt on the count]
+
+[Climax]
+[Female Vocal]
+[Belted]
 And that... makes... SIX!
-[TIP - light airy falsetto tag]
+
+[Post-Chorus]
+[Male Vocal]
+[Soft]
 (Make it six... make it six, if you love me.)
-[PROX - mezzo, spoken, deadpan]
+
+[Tag]
+[Female Vocal]
 Tip. It IS six.
-[TIP - boyish tenor, sheepish]
+
+[Tag Reply]
+[Male Vocal]
 Just checking.
 
-[Coda | DR. TEO - calm low baritone, half-spoken | Guitar and felt piano | Monitor tick slows]
-And last, the little nerve,
+[Coda]
+[Choir]
+[Soft]
+And last, the little nerve, Digby,
 with thread finer than a hair.
-[DIGBY - laid-back drawling comic baritone, light country twang, faint and woozy]
-Cheers.
-[PROX and TIP - soft close harmony, lullaby]
+
+[Outro]
+[Duet]
+[Soft]
 Home in plaster, hand held high,
 hand held high.
-[Glowing final chord]
+
+[End]

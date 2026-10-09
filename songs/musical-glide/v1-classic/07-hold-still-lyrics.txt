@@ -1,16 +1,19 @@
-[Intro | FIBROBLASTS - sultry close-harmony female trio, bandoneon breath, slow habanera pulse]
+[Intro]
+[Choir]
 Week three, week four,
 the kingdom's gone so quiet.
 
-[Spoken | THEA - warm brassy alto, dry close-miked voice from above]
-Doing them every hour, my love?
-[Spoken | MAE - warm dry adult woman, close-miked, a beat too quick]
-Every hour.
-[Interlude | FIBROBLASTS - snickering close-harmony trio, muted trombone wah]
+[Verse 1]
+[Choir]
+[Harmonies]
+Thea at the clinic: "Doing them every hour?"
+And Mae says, "Every hour."
 Every hour! Every hour!
-(Mm-hm. She isn't.)
+Mm-hm. She isn't.
 
-[Verse 1 | SCARLETT - sultry low contralto, smoky velvet, slow purring vibrato, amused]
+[Verse 2]
+[Female Vocal]
+[Soft]
 The splint is on, the hand is still,
 and nobody's pulling tonight.
 Don't scream, darling. I'm nobody new.
@@ -20,13 +23,15 @@ Queen of No Man's Land.
 Any space that stops moving...
 is mine.
 
-[Pre-Chorus | SCARLETT - purring, half-spoken, castanet ticks]
+[Pre-Chorus]
+[Female Vocal]
 Every wound sends for me, darling.
 Healing needs me.
 Somebody has to hold it shut.
 Somebody has to hold.
 
-[Chorus | SCARLETT - smoky contralto, FIBROBLASTS echo, full tango pulse, string stabs]
+[Chorus]
+[Female Vocal]
 Hold still, hold still,
 nothing tears if nothing moves.
 (Every which way, every which way)
@@ -35,55 +40,64 @@ let me glue you to the wall.
 Hold still, hold still,
 nothing tears if nothing moves.
 
-[Verse 2 | FIBROBLASTS - tight close-harmony patter trio, pizzicato bass, cheeky]
+[Verse 3]
+[Choir]
+[Fast]
 We're the builders from the walls,
 we came in when the moving stopped.
 Collagen, Type Three, Type Three,
 laid down every which way, every which way!
 Crossways, sideways, any old how,
-(Ooh, lovely and thick!)
+ooh, lovely and thick!
 
-[Verse 2b | SCARLETT - smoky contralto, purring aside, bass clarinet]
-And swelling's my advance guard, darling.
+[Verse 4]
+[Female Vocal]
+My builders, darling. Aren't they sweet?
+And swelling's my advance guard.
 Let that hand hang down by her side...
 Swelling is glue. And the glue is me.
 
-[Verse 3 | TIP - gentle lyric tenor, soft frightened head voice, weakening]
-I heard the strands creak on the stairs.
+[Verse 5]
+[Male Vocal]
+[Soft]
+It's Tip... I heard the strands creak on the stairs.
 I've never moved by myself. Not once.
-[Verse 3b | SCARLETT - velvet contralto, tender and poisonous]
+
+[Verse 6]
+[Female Vocal]
 Then don't, darling.
 I'll hold you so tight you could never tear.
-[Verse 3c | TIP - gentle lyric tenor, small and unsure]
-But Prox says every hour...
-[Verse 3d | SCARLETT - velvet contralto, soft purr]
-And look what moving did on Day Ten.
 
-[Verse 4 | SCARLETT - silky low contralto, mock-curtsey, muted trombone]
+[Verse 7]
+[Male Vocal]
+[Soft]
+But Scarlett... Prox says every hour...
+
+[Verse 8]
+[Female Vocal]
+Hush, darling.
+And look what moving did on Day Ten.
 And you, up in your castle.
 You nearly tore her, Your Majesty.
+He swore it on Day Ten, didn't you, Your Majesty?
+"No pull at all. Not even a whisper."
 Never pull again.
-[Verse 4b | KING PROFUNDUS - booming regal bass-baritone, broken and guilty, low brass]
-I felt her stretch. I felt her creak.
-I swore it on Day Ten.
-No pull at all.
-Not even a whisper.
-[Verse 4c | SCARLETT - silky low contralto, satisfied purr]
-Never pull again, Your Majesty. Good king.
+Good king.
 
-[Verse 5 | SCARLETT - sung upward to above, intimate, menacing purr, harp shadows]
+[Verse 9]
+[Female Vocal]
 And you, up there, with your phone light on,
 reading your own old papers at three a.m.
-You of all people know what a rupture costs.
+You of all people know what a rupture costs, Doctor.
 Back to theatre. Graft. Two stages.
 A rod in the tunnel and months of waiting.
 Hold still, Doctor.
-[Spoken | MAE - small, tired, close-miked voice from above]
-...Just tonight.
-[Verse 5b | SCARLETT - low contralto, whispered triumph]
+"Just tonight," she says.
 Hold still, Doctor.
 
-[Bridge | SCARLETT - sweeping theatrical contralto, full strings, rubato, nostalgic]
+[Bridge]
+[Female Vocal]
+[Belted]
 Three weeks in plaster, those were the days,
 wrapped like a parcel, nobody moved.
 And those darling rubber bands,
@@ -95,18 +109,28 @@ Now it's all "early active motion",
 four strands, a therapist, a little plastic wand.
 Movement, darling! How vulgar.
 
-[Verse 6 | TIP - fading lyric tenor, giving in, almost asleep]
+[Verse 10]
+[Male Vocal]
+[Soft]
+Prox... it's Tip.
 Just for a while, Prox.
 Just till I'm brave.
 Just for a while...
-[Verse 6b | FIBROBLASTS - winding hypnotic trio, bandoneon swirl]
+
+[Verse 11]
+[Choir]
 Round and round, to the tunnel wall,
 round and round, to the tunnel wall.
-[Verse 6c | SCARLETT - low contralto, close and cruel]
+
+[Verse 12]
+[Female Vocal]
+Hush, darling.
 There won't be any space between.
 I'll fill it, darling.
 
-[Final Chorus | SCARLETT - darkest fullest contralto, FIBROBLASTS, tango stomp, brass growl]
+[Final Chorus]
+[Female Vocal]
+[Belted]
 Hold still, hold still,
 nothing tears if nothing moves.
 (Every which way, every which way)
@@ -115,14 +139,18 @@ I've got you to the wall.
 Hold still, hold still,
 nothing tears if nothing moves.
 
-[Outro | PROX - bright clear young mezzo-soprano, desperate, stripped to bandoneon]
-Papa, pull! Gently, please!
-[Outro | KING PROFUNDUS - low bass-baritone, ashamed]
-I swore.
-[Outro | PROX - bright young mezzo-soprano, small, alone]
+[Outro]
+[Choir]
+[Whispered]
 Tip?
 ...Tip?
 
+[Coda]
+[Female Vocal]
+[Soft]
+That's your Prox calling, darling.
+Don't answer.
+
 [Silence]
 
-[End | single held low note, bass clarinet hum, fade]
+[End]

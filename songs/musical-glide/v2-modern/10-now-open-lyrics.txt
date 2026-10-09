@@ -1,9 +1,12 @@
-[Intro | ENSEMBLE hushed, relaxed ticking-clock piano, school bells]
+[Intro]
+[Choir]
+[Soft]
 Week twelve, a January morning,
 the first day of the term.
 (Tick, tock... got it in hand...)
 
-[Verse 1 | ENSEMBLE - big pop-musical chorus, gang vocals, stomps and claps]
+[Verse 1]
+[Choir]
 In the left hand of Doctor Mae,
 the holding hand is back.
 The ring, soldered back, slides over the knuckle
@@ -15,136 +18,140 @@ all the way down the road.
 (Whoa-oh!) Nobody's late!
 (Well, nobody's VERY late.)
 And her Tuesday list is back next week.
+Wren calls, "Mum, hurry up!"
 
-[Spoken | WREN - small bright child's voice, dry, close-miked]
-Mum, hurry up!
-
-[Pre-Chorus | ENSEMBLE building, GLIDE harp-and-synth shimmer, legato strings]
+[Pre-Chorus]
+[Choir]
+[Harmonies]
 And the ring finger bends at the base,
 (Base!) it bends in the middle,
 (Middle!) it bends at the very tip,
 curling all the way round Wren,
 a fist, a whole fist, at last!
 
-[Spoken | PROX - bright witty mezzo, breathy and tender]
-Tip?
+[Break]
+[Female Vocal]
+[Soft]
+Tip? Tip, are you there?
 
-[Spoken | TIP - warm boyish pop tenor, comic]
+[Break]
+[Male Vocal]
 Prox. Right here. Still attached!
 
-[Chorus | ENSEMBLE gang vocals, handclaps, stomps]
+[Chorus]
+[Choir]
 We've got it in hand! (Got it in hand!)
 The coffee, the keys, the lunchbox and Wren!
 We've got it in hand! (Hey!)
 (We're the holding hand!)
 
-[Chorus | PROX - witty mezzo, and TIP - boyish pop tenor, two-part harmony, GLIDE]
+[Chorus]
+[Duet]
+[Harmonies]
 Through the sheath and past the pulleys,
 one line from the elbow to the fingertip.
 
-[Ad-lib | TIP - boyish pop tenor, giddy falsetto]
+[Ad-lib]
+[Male Vocal]
 Phones! Noses! Lunchboxes!
-I'm touching EVERYTHING again!
+I'm Tip, touching EVERYTHING again!
 
-[Verse 2 | KING PROFUNDUS - booming bass-baritone, regal swagger, gruff dad tenderness]
-Up in my castle in the forearm,
-I used to heave with all my might.
-I pull with a whisper now,
+[Verse 2]
+[Choir]
+Up in his castle the King
+used to heave with all his might.
+The King pulls with a whisper now,
 a little, often, light.
-(Light!) And all three of my daughters,
+(Light!) And all three daughters,
 all the way down, close tight.
 
-[Response | THE THREE DAUGHTERS - bright girl-group trio, tight pop harmony]
+[Response]
+[Choir]
+[Harmonies]
 Middle, ring and little,
 we can close, Father!
 (Ooh!) We can close!
 
-[Curtain-Call | THE PULLEYS - two posh operatic sopranos, stop-time hits]
+[Curtain Call]
+[Choir]
+The Pulleys take a bow:
 A-two, untouched!
 A-four, a sliver, none the worse!
 Not a bowstring in sight!
-
-[Aside | A1 - dry deadpan alto]
-(Tuesdays soon. Marvellous.)
-
-[Aside | A3 AND A5 - two small sulky voices, flat unison]
-(Nobody mentions us.)
-
-[Curtain-Call | THE PULLEYS - operatic sopranos, grand flourish]
+A-one sighs, "Tuesdays soon. Marvellous."
+A-three and A-five: "Nobody mentions us."
 And thank you, Lumbo!
-
-[Spoken | LUMBO - quick nasal comic tenor, rapid-fire]
-Somebody THANKED me!
+Somebody THANKED him!
 Out loud! In public!
-I'm not crying, I'm a muscle!
+He's not crying, he's a muscle!
 
-[Verse 3 | DIGBY - drawling deadpan baritone, country twang, TAP double tick]
-(Tap, tap.)
-A little further every day...
-and here I am. More or less.
-Rolled up at the fingertip
+[Verse 3]
+[Choir]
+And here comes Digby, more or less,
+(Tap, tap.) a little further every day,
+rolled up at the fingertip
 round New Year, give or take.
-It's mostly pins and needles,
+Mostly pins and needles,
 but it's HER.
 
-[Interlude | SCARLETT - smoky low contralto, purring, sub-bass slide, sweet muted trumpet]
-Still here, darling.
+[Interlude]
+[Female Vocal]
+Tip, listen! Scarlett purrs from the wall,
+"Still here, darling.
 Just facing the right way.
-I used to be Type Three.
-Now I'm Type One.
-(Lined up neat, every fibre in a row.)
-Don't look so shocked. I've had work done.
+I used to be Type Three,
+now I'm Type One,
+lined up neat, every fibre in a row.
+Don't look so shocked... I've had work done."
 
-[Key Change | big modulation up, timpani, horns, stomps, ENSEMBLE gang vocals]
+[Key Change]
+[Choir]
 (Whoa-oh-oh! Whoa-oh-oh!)
 
-[Final Chorus | PROX - mezzo belt, and TIP - boyish tenor, soaring harmony, ENSEMBLE stacked, GLIDE]
+[Final Chorus]
+[Duet]
+[Belted]
 Now we know that we are two,
 and we glide on the space between.
 Through the sheath and past the pulleys,
 one line from the elbow to the fingertip!
+
+[Final Chorus]
+[Choir]
 We've got it in hand! (Got it in hand!)
 The coffee, the keys, the lunchbox and Wren!
 We've got it in hand! (We're the holding hand!)
 
-[Belt | PROX - huge sustained chest belt]
+[Belt]
+[Female Vocal]
+[Belted]
 A whole fist round Wren!
 
-[Ad-lib | LUMBO - nasal comic tenor, squeezing in]
-Don't mind me! Technically, I'm attached!
-
-[Final Tag | PROX and TIP harmony, ENSEMBLE, held chord]
+[Final Tag]
+[Duet]
+[Harmonies]
 Now we know that we are two,
 and we glide on the space between!
 
-[Bridge | sudden hush, solo piano and harp, distant bells]
+[Coda]
+[Choir]
+[Soft]
 At the gate, a shoelace loose,
-she kneels down on the frosty step...
-
-[Verse 4 | MAE - warm dry woman's voice, close-miked, soft untrained alto]
-Hold still...
-done.
-Go on.
-
-[Choir | ENSEMBLE very soft, harp, TAP]
+she kneels down on the frosty step.
+Mae says, "Hold still... done. Go on."
 (And her fingers curl and open,
 without her even knowing.)
-
-[Spoken | WREN - small bright child's voice, giggling]
-Mum, you're doing the weird hand thing again!
-
-[Spoken | WREN - small bright child's voice, calling as she runs]
-Bye, Mum!
-
-[Choir | ENSEMBLE whispered, ticking piano slowing]
+Wren giggles, "Mum, you're doing the weird hand thing again!"
+Wren calls as she runs, "Bye, Mum!"
 (got it in hand...)
 (And the small hand slips out of the big one,
 and runs in through the gate.)
+And Mae, alone at the gate, to her own hand:
 
-[Outro | MAE alone, soft untrained alto, tender, closing string chord]
+[Outro]
+[Female Vocal]
+[Whispered]
 Make a fist for me.
-
-[Coda | MAE whispered, single open harp arpeggio]
 Now open.
 
-[End | the open hand becomes a wave, one open shimmering major chord, fade]
+[End]

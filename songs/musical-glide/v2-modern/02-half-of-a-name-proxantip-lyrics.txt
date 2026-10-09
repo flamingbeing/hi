@@ -1,8 +1,11 @@
-[Intro | PROX - bright musical-theatre mezzo | felt piano | synth pad | hushed]
+[Intro]
+[Female Vocal]
+[Soft]
 Day nought, the dark of the palm,
 the finger in a bandage, and Mae can't sleep.
 
-[Verse 1 | PROX - bright musical-theatre mezzo | conversational | wry | soft piano]
+[Verse 1]
+[Female Vocal]
 Hi. I'm Prox. Well, half of it.
 The King's girl, from up the arm.
 One knife, one bagel, one very bad Tuesday,
@@ -11,36 +14,44 @@ like a blind on a string.
 Half of a name on the door,
 and the other half's not home.
 
-[Spoken | LUMBO - quick nasal comic tenor | fretful | pizzicato]
-Ahem. Down here. Lumbo. The lumbrical. I grow off your side.
-I held on! That's why you stopped in the palm
-and not at the wrist!
+[Patter]
+[Choir]
+[Staccato]
+Lumbo! Lumbo! The worm on her side!
+He grows off her flank and he's down for the ride!
+He held on, he held on, that's why she stopped in the palm,
+and not at the wrist! Not at the wrist!
 Nobody ever thanks the lumbrical!
 
-[Interlude | KING PROFUNDUS - booming bass-baritone | distant | low brass | timpani]
-Prox! Come home!
+[Call]
+[Male Vocal]
+[Belted]
+Prox! It's your father! Come home!
 
-[Patter | LUMBO - quick nasal comic tenor | rapid-fire | glitchy tick beat | pizzicato]
-Oh no, he's pulling, he's pulling, he's pulling,
+[Patter]
+[Choir]
+[Staccato]
+Lumbo! He's pulling, he's pulling, he's pulling,
 and the finger goes straight when it ought to be curling!
-He pulls on you, and you pull on me,
-and I'm tied to the extensor hood, you see,
+The King pulls on her and she pulls on him,
+and he's tied to the extensor hood, limb to limb,
 so the harder he heaves, the straighter it goes!
-Sorry! Sorry! That's me! Lumbrical plus!
-Nobody knows what I do,
+Paradoxical extension, Mae says. Lovely.
+Lumbrical plus! Nobody knows what he does,
 and NOW they do!
 
-[Spoken | MAE - dry close-miked woman | from Above | no reverb]
-Paradoxical extension. Lovely.
-
-[Interlude | KING PROFUNDUS - booming bass-baritone | louder | timpani hit]
+[Call]
+[Male Vocal]
+[Belted]
 Prox! Come HOME!
 
-[Spoken | LUMBO - quick nasal comic tenor | wincing | single pluck]
-Sorry!
+[Interjection]
+[Choir]
+Lumbo's sorry! Sorry!
 
-[Verse 2 | PROX - bright musical-theatre mezzo | warm | strings entering]
-They said us as one word, Proxantip,
+[Verse 2]
+[Female Vocal]
+Me and Tip, they said us as one word, Proxantip,
 since before Mae learned to crawl.
 Same tunnel, same timing, same side of the bed.
 I pulled, he curled the very tip,
@@ -51,11 +62,15 @@ And the thing about Tip?
 He's never moved by himself. Not once.
 He only bends when I pull.
 
-[Pre-Chorus | PROX - bright musical-theatre mezzo | fragile | harp-and-synth shimmer fading]
+[Pre-Chorus]
+[Female Vocal]
+[Soft]
 Through the sheath and past the pulleys,
 one line from the elbow to the...
 
-[Chorus | PROX - bright musical-theatre mezzo | pop-belt mix | half-time drums in | sub bass]
+[Chorus]
+[Female Vocal]
+[Belted]
 I never knew that we were two
 until there was a space between.
 An empty tunnel where he should be,
@@ -63,17 +78,21 @@ the longest inch I've ever seen.
 I never knew that we were two
 until there was a space between.
 
-[Post-Chorus | PROX - bright musical-theatre mezzo | stacked harmonies | falling three-note hook]
+[Post-Chorus]
+[Female Vocal]
+[Harmonies]
 We were two. (Ooh.)
 We were two,
 and I never even counted.
 (One... two...)
 Turns out it's two.
 
-[Spoken | LUMBO - quick nasal comic tenor | pedantic | dry]
+[Interjection]
+[Choir]
 Nearer three centimetres, technically.
 
-[Verse 3 | PROX - bright musical-theatre mezzo | resolve building | steady piano pulse]
+[Verse 3]
+[Female Vocal]
 Thank you, Lumbo. Noted.
 So I'm going back down the tunnel,
 back past the rings, one by one,
@@ -84,27 +103,40 @@ and Tip can't move without me.
 Papa won't come. Tip can't come.
 So, fine. It's me.
 
-[Aside | LUMBO - quick nasal comic tenor | dry | small | single pluck]
+[Interjection]
+[Choir]
 How, exactly?
 
-[Bridge | KING PROFUNDUS - booming bass-baritone | gruff tenderness | low brass | timpani roll]
-Come home, stay where it's safe,
+[Bridge]
+[Male Vocal]
+[Belted]
+Prox, it's Papa. Come home, my girl, stay where it's safe,
 up in the forearm, close to me.
 No Man's Land is no place for a daughter of mine.
-Come home, stay where it's safe.
+Come home, my girl, stay where it's safe.
 
-[Bridge Answer | PROX - bright musical-theatre mezzo | tender then firm | strings hold | no drums]
+[Bridge]
+[Female Vocal]
+[Soft]
 You pulled me here, Papa.
 You can't pull me home.
 
-[Spoken | LUMBO - quick nasal comic tenor | deadpan then thrilled | pizzicato flurry]
-Finger's gone straight again, Your Majesty. Just so you know.
-And news from Above! The surgeon comes on Thursday! Day two!
+[Patter]
+[Choir]
+[Staccato]
+Lumbo! Finger's gone straight again, Your Majesty!
+Just so you know! Just so you know!
+And news from Above, the news from Above!
+The surgeon comes on Thursday! Day two!
 
-[Key Change | PROX - bright musical-theatre mezzo | huge sustained chest belt | full band]
+[Key Change]
+[Female Vocal]
+[Belted]
 Day two!
 
-[Final Chorus | PROX - bright musical-theatre mezzo | soaring sustained belt | full band and strings | stacked harmonies]
+[Final Chorus]
+[Female Vocal]
+[Belted]
 I never knew that we were two
 until there was a space between.
 Wait for me, Tip. You can't go far.
@@ -112,14 +144,22 @@ I'm coming down through No Man's Land.
 I never knew that we were two
 until there was a space between.
 
-[Post-Chorus | PROX - bright musical-theatre mezzo | belt | stacked echoes | ad-libs]
+[Post-Chorus]
+[Female Vocal]
+[Harmonies]
 We were two! (We were two!)
 Every pulley, every inch,
 and this time I'm counting!
 (One! Two!)
 
-[Outro | LUMBO - quick nasal comic tenor | small | spoken | soft pizzicato]
-I'll come too. Lumbo always comes. Technically I have to. I'm attached.
+[Outro]
+[Choir]
+[Soft]
+And Lumbo comes too. He has to. He's attached.
 
-[End | PROX - bright musical-theatre mezzo | breathy whisper | sustained piano chord]
+[Tag]
+[Female Vocal]
+[Whispered]
 Day two.
+
+[End]

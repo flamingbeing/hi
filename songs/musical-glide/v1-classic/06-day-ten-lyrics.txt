@@ -1,111 +1,142 @@
-[Intro | Urgent string ostinato, ticking pizzicato, brass fanfare, full mixed chorus, bright]
+[Intro]
+[Choir]
+[Harmonies]
 Day ten. The skin stitches came out today.
 The tendon ones never will.
 
-[Verse 1 | PROX - bright clear young mezzo-soprano, warm chest belt, hopeful, driving pulse, harp glissando into legato clarinet]
+[Verse 1]
+[Female Vocal]
+[Soft]
 Every hour, Papa pulls a little way,
 and Tip comes gliding home.
-Straight inside the splint and never past it,
+I'm Prox, the King's own girl, and Tip's my boy,
+straight inside the splint and never past it,
 ten days wed, the second time,
 and I have never felt so close to him.
 
-[Verse 2 | TIP - gentle lyric tenor, warm and boyish, playful comic lilt, light pizzicato]
-Six strands, as promised, neat and tight.
+[Verse 2]
+[Female Vocal]
+Tip says, "Six strands, as promised, neat and tight.
 They took the skin ones out today.
-Mine stay in. I'm told that's normal.
-I've never felt so well dressed
+Mine stay in. I'm told that's normal."
+He's never felt so well dressed
 for a bit that pokes the phone.
 
-[Chorus | Full mixed chorus, crisp diction, woodblock and glockenspiel double taps on every count, swinging]
+[Chorus]
+[Choir]
 One, and hold. Two, and rest.
 Every hour, the kingdom counts.
 Five to twenty-one, the weakest days,
 gently, gently, every hour,
 ten days old and on the mend!
 
-[Build | Accelerating, timpani building, dry close-miked half-spoken voice from above, MAE - warm adult woman's voice, rushed]
-Wren! Shoes! We're late! Stairs, carefully!
+[Post-Chorus]
+[Male Vocal]
+Prox, my daughter, your King is counting too.
+One, and hold. Two, and rest.
+Your father pulls, but gently, every hour.
+
+[Build]
+[Choir]
+Mae calls, "Wren! Shoes! We're late!
+Stairs, carefully!"
 Down the stairs, the morning rush,
 running late, the way she does,
 and the little girl is running too...
 
-[Pre-Chorus | Full chorus, urgent, brass fanfares rising, timpani rolls]
+[Pre-Chorus]
+[Choir]
+[Belted]
 Day ten, the stairs, the girl, the grab!
 Day ten, the stairs, the girl, the grab!
 
-[Break | Sudden orchestral jolt, silence, WREN - small bright child's voice, spoken, close]
-Mum!
-
-[Break | Full chorus, shouted, brass stab]
+[Break]
+[Choir]
+[Belted]
+The little girl cries, "Mum!"
 She grabs the girl with the splinted hand!
 
-[Chorus | KING PROFUNDUS - booming regal bass-baritone, ecstatic and terrified, full brass, pounding timpani]
-I've got her! I've got her!
+[Chorus 2]
+[Male Vocal]
+[Belted]
+I've got her! Your father's got her!
 Every fibre, every ounce!
 I've got her! I've got her!
 
-[Call and Response | PROX - mezzo belt, desperate, then PROX and TIP high together, strings straining]
+[Response]
+[Female Vocal]
+[Belted]
 Not like that, Papa!
 Too hard! We're ten days old!
 
-[Instrumental | Straining string glissando, held breath, whispered chorus, single timpani hit]
+[Bridge]
+[Choir]
+[Whispered]
 Six strands creak...
 ...and hold. Just.
 
-[Interlude | Strings settle, WREN - small bright child's voice, spoken, dry and close]
-I'm okay.
+[Interlude]
+[Female Vocal]
+[Soft]
+Tip, it's Prox. Are you there?
+Tip whispers, "Still here. Ow."
+And up above, the girl is fine.
 
-[Interlude | TIP - gentle lyric tenor, small and shaky, soft head voice]
-Still here. Ow.
-
-[Night | Pulsing low ostinato, hushed, harp, full chorus soft]
+[Night]
+[Choir]
+[Soft]
 Day ten, the night, and no one sleeps.
 
-[Night | KING PROFUNDUS - booming bass-baritone, broken, low brass]
-I nearly tore her.
-I will never pull again.
+[Night Verse 1]
+[Male Vocal]
+[Soft]
+I nearly tore her, my Prox.
+Your father will never pull again.
 
-[Night | TIP - gentle lyric tenor, trembling, soft head voice]
-Don't move me. I'm scared.
-
-[Night | PROX - bright clear young mezzo-soprano, pleading, breathy]
-We have to move.
-Every hour, she said.
-
-[Night | THEA - warm brassy alto, echoing from far away, reverb]
-Gently. Every hour.
+[Night Verse 2]
+[Female Vocal]
+We have to move, Papa. Every hour, she said.
+Tip whispers, "Don't move me, I'm scared."
+But every hour, Thea said.
 Tear it, or glue it.
 
-[Night | KING PROFUNDUS - bass-baritone, quiet, stubborn]
+[Night Verse 3]
+[Male Vocal]
+No, my Prox. Your King says never.
 Never again.
 
-[Night | TIP - lyric tenor, fading, fragile]
-Through the sheath... past the...
+[Night Verse 4]
+[Female Vocal]
+[Soft]
+Tip, it's Prox. Keep going. One line...
+He sings, "Through the sheath... past the..."
+then Tip whispers, "I can't remember the end."
 
-[Night | PROX - mezzo, urgent whisper]
-Tip, keep going. One line...
-
-[Night | TIP - lyric tenor, lost]
-I can't remember the end.
-
-[Verse 3 | MAE - warm adult woman's voice, soft untrained alto, sung low and tired, close and dry]
+[Verse 3]
+[Choir]
+[Soft]
 Ten o'clock, the kettle's cold,
 the hand is throbbing, held up high.
-I nearly had her on the stairs.
-Maybe I'll skip them tonight.
-Hold still.
+Mae sighs, "I nearly had her on the stairs,"
+and Mae says, "Maybe I'll skip them tonight. Hold still."
 
-[Hush | Slinky low muted trombone, bass clarinet, faint habanera-tango pulse, SCARLETT - sultry low contralto, smoky velvet, distant whisper]
+[Hush]
+[Choir]
+[Whispered]
 Hold still, hold still,
 nothing tears if nothing moves.
 Hold still, hold still,
 nothing tears if nothing moves.
 
-[Hush | PROX - mezzo, frightened, spoken; then TIP - lyric tenor, drowsy]
+[Hush 2]
+[Female Vocal]
+[Soft]
 Who's there? That's No Man's Land.
-She sounds kind.
+And Tip murmurs, "She sounds kind."
 
-[Final Chorus | Stacked full mixed chorus, all voices, call and echo, timpani pounding, brass fanfares building]
+[Final Chorus]
+[Choir]
+[Harmonies]
 Day ten! (Tear?) And the strands still hold! (Or glue?)
 Pull too hard, and the stitches go! (Tear?)
 Hold too still, and the walls move in! (Or glue?)
@@ -115,6 +146,7 @@ And a velvet voice says hold still! (Tear?)
 Tear it, or glue it!
 Day ten!
 
-[Outro | Huge sustained unresolved cliffhanger chord, full orchestra and choir, abrupt cut]
+[Outro]
+[Choir]
 (Tear?)
 (Or glue?)

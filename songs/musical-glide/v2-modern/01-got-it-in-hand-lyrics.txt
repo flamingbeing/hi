@@ -1,8 +1,10 @@
-[Intro | ENSEMBLE - big modern pop-musical mixed chorus, punchy gang vocals, stacked harmonies | ticking-clock hi-hat | staccato pop piano]
+[Intro]
+[Choir]
 A Tuesday in October, a quarter to eight,
 in the left hand of Doctor Mae.
 
-[Verse 1 | ENSEMBLE gang vocals | fast, conversational | handclaps]
+[Verse 1]
+[Choir]
 Coffee in the left! (Check!)
 Phone between the fingers! (Check!)
 Lunchbox in the crook! (Check!)
@@ -12,13 +14,15 @@ we've mended a thousand hands.
 The right hand gets the credit,
 we just hold the retractor. (Thanks.)
 
-[Pre-Chorus | ENSEMBLE | building | band stab on fist | shimmer on open]
-She says "Make a fist for me. Now open."
+[Pre-Chorus]
+[Choir]
+She says, "Make a fist for me. Now open."
 to a thousand hands.
 (Make a fist!) (Now open!)
 To a thousand hands!
 
-[Chorus | ENSEMBLE gang vocals | handclaps | full band and strings]
+[Chorus]
+[Choir]
 We've got it in hand! (Got it in hand!)
 The coffee, the keys, the phone and Wren!
 Morning to night and round again,
@@ -26,41 +30,53 @@ we've got it in hand! (Hey!)
 Not a drop, not a crumb, not a thing gets spilled,
 we're the holding hand! (The holding hand!)
 
-[Verse 2 | KING PROFUNDUS - big booming theatrical bass-baritone, rock-ballad power, regal swagger, gruff dad tenderness underneath | low brass]
-Up in my forearm castle,
-King Profundus, hello!
-I don't do subtle, I don't do slow,
-I PULL, and the fingers close!
+[Verse 2]
+[Choir]
+Up in his forearm castle,
+King Profundus says hello!
+He doesn't do subtle, he doesn't do slow,
+he PULLS, and the fingers close!
 Three daughters on one muscle,
 where one goes, all three go.
-The ring one is my pride.
-(Bit much.) I heard that.
+The ring one is his pride.
+(Bit much.) (He heard that.)
 
-[Post-Chorus | ENSEMBLE chant | stomps | handclaps]
+[Post-Chorus]
+[Choir]
 Prox-an-tip! Prox-an-tip!
 The King's own girl and the fingertip's boy!
 Prox-an-tip! Prox-an-tip!
 So long together they forgot that they were two!
 
-[Hook | PROX and TIP in unison - bright witty mezzo and warm boyish pop tenor as one voice | GLIDE shimmer]
+[Verse 3]
+[Female Vocal]
+I'm Prox, the King's own girl,
+born in the forearm, running deep,
+all the way down to the end of the finger,
+where my Tip is waiting for me.
+
+[Verse 4]
+[Male Vocal]
+And I'm Tip, the fingertip's boy,
+Prox, it's me, I hold on at the very end.
+Married. It's a whole thing.
+
+[Hook]
+[Duet]
+[Harmonies]
 Through the sheath and past the pulleys,
 one line from the elbow to the fingertip.
-(Married. It's a whole thing.)
 
-[Cameo | ENSEMBLE | stop-time hits | quickfire]
+[Roll Call]
+[Choir]
+[Fast Rap]
 Big Sister Superficialis splits in two and hugs Prox from beneath!
+The Pulleys hold her to the bone, or else she'd bowstring!
+Lumbo, hi, nobody knows what he does!
+Digby, ulnar side, feels everything! (It's a lot.)
 
-[Cameo | THE PULLEYS - two grand posh wobbling operatic sopranos and one dry deadpan alto]
-We hold her to the bone, or else she'd bowstring!
-
-[Cameo | LUMBO - quick nasal comic tenor, rapid-fire anxious patter, cheeky and fretful]
-Lumbo! Hi! Nobody knows what I do!
-
-[Cameo | DIGBY - laid-back drawling comic baritone, light country twang, deadpan talk-singing]
-Ulnar side. I feel everything.
-(He does. It's a lot.)
-
-[Chorus | ENSEMBLE gang vocals | bigger | ad-libs]
+[Chorus]
+[Choir]
 We've got it in hand! (Got it in hand!)
 The coffee, the keys, the phone and Wren!
 Morning to night and round again,
@@ -68,11 +84,14 @@ we've got it in hand! (Hey!)
 Not a drop, not a crumb, not a thing gets spilled,
 we're the holding hand! (The holding hand!)
 
-[Hook | PROX and TIP in unison - mezzo and tenor as one voice | GLIDE shimmer]
+[Hook]
+[Duet]
+[Harmonies]
 Through the sheath and past the pulleys,
 one line from the elbow to the fingertip.
 
-[Verse 3 | ENSEMBLE bragging chant | stomps]
+[Verse 5]
+[Choir]
 Every patient, every Christmas,
 she shows the photos on her phone! (Ew!)
 Never the avocado,
@@ -82,38 +101,44 @@ says it slow and says it twice:
 never the avocado,
 never the bagel in your palm! (Say it!)
 
-[Break | MAE - warm dry adult woman's voice, half-spoken, close-miked, no reverb | rushing]
-Wren, hold still! Sun cream! Shoes on!
+[Bridge]
+[Choir]
+[Fast Rap]
+She says, "Wren, hold still! Sun cream! Shoes on!"
+Wren says, "I can cut it!"
+Mae says, "Knives are sharp. Give it here, you'll be late."
 
-[Break | WREN - small bright child's voice, short spoken line | dry]
-I can cut it!
-
-[Break | MAE - dry close-miked woman | distracted]
-Knives are sharp. Give it here, you'll be late.
-
-[Build | ENSEMBLE hushed | thinning to a lone tick]
+[Build]
+[Choir]
+[Soft]
 And she holds the bagel in her palm,
 the ring finger curled around,
 the clock on the wall, the knife in her right,
 sawing, sawing down...
 (got it in hand... got it in hand...)
 
-[Final Chorus | PROX and TIP in unison - mezzo and tenor as one voice | bright, unaware | cut off]
+[Final Hook]
+[Duet]
 Through the sheath and past the pulleys,
 one line from the elbow to the-
 
-[Stop | dead silence]
+[Break]
+[Instrumental]
 
-[Break | PROX - bright mezzo, small and alone | string tremolo]
-Tip?
+[Interlude]
+[Female Vocal]
+[Soft]
+Tip? ...Tip?
 
-[Break | TIP - boyish pop tenor, far away | scared]
-Prox?
+[Interlude]
+[Male Vocal]
+[Soft]
+Prox? ...Prox?
 
-[Break | KING PROFUNDUS - booming bass-baritone roar | low brass hit]
-Come home! Come home!
-
-[Verse 4 | ENSEMBLE | urgent | falling strings]
+[Verse 6]
+[Choir]
+[Belted]
+And the King roars, "Come home! Come home!"
 The King hauls back his daughter,
 he drags her to the palm,
 and as Mae opens up her hand,
@@ -121,18 +146,22 @@ Tip slides away, away,
 down, down the finger
 to the end of the world.
 
-[Break | DIGBY - drawling deadpan baritone | faint]
-Half of me's gone quiet.
-
-[Break | MAE - dry close-miked woman | half-sung through her teeth]
-Look at the cascade.
-Hold the middle joint. Bend the tip.
+[Verse 7]
+[Choir]
+[Soft]
+And Digby whispers, "Half of me's gone quiet."
+Mae looks at the cascade,
+holds the middle joint, says, "Bend the tip."
 ...Nothing.
 
-[Break | ENSEMBLE | brass stabs | alarmed]
+[Breakdown]
+[Choir]
+[Belted]
 Zone Two! No Man's Land!
 
-[Outro | MAE - dry close-miked woman, weary, spoken | unresolved chord]
-Of course it's Zone Two.
+[Outro]
+[Choir]
+[Soft]
+And Mae says, "Of course it's Zone Two."
 
 [End]
