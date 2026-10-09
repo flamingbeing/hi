@@ -1,4 +1,4 @@
-# GLIDE (Version 2: Modern Pop), voice-strict edition
+# GLIDE: The Musical
 
 Every solo section is at least 4 lines long, and each song switches between the male and female voice no more than 4 times. Short replies are written as reported speech or given to the choir. Each style field opens with the casting. Leave Suno's Vocal Gender option **unset** for every song.
 
