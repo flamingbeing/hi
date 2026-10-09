@@ -1,11 +1,11 @@
 # Option 11: Come Back Tomorrow (Suno v6)
 
-An anaesthetist sits in the car park after a bad case, hearing the falling sats tone all the way home. She goes through a no-blame hot debrief, gets a midnight text from the M-O on the list, and learns to carry it gently and come back for the morning list.
+An anaesthetist sits in the car park after a bad case, hearing the falling sats tone all the way home. She goes through a no-blame hot debrief, gets a midnight text from the S-3 (the consultant on call), and learns to carry it gently and come back for the morning list.
 
 ## Style
 
 ```
-Sparse cinematic piano ballad, 68 BPM, D major with tender minor-chord shadows, 4/4 with rubato in intro and outro. Intimate female vocal, breathy close-mic alto, conversational and unforced, soft vibrato only on held notes. A warm, soft-spoken male voice for one spoken passage. Arc: solo felt piano intro, low cello drone joins at pre-chorus, cello countermelody and warm pad in chorus, hushed spoken section over sustained piano, bridge swells with full strings and a gentle timpani roll, final chorus lifts one semitone with harmony vocals, outro strips back to solo piano and one cello note, ending on a held suspended chord that resolves to major. Mix: dry close vocal, natural room reverb on piano, warm low-mid cello, no pumping compression, lots of space and silence. No drum kit, no synth bass, no electric guitar, no autotune, no belting.
+Sparse cinematic piano ballad, 68 BPM, D major with tender minor-chord shadows, 4/4 with rubato in intro and outro. Intimate female vocal, breathy close-mic alto, conversational and unforced, soft vibrato only on held notes. Arc: solo felt piano intro, low cello drone joins at pre-chorus, cello countermelody and warm pad in chorus, hushed sung interlude over sustained piano, bridge swells with full strings and a gentle timpani roll, final chorus lifts one semitone with harmony vocals, outro strips back to solo piano and one cello note, ending on a held suspended chord that resolves to major. Mix: dry close vocal, natural room reverb on piano, warm low-mid cello, no pumping compression, lots of space and silence. No drum kit, no synth bass, no electric guitar, no autotune, no belting.
 ```
 
 ## Lyrics
@@ -54,17 +54,14 @@ Still it sits here in my throat
 [Pre-Chorus]
 [Cello rises, alto swelling gently, piano octaves]
 Every quiet hour, I go back in
-Every alarm I might have missed
+Every sign I didn't see
 Then the phone lights up at midnight
-It's the M-O from the list
+It's the S-3 checking on me
 
-[Spoken]
-[Warm soft-spoken male voice over sustained piano, close and unhurried]
-Hey. Just checking you got home okay.
-You don't have to talk. I'm around.
-That was a hard one.
-You weren't on your own in there.
-Text me when you wake up.
+[Interlude]
+[Soft female alto, almost whispered, sustained piano]
+Just checking you got home okay
+You weren't on your own in there
 
 [Chorus]
 [Female alto fuller, cello and soft pad, more air in the voice]
