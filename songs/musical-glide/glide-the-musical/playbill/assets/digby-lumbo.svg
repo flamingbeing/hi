@@ -1,0 +1,146 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 480" width="600" height="480">
+<defs>
+<linearGradient id="gold" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#F0D58C"/><stop offset="0.5" stop-color="#D4A84B"/><stop offset="1" stop-color="#9C7428"/></linearGradient>
+<linearGradient id="goldH" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#9C7428"/><stop offset="0.5" stop-color="#F0D58C"/><stop offset="1" stop-color="#9C7428"/></linearGradient>
+<radialGradient id="sky" cx="0.35" cy="0.55" r="0.8"><stop offset="0" stop-color="#5A3550"/><stop offset="0.5" stop-color="#3E2547"/><stop offset="1" stop-color="#2E1A33"/></radialGradient>
+<radialGradient id="dawn" cx="0.5" cy="0.5" r="0.5"><stop offset="0" stop-color="#F2C94C" stop-opacity="0.55"/><stop offset="0.5" stop-color="#E89B5A" stop-opacity="0.2"/><stop offset="1" stop-color="#E89B5A" stop-opacity="0"/></radialGradient>
+<radialGradient id="spot" cx="0.5" cy="0.5" r="0.5"><stop offset="0" stop-color="#F6EFE2" stop-opacity="0.28"/><stop offset="1" stop-color="#F6EFE2" stop-opacity="0"/></radialGradient>
+<linearGradient id="hill1" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#6B2B45"/><stop offset="1" stop-color="#4A1C33"/></linearGradient>
+<linearGradient id="hill2" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#7E3249"/><stop offset="1" stop-color="#5B1A2B"/></linearGradient>
+<linearGradient id="road" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#C9A8A0"/><stop offset="1" stop-color="#8E6A6E"/></linearGradient>
+<linearGradient id="nerve" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#E2B848"/><stop offset="0.38" stop-color="#FFF4C2"/><stop offset="0.7" stop-color="#F6D978"/><stop offset="1" stop-color="#D6A93A"/></linearGradient>
+<linearGradient id="nerveV" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FBE38E"/><stop offset="0.5" stop-color="#F2C94C"/><stop offset="1" stop-color="#C99A24"/></linearGradient>
+<linearGradient id="hat" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#A0643A"/><stop offset="1" stop-color="#6E4026"/></linearGradient>
+<linearGradient id="pearl" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#B9BEC8"/><stop offset="0.3" stop-color="#FFFFFF"/><stop offset="0.55" stop-color="#F4ECE1"/><stop offset="0.85" stop-color="#C9CED6"/><stop offset="1" stop-color="#9EA4AF"/></linearGradient>
+<linearGradient id="worm" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#F7A9B6"/><stop offset="0.5" stop-color="#E9798D"/><stop offset="1" stop-color="#C9566E"/></linearGradient>
+<radialGradient id="wormHead" cx="0.4" cy="0.35" r="0.7"><stop offset="0" stop-color="#FBC1CB"/><stop offset="1" stop-color="#E57A8E"/></radialGradient>
+<radialGradient id="cheek" cx="0.5" cy="0.5" r="0.5"><stop offset="0" stop-color="#E0706A" stop-opacity="0.7"/><stop offset="1" stop-color="#E0706A" stop-opacity="0"/></radialGradient>
+<radialGradient id="tingle" cx="0.5" cy="0.5" r="0.5"><stop offset="0" stop-color="#FFF6C8" stop-opacity="0.9"/><stop offset="1" stop-color="#F2C94C" stop-opacity="0"/></radialGradient>
+<path id="spk" d="M0 -10 Q1.5 -1.5 10 0 Q1.5 1.5 0 10 Q-1.5 1.5 -10 0 Q-1.5 -1.5 0 -10Z"/>
+<clipPath id="arch"><path d="M34 462V180A266 150 0 0 1 566 180V462Z"/></clipPath>
+</defs>
+
+<rect width="600" height="480" fill="#2E1A33"/>
+<g clip-path="url(#arch)">
+<rect width="600" height="480" fill="url(#sky)"/>
+<!-- stars -->
+<g fill="#F6EFE2" opacity="0.7"><circle cx="120" cy="110" r="1.4"/><circle cx="180" cy="72" r="1.1"/><circle cx="250" cy="120" r="1.3"/><circle cx="330" cy="68" r="1.2"/><circle cx="96" cy="170" r="1"/><circle cx="380" cy="130" r="1.1"/><circle cx="540" cy="200" r="1.2"/><circle cx="210" cy="180" r="0.9"/></g>
+<g fill="#D4A84B"><use href="#spk" transform="translate(150 140) scale(0.45)"/><use href="#spk" transform="translate(300 100) scale(0.35)"/><use href="#spk" transform="translate(545 150) scale(0.4)"/></g>
+<!-- dawn glow at the horizon (destination: the fingertip) -->
+<ellipse cx="350" cy="250" rx="150" ry="90" fill="url(#dawn)"/>
+<!-- hills -->
+<path d="M30 270 Q110 225 200 252 Q280 232 360 252 Q420 238 470 256 L470 480 L30 480Z" fill="url(#hill1)"/>
+<path d="M30 320 Q120 280 210 300 Q300 318 380 290 Q430 276 470 290 L470 480 L30 480Z" fill="url(#hill2)"/>
+<!-- road: winding toward the dawn -->
+<path d="M40 480 Q150 410 225 360 Q290 316 336 262 L350 262 Q318 318 268 368 Q215 420 200 480Z" fill="url(#road)"/>
+<path d="M120 480 Q190 420 246 364 Q300 312 343 262" fill="none" stroke="#F6EFE2" stroke-width="3" stroke-dasharray="10 9" opacity="0.6"/>
+<!-- millimetre ticks along the road edge -->
+<g stroke="#F6EFE2" stroke-linecap="round" opacity="0.85">
+<path d="M200 480 Q215 420 268 368 Q318 318 350 262" fill="none" stroke="#3B1F2E" stroke-width="2" opacity="0.6"/>
+<path d="M205 470 l12 2" stroke-width="2"/><path d="M211 455 l8 2" stroke-width="1.4"/><path d="M218 441 l8 2" stroke-width="1.4"/><path d="M226 428 l8 2" stroke-width="1.4"/><path d="M235 415 l12 2" stroke-width="2"/>
+<path d="M244 403 l7 2" stroke-width="1.2"/><path d="M253 391 l7 2" stroke-width="1.2"/><path d="M262 380 l7 2" stroke-width="1.2"/><path d="M271 369 l10 2" stroke-width="1.8"/>
+<path d="M281 358 l6 1.5" stroke-width="1.1"/><path d="M291 347 l6 1.5" stroke-width="1.1"/><path d="M300 336 l6 1.5" stroke-width="1.1"/><path d="M309 325 l8 2" stroke-width="1.5"/>
+<path d="M317 314 l5 1" stroke-width="1"/><path d="M325 302 l5 1" stroke-width="1"/><path d="M332 291 l5 1" stroke-width="1"/><path d="M339 280 l6 1" stroke-width="1.2"/>
+</g>
+
+<!-- signpost (blank boards) -->
+<g>
+<rect x="82" y="268" width="9" height="122" rx="2" fill="#7A4A2E"/>
+<rect x="84" y="268" width="3" height="122" fill="#A0643A"/>
+<path d="M62 280 H128 L142 292 L128 304 H62Z" fill="#C79A5C" stroke="#7A4A2E" stroke-width="2.5" stroke-linejoin="round"/>
+<path d="M68 286 H124" stroke="#E8C48A" stroke-width="2" stroke-linecap="round"/>
+<path d="M112 314 H48 L36 325 L48 336 H112Z" fill="#B88A4E" stroke="#7A4A2E" stroke-width="2.5" stroke-linejoin="round"/>
+<ellipse cx="86" cy="392" rx="22" ry="5" fill="#2E1A33" opacity="0.45"/>
+</g>
+
+<!-- Tinel tingles ahead of Digby -->
+<circle cx="292" cy="300" r="30" fill="url(#tingle)"/>
+<g fill="#FFF3B8"><use href="#spk" transform="translate(292 300) scale(1.1)"/><use href="#spk" transform="translate(318 274) scale(0.7)"/><use href="#spk" transform="translate(272 274) scale(0.55)"/><use href="#spk" transform="translate(334 302) scale(0.45)"/></g>
+<g fill="none" stroke="#F2C94C" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M262 300 l5 -5 l4 5 l5 -5"/><path d="M304 326 l5 -5 l4 5 l5 -5"/><path d="M300 256 l4 -4 l3 4 l4 -4"/></g>
+
+<!-- DIGBY: one continuous nerve cord, regrowing up the road -->
+<ellipse cx="200" cy="432" rx="40" ry="7" fill="#2E1A33" opacity="0.45"/>
+<path d="M186 332 Q186 298 211 298 Q236 298 236 332 L234 390 Q232 424 198 440 Q150 460 74 492 L40 492 L40 478 Q120 448 170 426 Q188 416 188 392 Z" fill="url(#nerve)" stroke="#B88A1E" stroke-width="2" stroke-linejoin="round"/>
+<g fill="none" stroke="#D9A92E" stroke-width="1.6" opacity="0.85" stroke-linecap="round">
+<path d="M200 326 L200 394 Q198 420 166 436 Q120 456 60 482"/>
+<path d="M222 326 L221 396 Q216 426 184 440 Q140 460 90 482"/></g>
+<path d="M196 312 Q192 340 194 380 Q192 410 164 426 Q120 446 66 470" fill="none" stroke="#FFF6C8" stroke-width="4" stroke-linecap="round" opacity="0.8"/>
+<g fill="#B88A1E" opacity="0.5"><ellipse cx="140" cy="446" rx="3" ry="9" transform="rotate(-24 140 446)"/><ellipse cx="96" cy="464" rx="3" ry="9" transform="rotate(-22 96 464)"/></g>
+<!-- bandana -->
+<path d="M184 340 Q210 352 238 338 L236 350 Q210 362 186 352Z" fill="#C2272D"/>
+<path d="M206 354 L198 372 L214 362Z" fill="#A11E26"/>
+<g fill="#F6EFE2" opacity="0.8"><circle cx="196" cy="347" r="1.3"/><circle cx="214" cy="351" r="1.3"/><circle cx="229" cy="345" r="1.3"/></g>
+<!-- face (head is top of cord) -->
+<path d="M200 318 Q205 314 210 318" fill="none" stroke="#3B2430" stroke-width="2.2" stroke-linecap="round"/>
+<path d="M220 318 Q225 314 230 318" fill="none" stroke="#3B2430" stroke-width="2.2" stroke-linecap="round"/>
+<path d="M199 316 Q205 312 211 315" fill="none" stroke="#6E4026" stroke-width="1.2" opacity="0.6"/>
+<ellipse cx="200" cy="328" rx="6" ry="4" fill="url(#cheek)"/><ellipse cx="232" cy="328" rx="6" ry="4" fill="url(#cheek)"/>
+<path d="M207 329 Q216 336 226 328" fill="none" stroke="#3B2430" stroke-width="2" stroke-linecap="round"/>
+<!-- grass stalk -->
+<path d="M225 331 L250 322" stroke="#A9C46A" stroke-width="2" stroke-linecap="round"/>
+<path d="M250 322 l6 -5 M250 322 l7 0" stroke="#A9C46A" stroke-width="1.5" stroke-linecap="round"/>
+<!-- cowboy hat -->
+<path d="M176 304 Q182 300 200 300 Q218 298 240 300 Q252 300 256 296 Q252 308 238 310 Q210 314 184 312 Q172 312 176 304Z" fill="url(#hat)" stroke="#5A321C" stroke-width="1.5"/>
+<path d="M192 302 Q190 282 200 276 Q208 282 214 276 Q224 280 226 302Z" fill="url(#hat)" stroke="#5A321C" stroke-width="1.5"/>
+<path d="M192 297 Q209 301 226 297 L226 302 Q209 306 192 302Z" fill="#D4A84B"/>
+<path d="M199 282 Q202 280 204 284" fill="none" stroke="#C88A55" stroke-width="1.5" opacity="0.8"/>
+<!-- arms: thumb hooked / waving -->
+<path d="M184 360 Q166 372 170 392" fill="none" stroke="#C99A24" stroke-width="9" stroke-linecap="round"/>
+<path d="M184 360 Q166 372 170 392" fill="none" stroke="#F2C94C" stroke-width="6" stroke-linecap="round"/>
+<circle cx="170" cy="394" r="5.5" fill="#F2C94C" stroke="#C99A24" stroke-width="1.5"/>
+<path d="M236 358 Q256 352 262 336" fill="none" stroke="#C99A24" stroke-width="9" stroke-linecap="round"/>
+<path d="M236 358 Q256 352 262 336" fill="none" stroke="#F2C94C" stroke-width="6" stroke-linecap="round"/>
+<circle cx="263" cy="333" r="5.5" fill="#F2C94C" stroke="#C99A24" stroke-width="1.5"/>
+<path d="M263 328 l1 -7" stroke="#C99A24" stroke-width="4" stroke-linecap="round"/><path d="M263 328 l1 -7" stroke="#F2C94C" stroke-width="2.4" stroke-linecap="round"/>
+<!-- RIGHT: Prox's tendon with Lumbo -->
+<ellipse cx="470" cy="270" rx="110" ry="190" fill="url(#spot)"/>
+<path d="M452 30 Q440 140 458 250 Q476 360 456 480 L496 480 Q514 360 496 250 Q480 140 490 30Z" fill="url(#pearl)" stroke="#9EA4AF" stroke-width="1.5"/>
+<path d="M462 40 Q452 140 468 250 Q484 350 468 470" fill="none" stroke="#FFFFFF" stroke-width="4" stroke-linecap="round" opacity="0.85"/>
+<g fill="none" stroke="#C9CED6" stroke-width="1.2" opacity="0.8"><path d="M478 40 Q470 140 486 250 Q502 360 484 470"/><path d="M486 60 Q480 150 492 230"/></g>
+<g fill="#FFFFFF"><use href="#spk" transform="translate(470 120) scale(0.5)"/><use href="#spk" transform="translate(488 420) scale(0.4)"/></g>
+
+<!-- Lumbo body: arises from the tendon low down, arcs out and up -->
+<path d="M462 410 Q420 420 404 384 Q392 350 416 318 Q432 298 450 288" fill="none" stroke="#B94A62" stroke-width="34" stroke-linecap="round"/>
+<path d="M462 410 Q420 420 404 384 Q392 350 416 318 Q432 298 450 288" fill="none" stroke="url(#worm)" stroke-width="30" stroke-linecap="round"/>
+<path d="M458 404 Q426 410 414 382 Q404 354 422 326" fill="none" stroke="#FBC1CB" stroke-width="5" stroke-linecap="round" opacity="0.7"/>
+<!-- muscle striations / segments -->
+<g fill="none" stroke="#C25570" stroke-width="1.6" opacity="0.75" stroke-linecap="round">
+<path d="M440 398 q4 14 -2 24"/><path d="M424 390 q10 10 6 24"/><path d="M406 368 q14 4 18 16"/><path d="M400 346 q16 0 22 10"/><path d="M406 324 q16 -2 24 8"/></g>
+<!-- tendon-origin blend -->
+<path d="M454 396 Q466 404 460 424 L470 420 Q474 404 466 394Z" fill="#F4ECE1" opacity="0.8"/>
+<!-- head -->
+<circle cx="440" cy="262" r="32" fill="url(#wormHead)" stroke="#B94A62" stroke-width="2"/>
+<path d="M418 248 Q424 236 436 234" fill="none" stroke="#FFFFFF" stroke-width="3" stroke-linecap="round" opacity="0.6"/>
+<!-- big anxious eyes -->
+<ellipse cx="428" cy="262" rx="10" ry="12" fill="#FFFFFF" stroke="#7A2539" stroke-width="1.5"/>
+<ellipse cx="452" cy="262" rx="10" ry="12" fill="#FFFFFF" stroke="#7A2539" stroke-width="1.5"/>
+<circle cx="430" cy="265" r="6" fill="#2E1A33"/><circle cx="454" cy="265" r="6" fill="#2E1A33"/>
+<circle cx="432" cy="262" r="2.2" fill="#FFFFFF"/><circle cx="456" cy="262" r="2.2" fill="#FFFFFF"/>
+<circle cx="428" cy="268" r="1" fill="#FFFFFF"/><circle cx="452" cy="268" r="1" fill="#FFFFFF"/>
+<!-- worried brows -->
+<path d="M418 246 Q424 248 434 242" fill="none" stroke="#7A2539" stroke-width="2.4" stroke-linecap="round"/>
+<path d="M446 242 Q456 248 462 246" fill="none" stroke="#7A2539" stroke-width="2.4" stroke-linecap="round"/>
+<!-- wobbly mouth -->
+<path d="M432 284 q3 -3 6 0 q3 3 6 0 q3 -3 6 0" fill="none" stroke="#7A2539" stroke-width="2" stroke-linecap="round"/>
+<ellipse cx="419" cy="279" rx="5" ry="3" fill="url(#cheek)"/>
+<!-- sweat drop -->
+<path d="M410 240 Q404 250 407 254 Q412 257 414 251 Q414 246 410 240Z" fill="#BFE6F2" stroke="#7FB8C9" stroke-width="1"/>
+<!-- little arms hugging the tendon (in front of tendon) -->
+<path d="M454 286 Q470 300 488 290" fill="none" stroke="#B94A62" stroke-width="10" stroke-linecap="round"/>
+<path d="M454 286 Q470 300 488 290" fill="none" stroke="#EE8A9D" stroke-width="7" stroke-linecap="round"/>
+<circle cx="490" cy="288" r="5.5" fill="#EE8A9D" stroke="#B94A62" stroke-width="1.5"/>
+<path d="M464 250 Q476 236 490 244" fill="none" stroke="#B94A62" stroke-width="10" stroke-linecap="round"/>
+<path d="M464 250 Q476 236 490 244" fill="none" stroke="#EE8A9D" stroke-width="7" stroke-linecap="round"/>
+<circle cx="492" cy="246" r="5.5" fill="#EE8A9D" stroke="#B94A62" stroke-width="1.5"/>
+<!-- tremble lines -->
+<g fill="none" stroke="#F6EFE2" stroke-width="1.6" stroke-linecap="round" opacity="0.7"><path d="M396 262 q-6 -4 -10 0"/><path d="M398 276 q-8 0 -12 4"/><path d="M512 262 q6 -4 10 0"/><path d="M512 278 q8 0 12 4"/></g>
+</g>
+
+<!-- frame -->
+<path d="M34 462V180A266 150 0 0 1 566 180V462Z" fill="none" stroke="url(#gold)" stroke-width="10"/>
+<path d="M22 472V180A278 162 0 0 1 578 180V472Z" fill="none" stroke="#9C7428" stroke-width="3"/>
+<path d="M42 456V180A258 142 0 0 1 558 180V456Z" fill="none" stroke="#F0D58C" stroke-width="1.2" opacity="0.7"/>
+<rect x="18" y="458" width="564" height="18" rx="3" fill="url(#gold)" stroke="#9C7428"/>
+<circle cx="300" cy="12" r="7" fill="url(#gold)" stroke="#9C7428"/>
+<path d="M284 16 Q300 4 316 16" stroke="url(#goldH)" stroke-width="3" fill="none"/>
+</svg>
