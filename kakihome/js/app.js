@@ -9,6 +9,7 @@ import { openLocal, openMemory, prefs, KINDS, PHOTOS } from './store.js';
 import { sampleData } from './sample.js';
 import { openWelcome, viewGuide, welcomed, markWelcomed, installed } from './guide.js';
 import { starterChoices, tourTasks } from './tour.js';
+import * as MG from './merge.js';
 import { firebaseConfig } from '../config.js';
 import {
   haRouter, haGo, haBack, haSheet, haCloseSheet, haSheetOpen, haConfirm, haToast, haHideToast, haStepper, haVersion,
@@ -23,7 +24,7 @@ const WELCOME = params.has('welcome');   // show the welcome even in the demo, o
 
 const S = {
   items: new Map(), events: new Map(), shop: new Map(), settings: new Map(), pics: new Map(),
-  backend: null, local: null, mode: DEMO ? 'demo' : 'local', cloud: null, user: null, household: null, localCount: 0,
+  backend: null, local: null, mode: DEMO ? 'demo' : 'local', cloud: null, user: null, household: null, allHouseholds: [], lookupFailed: false, creating: false, pending: null, localCount: 0,
   q: '', place: '', sort: prefs.get('sort', 'expiry'),
   draft: null, dirty: false, pendingRender: false, syncError: false,
   originTab: '#/', backLabel: 'Kaki Home',
@@ -45,6 +46,7 @@ const NAME_MAX = 40;
 // How a member shows: their name if someone gave one, else their email.
 const personLabel = email => names()[email] || email;
 // The name this phone signs changes with: the household's name for me, this phone's own, or my Google first name.
+const me = () => S.user?.email || '';
 const who = () => (S.user && names()[S.user.email]) || prefs.get('name') || S.user?.name?.split(' ')[0] || '';
 const items = () => [...S.items.values()].filter(i => !i.archived);
 const eventsFor = id => [...S.events.values()].filter(e => e.itemId === id);
@@ -247,6 +249,7 @@ function viewHome() {
   const all = items();
   let h = `<h1 class="ha-large-title">Kaki Home</h1><p class="ha-large-sub">${esc(statusLine())}</p>`;
   if (S.syncError) h += `<div class="ha-panel kh-alert" role="status">${icon('alert')}<span>Some changes didn’t reach the household. ${esc(S.syncError)}</span></div>`;
+  if (S.mode === 'cloud' && S.allHouseholds.length > 1) h += `<a class="ha-panel kh-alert" href="#/settings">${icon('alert')}<span>You’re in more than one household. Merge them in Settings.</span></a>`;
   h += viewTour();
   if (!all.length) {
     return h + `<div class="ha-card ha-empty">
@@ -883,9 +886,20 @@ function viewSettings() {
   } else if (!configured) {
     fam = `<ul class="ha-list">${row(`<span class="ha-row-icon ha-row-icon--grey">${icon('box')}</span><span class="ha-row-body"><span class="ha-row-title">On this phone only</span><span class="ha-row-sub">Household sharing isn’t set up yet.</span></span>`)}</ul>`;
     famFoot = 'Sharing with the household needs a one-time setup of Kaki Home’s Firebase project (SETUP.md).';
+  } else if (S.pending) {
+    // a new password account, not verified yet: no household data until the emailed link has been tapped
+    fam = `<ul class="ha-list">${row(`<span class="ha-row-icon">${icon('mail')}</span><span class="ha-row-body"><span class="ha-row-title">Check your email</span><span class="ha-row-sub kh-break">We sent a link to ${esc(S.pending.email)}. Tap it, then come back here.</span></span>`)}
+      ${btnRow('verified', 'I’ve verified', { iconName: 'check' })}${btnRow('verify-resend', 'Send it again')}${btnRow('signout', 'Use a different email')}</ul>`;
+    famFoot = 'The link proves the email is yours. Look in Junk or Spam if it doesn’t arrive in a minute or two.';
   } else if (!S.user) {
-    fam = `<ul class="ha-list">${btnRow('signin', 'Sign in with Google', { iconName: 'user' })}</ul>`;
+    fam = `<ul class="ha-list">${btnRow('signin', 'Continue with Google', { iconName: 'user' })}</ul>
+      <p class="kh-quiet"><button type="button" class="ha-btn ha-btn--plain ha-btn--compact" data-act="email-open">Use email instead</button></p>`;
     famFoot = 'Sign in to share one list with your household: everyone sees the same items and shopping list. Only the people added can see it.';
+  } else if (!S.household && S.lookupFailed) {
+    // couldn't ask the server (no signal): not "no household", so no Start button
+    fam = `<ul class="ha-list">${row(`<span class="ha-row-icon">${icon('alert')}</span><span class="ha-row-body"><span class="ha-row-title">Can’t check right now</span><span class="ha-row-sub kh-break">${esc(S.user.email)}</span></span>`)}
+      ${btnRow('hh-check', 'Try again', { iconName: 'refresh' })}${btnRow('signout', 'Sign out')}</ul>`;
+    famFoot = 'Connect to the internet and try again. Your household is looked up first, so a second one is never started by mistake.';
   } else if (!S.household) {
     fam = `<ul class="ha-list">${row(`<span class="ha-row-icon">${icon('user')}</span><span class="ha-row-body"><span class="ha-row-title">Signed in</span><span class="ha-row-sub">${esc(S.user.email)}</span></span>`)}
       ${btnRow('hh-create', 'Start our household')}${btnRow('hh-check', 'Check again')}${btnRow('signout', 'Sign out')}</ul>`;
@@ -901,12 +915,13 @@ function viewSettings() {
       }).join('')}
       ${S.localCount ? btnRow('copy-up', `Copy ${plural(S.localCount, 'item')} from this phone`, { iconName: 'upload', sub: 'Saved here before you signed in' }) : ''}
       ${btnRow('signout', 'Sign out')}</ul>
-      <form class="kh-addline kh-member" id="kh-member-add"><label class="ha-sr" for="kh-member-email">Household member’s Google email</label>
-        <input class="ha-input" id="kh-member-email" type="email" placeholder="Household member’s Gmail" autocomplete="off" autocapitalize="off" spellcheck="false">
+      <form class="kh-addline kh-member" id="kh-member-add"><label class="ha-sr" for="kh-member-email">Household member’s email</label>
+        <input class="ha-input" id="kh-member-email" type="email" placeholder="Household member’s email" autocomplete="off" autocapitalize="off" spellcheck="false">
         <button class="ha-btn ha-btn--compact" type="submit">Add</button></form>`;
-    famFoot = 'They sign in with that Google account to see Kaki Home. Tap someone to give them a name, email them the link again, or stop sharing. Whoever started it can’t be removed.';
+    famFoot = 'They sign in with that email (Google, or an emailed link or password) to see Kaki Home. Tap someone to give them a name, email them the link again, or stop sharing. Whoever started it can’t be removed.';
   }
   return `<h1 class="ha-large-title">Settings</h1>
+    ${mergeCard()}
     ${section('Household sharing', fam, { id: 'family', footer: famFoot })}
     ${section('Reminders', `<div class="ha-chips ha-chips--wrap" role="group" aria-label="Expiring soon means within">${Object.entries(SOON).map(([v, l]) =>
       `<button type="button" class="ha-chip" aria-pressed="${soonDays() === Number(v)}" data-act="soon" data-v="${v}">${l}</button>`).join('')}</div>`,
@@ -1122,6 +1137,12 @@ async function onClick(e) {
     case 'signin':
       try { await S.cloud.signIn(); } catch (err) { haToast(S.cloud.explain(err, 'Sign-in')); }
       return;
+    case 'email-open': return openEmailSheet();
+    case 'merge-open': return openMerge();
+    case 'verified': return checkVerified();
+    case 'verify-resend':
+      try { await S.cloud.resendVerification(); haToast('Sent again. Check your email.'); } catch (err) { haToast(S.cloud.explain(err, 'Sending it')); }
+      return;
     case 'signout': {
       haToast('Checking everything reached the household…');
       const ok = await S.cloud.synced(4000);
@@ -1131,15 +1152,26 @@ async function onClick(e) {
       return;
     }
     case 'hh-create': {
-      try { await useHousehold(await S.cloud.createHousehold(S.user.email, 'Our home')); haToast('Household started. Add its members below.'); } catch (err) { haToast(S.cloud.explain(err, 'Starting the household')); }
+      if (S.creating) return;   // a double tap, or a second try while the first is still going
+      S.creating = true;
+      try {
+        // never a second household for someone already in one: ask the server right now (offline this throws, and
+        // nothing is created: the create itself also needs the server)
+        const had = await locate(S.user.email);
+        if (had) { S.lookupFailed = false; await useHousehold(had); return haToast('You’re already in a household; it’s open now.'); }
+        await useHousehold(await S.cloud.createHousehold(S.user.email, 'Our home'));
+        haToast('Household started. Add its members below.');
+      } catch (err) { haToast(S.cloud.explain(err, 'Starting the household')); }
+      finally { S.creating = false; }
       return;
     }
     case 'hh-check': {
       try {
-        const h = await S.cloud.findHousehold(S.user.email);
-        if (!h) return haToast('Not added yet. Ask whoever started it to add you.');
+        const h = await locate(S.user.email);
+        S.lookupFailed = false;
+        if (!h) { redraw(); return haToast('Not added yet. Ask whoever started it to add you.'); }
         await useHousehold(h);
-      } catch (err) { haToast(S.cloud.explain(err, 'Checking')); }
+      } catch (err) { S.lookupFailed = true; redraw(); haToast(S.cloud.explain(err, 'Checking')); }
       return;
     }
     case 'person': return openPerson(b.dataset.v);
@@ -1223,7 +1255,7 @@ async function onSubmit(e) {
   if (e.target.id === 'kh-member-add') {
     e.preventDefault();
     const v = $('#kh-member-email').value.trim().toLowerCase();
-    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(v)) return haToast('Type their Google email address');
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(v)) return haToast('Type their email address');
     try {
       await S.cloud.setMembers(S.household.id, [...S.household.members, v]);
       $('#kh-member-email').value = '';
@@ -1232,14 +1264,14 @@ async function onSubmit(e) {
   }
 }
 
-// A household member's card: their Gmail, a name everyone in the household sees, invite again, stop sharing.
+// A household member's card: their email, a name everyone in the household sees, invite again, stop sharing.
 function openPerson(email) {
   const h = S.household; if (!h) return;
   const canRemove = email !== h.owner && email !== S.user.email;
   const s = haSheet({
     title: names()[email] || 'Household member', closeLabel: 'Done', grey: true,
     body: `<ul class="ha-list"><li><div class="ha-row"><span class="ha-row-icon">${icon('mail')}</span><span class="ha-row-body"><span class="ha-row-title kh-break">${esc(email)}</span>
-        <span class="ha-row-sub">${email === h.owner ? 'Started the household' : 'Google account'}${email === S.user.email ? ' · you' : ''}</span></span></div></li></ul>
+        <span class="ha-row-sub">${email === h.owner ? 'Started the household' : 'Signs in with this email'}${email === S.user.email ? ' · you' : ''}</span></span></div></li></ul>
       <form id="kh-person" class="kh-person-form" novalidate>
         <label class="ha-field"><span class="ha-field-label">Name</span>
           <input class="ha-input" name="name" id="kh-person-name" value="${esc(names()[email] || '')}" maxlength="${NAME_MAX}" autocomplete="off" placeholder="For example, Mum or Ah Mei"></label>
@@ -1282,7 +1314,7 @@ function inviteHref(email) {
   const from = who() || S.user?.name?.split(' ')[0] || '';
   const link = location.origin + location.pathname.replace(/[^/]*$/, '') + '#/settings';   // lands on Sign in
   const body = `Hi! I've added you to our household on Kaki Home, so we can all see what's at home, what to use first and what to buy.\n\n`
-    + `1. Open ${link}\n2. Settings → Sign in with Google, using this account (${email})\n3. Add it to your home screen: Safari's Share button → Add to Home Screen (iPhone), or Chrome's menu → Add to home screen (Android)`
+    + `1. Open ${link}\n2. Settings → Continue with Google (or Use email instead), using this email address (${email})\n3. Add it to your home screen: Safari's Share button → Add to Home Screen (iPhone), or Chrome's menu → Add to home screen (Android)`
     + (from ? `\n\n${from}` : '');
   return `mailto:${encodeURIComponent(email)}?subject=${encodeURIComponent('Our household on Kaki Home')}&body=${encodeURIComponent(body)}`;
 }
@@ -1319,11 +1351,199 @@ async function useLocal() {
   unwatch?.(); unwatch = null;
   S.backend = S.local;
   S.mode = 'local';
-  S.household = null; S.syncError = false;
+  S.household = null; S.allHouseholds = []; S.lookupFailed = false; S.syncError = false;
   S.pics.clear();
   loadInto(await S.local.load());
   migratePhotos();
   redraw();
+}
+
+// ---- two households for one account: merge them into one ---------------------------------------------------------
+
+// The Settings card, only when this account is in more than one household (a second "Start our household"
+// made a duplicate). Only an owner can delete a household, so someone else is asked to do it.
+function mergeCard() {
+  if (S.mode !== 'cloud' || S.allHouseholds.length < 2) return '';
+  const p = MG.plan(S.allHouseholds, S.household?.id, me());
+  const notMine = [...new Set(p.notMine.map(h => personLabel(h.owner)))];
+  const body = p.notMine.length && !S.allHouseholds.some(h => h.owner === me())
+    ? `<li><div class="ha-row"><span class="ha-row-icon">${icon('alert')}</span><span class="ha-row-body"><span class="ha-row-title">You’re in more than one household</span><span class="ha-row-sub kh-break">Ask ${esc(notMine.join(' or '))} to merge them.</span></span></div></li>`
+    : `<li><button type="button" class="ha-row ha-row--action" data-act="merge-open"><span class="ha-row-icon">${icon('alert')}</span><span class="ha-row-body"><span class="ha-row-title">You’re in more than one household</span><span class="ha-row-sub">Merge them into one</span></span>${chevron()}</button></li>`;
+  return section('Two households', `<ul class="ha-list">${body}</ul>`, { id: 'merge', footer: 'The same email is in more than one household, so you may see a different one on another phone. Merging moves everything into one.' });
+}
+// The merge sheet: each household (name, who started it, how many people), the one with the most people chosen to keep.
+async function openMerge() {
+  let all;
+  try { all = await S.cloud.findHouseholds(me()); } catch (err) { return haToast(S.cloud.explain(err, 'Looking')); }
+  S.allHouseholds = all;
+  if (all.length < 2) { redraw(); return haToast('There’s only one household now.'); }
+  let keep = S.cloud.pickHousehold(all, '').id;
+  const s = haSheet({ title: 'Merge households', closeLabel: 'Cancel', grey: true, body: '', onClose: afterSheet });
+  const body = $('.ha-sheet-body', s.el);
+  const draw = () => {
+    const p = MG.plan(all, keep, me());
+    const rows = all.map(h => `<li><label class="ha-row kh-pick"><span class="ha-row-body"><span class="ha-row-title kh-break">${esc(h.name || 'Our home')}</span>
+      <span class="ha-row-sub kh-break">${esc(plural((h.members || []).length, 'person', 'people'))} · started by ${esc(personLabel(h.owner))}</span></span>
+      <input type="radio" name="kh-keep" value="${esc(h.id)}"${h.id === keep ? ' checked' : ''} aria-label="Keep ${esc(h.name || 'Our home')}, ${esc(plural((h.members || []).length, 'person', 'people'))}"></label></li>`).join('');
+    const why = p.over ? `Together they have ${p.total} people and a household holds ${MG.MAX_MEMBERS}. Remove some people first, then merge.`
+      : p.notMine.length ? `Only whoever started a household can merge it away. Ask ${[...new Set(p.notMine.map(h => personLabel(h.owner)))].join(' or ')} to merge them.` : '';
+    body.innerHTML = `<p class="kh-em-lead">Choose the one to keep. Everything in the others (items, history, shopping lists, photos, places, names and people) moves into it, then the others are deleted.</p>
+      <ul class="ha-list" role="radiogroup" aria-label="Household to keep">${rows}</ul>
+      ${why ? `<p class="ha-field-error" role="alert">${icon('alert')}<span>${esc(why)}</span></p>` : ''}
+      <p class="ha-section-footer" id="kh-merge-msg" role="status"></p>
+      <button type="button" class="ha-btn ha-btn--primary ha-btn--block" data-pm="go"${p.canMerge ? '' : ' disabled'}>Merge into this one</button>`;
+  };
+  draw();
+  let busy = false;
+  s.el.addEventListener('change', e => { if (e.target.name === 'kh-keep' && !busy) { keep = e.target.value; draw(); } });
+  s.el.addEventListener('click', async e => {
+    if (!e.target.closest('[data-pm="go"]') || busy) return;
+    const p = MG.plan(all, keep, me());
+    if (!p.canMerge) return;
+    if (!(await haConfirm({ title: 'Merge and delete the others?', text: `${plural(p.others.length, 'other household', 'other households')} will be deleted after everything is copied into ${p.keep.name || 'Our home'}. This can’t be undone.`, ok: 'Merge', danger: true }))) return;
+    busy = true;
+    const say = t => { const m = $('#kh-merge-msg', s.el); if (m) m.textContent = t; };
+    body.querySelectorAll('button, input').forEach(b => { b.disabled = true; });
+    try {
+      say('Copying…');
+      for (const o of p.others) await S.cloud.copyHousehold(p.keep.id, o.id, p.members);   // any failure stops here: nothing deleted
+      if (p.members.length !== (p.keep.members || []).length) await S.cloud.addMembers(p.keep.id, p.members);
+      if (S.household?.id !== p.keep.id) await useHousehold({ ...p.keep, members: p.members });   // leave the ones about to go
+      say('Removing the extra households…');
+      for (const o of p.others) await S.cloud.removeHousehold(o.id);
+      S.allHouseholds = [{ ...p.keep, members: p.members }];
+      await haCloseSheet(s.el);
+      redraw();
+      haToast(`Merged. One household now, with ${plural(p.members.length, 'person', 'people')}.`);
+    } catch (err) {
+      busy = false;
+      say(`${S.cloud.explain(err, 'Merging')} Nothing was lost; the households are as they were, so you can try again.`);
+      body.querySelectorAll('button, input').forEach(b => { b.disabled = false; });
+    }
+  });
+  return s;
+}
+
+// ---- signing in by email (besides Google): an emailed link, or a password ----------------------------------------------
+
+// Every change of who is signed in comes here. A new password account is `pending` until the emailed link has been
+// tapped: no household lookup, no household data, nothing from Firestore (its rules need a verified email).
+async function handleUser(u) {
+  S.pending = u && !u.verified ? u : null;
+  S.user = u && u.verified ? u : null;
+  if (!S.user) { if (S.mode !== 'local') await useLocal(); else redraw(); return; }
+  let h = null;
+  S.lookupFailed = false;
+  try { h = await locate(S.user.email); } catch (e) { console.warn('household', e?.code); S.lookupFailed = true; }   // can't tell (no signal): never "none"
+  if (h) await useHousehold(h); else redraw();
+}
+// Which household this account opens: the one this phone used last, else the biggest. Every one it is in is kept in
+// S.allHouseholds (two means a duplicate to merge: Settings offers it).
+async function locate(email) {
+  const all = await S.cloud.findHouseholds(email);
+  S.allHouseholds = all;
+  return S.cloud.pickHousehold(all, prefs.get('household') || '');
+}
+// "I've verified": reload the account and its token, then carry on as signed in (or say it isn't done yet).
+async function checkVerified({ quiet = false } = {}) {
+  try {
+    const u = await S.cloud.refreshUser();
+    if (!u) { if (!quiet) haToast('Sign in again, please.'); return; }
+    if (!u.verified) { if (!quiet) haToast('Not yet. Tap the link in the email first, then try again.'); return; }
+    await handleUser(u);
+    haToast('Verified. You’re signed in.');
+  } catch (err) { if (!quiet) haToast(S.cloud.explain(err, 'Checking')); }
+}
+// The one sheet for email: the address, then "Email me a sign-in link" or "Use a password" (Sign in, Create account,
+// Forgot password). `confirm` is for an emailed link opened where the address wasn't saved: just ask for it.
+function openEmailSheet({ confirm = false, onSubmit = null } = {}) {
+  const C = S.cloud;
+  let step = confirm ? 'confirm' : 'email', mail = C.savedEmail(), err = '', busy = false;
+  const s = haSheet({ title: confirm ? 'Finish signing in' : 'Sign in with email', closeLabel: 'Cancel', grey: true, body: '', onClose: afterSheet });
+  const body = $('.ha-sheet-body', s.el);
+  const emailField = (hint = '') => `<label class="ha-field"><span class="ha-field-label">Email</span>
+      <input class="ha-input" id="kh-em-email" name="email" type="email" value="${esc(mail)}" autocomplete="email" autocapitalize="off" spellcheck="false" inputmode="email" placeholder="you@example.com"${hint ? ' aria-describedby="kh-em-hint"' : ''}></label>${hint ? `<p class="ha-section-footer kh-em-hint" id="kh-em-hint">${hint}</p>` : ''}`;
+  const errBox = () => `<p class="ha-field-error" id="kh-em-err" role="alert"${err ? '' : ' hidden'}>${icon('alert')}<span>${esc(err)}</span></p>`;
+  const views = {
+    email: () => `<form id="kh-em-form" novalidate>${emailField('Use the email the household added. No password needed: we email you a link that signs you in.')}${errBox()}
+        <button type="submit" class="ha-btn ha-btn--primary ha-btn--block" data-pe="link">Email me a sign-in link</button>
+        <button type="button" class="ha-btn ha-btn--block kh-em-second" data-pe="pw">Use a password</button></form>`,
+    password: () => `<form id="kh-em-form" novalidate>${emailField()}
+        <label class="ha-field"><span class="ha-field-label">Password</span>
+          <input class="ha-input" id="kh-em-pass" name="password" type="password" autocomplete="current-password" minlength="${C.MIN_PASSWORD}" aria-describedby="kh-em-phint"></label>
+        <p class="ha-section-footer kh-em-hint" id="kh-em-phint">New here? Choose at least ${C.MIN_PASSWORD} characters, then tap Create account. We email a link to check the address.</p>${errBox()}
+        <button type="submit" class="ha-btn ha-btn--primary ha-btn--block" data-pe="signin">Sign in</button>
+        <button type="button" class="ha-btn ha-btn--block kh-em-second" data-pe="create">Create account</button>
+        <div class="kh-em-links"><button type="button" class="ha-btn ha-btn--plain ha-btn--compact" data-pe="forgot">Forgot password?</button>
+          <button type="button" class="ha-btn ha-btn--plain ha-btn--compact" data-pe="back">Email me a link instead</button></div></form>`,
+    sent: () => `<div class="kh-em-note"><span class="ha-row-icon">${icon('mail')}</span><div><p class="kh-em-title">Check your email</p>
+        <p>We sent a sign-in link to <strong class="kh-break">${esc(mail)}</strong>. Tap it on this phone and you’re in.</p>
+        <p>On an iPhone the link may open in Safari instead of the home-screen app. That’s fine: you’ll be signed in there. In the home-screen app, use a password instead, or ask for the link from inside the home-screen app.</p></div></div>${errBox()}
+      <button type="button" class="ha-btn ha-btn--primary ha-btn--block" data-pe="link">Send it again</button>
+      <button type="button" class="ha-btn ha-btn--block kh-em-second" data-pe="pw">Use a password instead</button>`,
+    reset: () => `<div class="kh-em-note"><span class="ha-row-icon">${icon('mail')}</span><div><p class="kh-em-title">Check your email</p>
+        <p>We sent a link to <strong class="kh-break">${esc(mail)}</strong>. Open it, choose a new password, then come back and sign in.</p></div></div>
+      <button type="button" class="ha-btn ha-btn--primary ha-btn--block" data-pe="pw">Back to sign in</button>`,
+    confirm: () => `<form id="kh-em-form" novalidate><p class="kh-em-lead">You opened a sign-in link. Type the email it was sent to, to finish.</p>${emailField()}${errBox()}
+        <button type="submit" class="ha-btn ha-btn--primary ha-btn--block" data-pe="finish">Sign in</button></form>`,
+  };
+  const draw = (focus = true) => {
+    body.innerHTML = views[step]();
+    if (focus) requestAnimationFrame(() => (step === 'password' && mail ? $('#kh-em-pass', body) : $('#kh-em-email', body))?.focus({ preventScroll: true }));
+  };
+  const fail = e => { err = step === 'confirm' && e?.code === 'auth/invalid-email' && C.goodEmail(mail) ? 'That isn’t the email the link was sent to. Check it and try again.' : C.explain(e, 'That'); const box = $('#kh-em-err', body); if (box) { box.hidden = false; box.lastElementChild.textContent = err; } };
+  const run = async fn => {
+    if (busy) return; busy = true; err = '';
+    const box = $('#kh-em-err', body); if (box) box.hidden = true;
+    body.querySelectorAll('button').forEach(b => { b.disabled = true; });
+    try { await fn(); } catch (e) { fail(e); }
+    busy = false;
+    body.querySelectorAll('button').forEach(b => { b.disabled = false; });
+  };
+  const read = () => { const i = $('#kh-em-email', body); if (i) mail = i.value.trim(); return mail; };
+  const act = {
+    link: () => run(async () => { mail = (read() || mail).toLowerCase(); await C.sendLink(mail); step = 'sent'; draw(); }),
+    pw: () => { read(); step = 'password'; err = ''; draw(); },
+    back: () => { read(); step = 'email'; err = ''; draw(); },
+    signin: () => run(async () => { await C.passwordSignIn(read(), $('#kh-em-pass', body).value); await haCloseSheet(s.el); }),
+    create: () => run(async () => {
+      await C.passwordCreate(read(), $('#kh-em-pass', body).value);
+      await haCloseSheet(s.el);
+      haToast('Check your email and tap the link, then come back.');
+    }),
+    forgot: () => run(async () => { await C.resetPassword(read()); step = 'reset'; draw(); }),
+    finish: () => run(async () => { if (await onSubmit(read())) await haCloseSheet(s.el); }),
+  };
+  s.el.addEventListener('click', e => { const b = e.target.closest('[data-pe]'); if (b && b.type !== 'submit') act[b.dataset.pe]?.(); });
+  s.el.addEventListener('submit', e => {
+    e.preventDefault();
+    const b = e.submitter?.dataset.pe || (step === 'password' ? 'signin' : step === 'confirm' ? 'finish' : 'link');
+    act[b]?.();
+  });
+  draw();
+  return s;
+}
+// A link from the sign-in email opened this page: finish with the saved address, or ask for it (the link was opened in
+// another browser, such as Safari instead of the home-screen app). The link's query comes off the address afterwards.
+async function finishEmailLink() {
+  const C = S.cloud;
+  let isLink = false;
+  try { isLink = await C.isEmailLink(); } catch { return; }
+  if (!isLink) return;
+  const href = location.href;
+  let used = false;
+  const tidy = () => { used = true; history.replaceState(history.state, '', C.stripLinkParams(href)); };
+  const attempt = async email => {
+    try { await C.finishLink(email, href); tidy(); haToast('Signed in.'); return true; }
+    catch (err) {
+      if (err?.code === 'auth/invalid-email') throw err;   // wrong address: let them retype it
+      tidy(); haToast(C.explain(err, 'Signing in')); return true;
+    }
+  };
+  const saved = C.savedEmail();
+  if (saved) { try { if (await attempt(saved)) return; } catch { /* the saved address was wrong: ask */ } }
+  // closing the sheet steps back in history, so the address is tidied again once it has gone
+  openEmailSheet({ confirm: true, onSubmit: attempt }).closed.then(() => { if (used) tidy(); });
 }
 
 // ---- updates: a new version takes over only when nobody is in the middle of something ----------------------------
@@ -1364,7 +1584,7 @@ async function start() {
   document.addEventListener('change', onChange);
   document.addEventListener('input', onInput);
   document.addEventListener('submit', onSubmit);
-  addEventListener('online', redraw);
+  addEventListener('online', () => { if (S.user && !S.household && S.lookupFailed && S.cloud) handleUser(S.user); else redraw(); });
   addEventListener('offline', redraw);
   R = haRouter({
     render: r => draw(r),
@@ -1376,13 +1596,10 @@ async function start() {
       S.cloud = await import('./cloud.js');
       if (S.cloud.configured) {
         if (EMULATOR) window.__kakihome = { S, signIn: S.cloud.emulatorSignIn };
-        S.cloud.onUser(async u => {
-          S.user = u;
-          if (!u) { if (S.mode !== 'local') await useLocal(); else redraw(); return; }
-          let h = null;
-          try { h = await S.cloud.findHousehold(u.email); } catch (e) { console.warn('household', e?.code); }
-          if (h) await useHousehold(h); else redraw();
-        }).catch(() => { /* no signal on the very first open: stays on this phone's list */ });
+        S.cloud.onUser(handleUser).catch(() => { /* no signal on the very first open: stays on this phone's list */ });
+        finishEmailLink();
+        // someone verified their email in the mail app and came back: carry on without asking
+        document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && S.pending) checkVerified({ quiet: true }); });
       }
     } catch { /* sharing unavailable (no signal on the first open) */ }
     redraw();

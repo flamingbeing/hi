@@ -49,6 +49,6 @@ export function tourTasks({ items = [], events = [], flags = {}, installed = fal
     { id: 'shop', title: 'Look at the shopping list', sub: 'It fills itself with what’s running low', done: !!flags.shopped },
     { id: 'install', title: 'Put it on your home screen', sub: 'It then opens like an app, even without signal', done: installed || !!flags.installSeen },
   ];
-  if (sharing !== 'none') tasks.push({ id: 'family', title: 'Share it with your household', sub: 'Sign in and add each person’s Gmail', done: sharing === 'in' || !!flags.familyDone });
+  if (sharing !== 'none') tasks.push({ id: 'family', title: 'Share it with your household', sub: 'Sign in and add each person’s email', done: sharing === 'in' || !!flags.familyDone });
   return tasks;
 }

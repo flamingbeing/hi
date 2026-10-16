@@ -92,3 +92,14 @@ label.ha-row:focus-within:has(.kh-file){outline:2px solid var(--home-focus);outl
 .kh-break{white-space:normal;overflow-wrap:anywhere}
 .kh-person-form{margin:var(--home-s4) 0}
 .kh-person-acts{margin-top:var(--home-s3)}
+
+/* sign in by email: the quiet link under Continue with Google, and the email sheet */
+.kh-quiet{margin:var(--home-s2) 0 0;text-align:center}
+.kh-em-second{margin-top:var(--home-s3)}
+.kh-em-hint{padding:0;margin:calc(var(--home-s2) * -1) 0 var(--home-s4)}
+.kh-em-links{display:flex;flex-wrap:wrap;justify-content:space-between;gap:var(--home-s2);margin-top:var(--home-s3)}
+.kh-em-note{display:flex;gap:var(--home-s3);align-items:flex-start;margin:0 0 var(--home-s5)}
+.kh-em-note p{margin:0 0 var(--home-s3);line-height:1.45}
+.kh-em-title{font-weight:600}
+.kh-em-lead{margin:0 0 var(--home-s4);line-height:1.45}
+#kh-em-form .ha-field-error{margin:0 0 var(--home-s3)}

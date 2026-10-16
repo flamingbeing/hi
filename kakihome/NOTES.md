@@ -48,6 +48,19 @@ Lasting decisions and how to test. Now: [STATUS.md](STATUS.md). Setup: [SETUP.md
   downloads thumbnails, not photos: many people attaching many photos can't use up the free 10 GB a month of Firestore
   downloads. Rules: members only; thumb at most 12 KB; photo data at most 150 KB; no item may gain a `photo` field.
   Older items with a whole photo inside (none exist yet) would move by themselves. Backups include the photos.
+- **Email sign-in and one household per account** (owner, 16 Oct; the pantry's #31, ported; firetop switched on
+  Email/Password with email link in `flamingbeing-kakihome`): Settings has "Continue with Google" and, under it,
+  "Use email instead": an emailed sign-in link, or email + password (Create account, Forgot password). A new password
+  account must tap the emailed verification link before it sees anything (the rules already need a verified email), and
+  "I've verified" carries on. An emailed link opened in another browser (iPhone Safari instead of the home-screen app)
+  asks for the address once. Firebase's default sender allows roughly 100 emails a day, so it suits a trial, not a
+  crowd.
+  **One household per account:** the lookup asks the server, never the phone's copy (offline it says "Can't check
+  right now", with no Start button), creating is a server-only transaction and ignores a double tap, an account in
+  several households opens the one this phone used last (else the biggest), and Settings offers one-tap **merge**
+  (copies items, history, shopping, photos and names into the one kept, checks counts on the server, joins members up
+  to 20, then deletes the others; any error stops with nothing deleted; only the owner of a household can merge it
+  away). No rules change.
 - Everything else as in `pantry/NOTES.md` (stock as batches, undo over confirm, a household member's change never
   wipes what someone is typing, sign-in on the app's own address, the service worker waits to take over, rules deploy
   on merge with the `KAKIHOME_FIREBASE_PROJECT` variable).
@@ -59,9 +72,10 @@ node kakihome/test/logic.test.mjs      # logic, measures, catalogue, backups
 node kakihome/test/quick.test.mjs      # Say or type: dates, places, quantities, matching
 node kakihome/test/tour.test.mjs       # first steps: quick-start list, checklist ticks
 node kakihome/test/photo.test.mjs      # photo sizes: the thumbnail and photo limits
+node kakihome/test/merge.test.mjs      # merging duplicate households: who may, members, names
 node kakihome/test/config.test.mjs     # set-config, sign-in choice, plain-word errors, sw.js rules
 node kakihome/test/e2e.mjs             # phone browser test with axe; SHOTS=<dir> saves screenshots
-kakihome/test/run-sync.sh              # household sharing and the rules in the local emulators (demo-kakihome)
+kakihome/test/run-sync.sh              # household sharing, photos, names, merging, email sign-in and the rules in the local emulators (demo-kakihome)
 ```
 
 The "Kaki Home checks" workflow runs them on PRs touching `kakihome/`, `homedesign/` or `__/`. Never point a test at the

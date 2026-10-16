@@ -3,7 +3,8 @@
 ## Now
 
 - 16 Oct 2026: fixes only, at the owner's request ("go ahead and improve"): photo thumbnails and size limits (this PR),
-  then email sign-in (the Firebase side is switched on), then edits not lost between phones.
+  then email sign-in and one household per account (this PR; the Firebase side is switched on), then edits not lost
+  between phones (the pantry builds it first; Kaki Home ports it after).
 
 - **Feature freeze (owner, 16 Oct 2026): no new features.** Kaki Home is being shared with people outside the family
   to try out. Only fixes (bugs, security, cost) from now on, and only when the owner asks. The family's own app is the
