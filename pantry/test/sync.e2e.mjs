@@ -42,6 +42,7 @@ const admin = {
   async del(path) { const r = await fetch(FS + path, { method: 'DELETE', headers: { Authorization: 'Bearer owner' } }); assert.ok(r.ok, 'delete ' + path); },
   async get(path) { const r = await fetch(FS + path, { headers: { Authorization: 'Bearer owner' } }); return r.ok ? unfields((await r.json()).fields || {}) : null; },
 };
+const SYNC_REFUSED = list => list.length;
 const go = async (p, h) => { await p.evaluate(x => { location.hash = x; }, h); await settle(p); };
 const sub = (p, name) => p.locator('#pa-items-list .ha-row', { hasText: name }).locator('.ha-row-sub');
 try {
@@ -327,12 +328,205 @@ try {
 
   if (process.env.SHOTS) { await go(mum, '#/settings'); await mum.screenshot({ path: process.env.SHOTS + '/m06-family-after-names.png' }); }
 
+  // ---- stock changes are instructions: two phones never overwrite each other (online or not) ----
+  const FSJS = 'https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js';
+  const net = (p, on) => p.evaluate(async ([on, u]) => { const F = await import(u); const db = F.getFirestore(); await (on ? F.enableNetwork(db) : F.disableNetwork(db)); }, [on, FSJS]);
+  const drain = p => p.evaluate(async u => { const F = await import(u); await F.waitForPendingWrites(F.getFirestore()); }, FSJS);
+  const act = (p, name, ...args) => p.evaluate(([n, a]) => window.__pantry.act[n](...a), [name, args]);
+  const rawItem = id => admin.get(`households/${hid}/items/${id}`);
+  const rawQty = async id => Object.fromEntries(Object.entries((await rawItem(id)).batches).map(([k, v]) => [k, v.qty]));
+  const has = (p, id) => p.waitForFunction(id => window.__pantry.S.items.has(id), id);
+  const shown = (p, id) => p.evaluate(id => Object.fromEntries(window.__pantry.S.items.get(id).batches.map(b => [b.id, b.qty])), id);
+  const both = async (id, want, what) => {   // the server and both phones agree
+    let got;
+    for (let i = 0; i < 25; i++) {   // a refused conversion is applied again by the app a moment after the refusal
+      await drain(mum); await drain(dad);
+      got = await rawQty(id);
+      if (JSON.stringify(got) === JSON.stringify(want)) break;
+      await mum.waitForTimeout(300);
+    }
+    assert.deepEqual(got, want, what + ' (server)');
+    for (const [who, p] of [['mum', mum], ['dad', dad]]) { await p.waitForFunction(([id, w]) => JSON.stringify(Object.fromEntries(window.__pantry.S.items.get(id).batches.map(b => [b.id, Math.max(0, b.qty)]))) === w, [id, JSON.stringify(Object.fromEntries(Object.entries(want).map(([k, v]) => [k, Math.max(0, v)])))]); }
+  };
+  const base = { category: 'Sauces & condiments', location: 'Fridge', brand: '', size: '', barcode: '', lowAt: 0, openDays: null, createdAt: '2026-10-16T00:00:00.000Z', createdBy: 'Mum' };
+  await admin.put(`households/${hid}/items/soy`, { id: 'soy', name: 'Soy', ...base, batches: { ba: { qty: 5, expiry: '2027-01-01', openedAt: null, addedAt: '2026-10-01' }, bb: { qty: 2, expiry: '2027-06-01', openedAt: null, addedAt: '2026-10-02' } } });
+  await has(mum, 'soy'); await has(dad, 'soy');
+  // 1. both use one of the same batch at once: two uses, not one
+  await Promise.all([act(mum, 'use', 'soy'), act(dad, 'use', 'soy')]);
+  await both('soy', { ba: 3, bb: 2 }, 'both phones used one: 5 - 2');
+  // 2. dad has no signal and uses one; mum uses one; dad's phone says it is waiting; then the signal returns: both count
+  await net(dad, false);
+  await act(dad, 'use', 'soy', 'ba');
+  await go(dad, '#/');
+  await dad.locator('.pa-sync', { hasText: 'Waiting for signal (1 change)' }).waitFor();
+  if (process.env.SHOTS) await dad.screenshot({ path: process.env.SHOTS + '/s02-waiting.png' });
+  await act(mum, 'use', 'soy', 'ba'); await drain(mum);
+  assert.deepEqual(await rawQty('soy'), { ba: 2, bb: 2 }, 'the server has only mum’s use while dad is offline');
+  await net(dad, true);
+  await both('soy', { ba: 1, bb: 2 }, 'dad came back: 3 - 2');
+  await dad.locator('.pa-sync', { hasText: 'Saved' }).waitFor();
+  if (process.env.SHOTS) await dad.screenshot({ path: process.env.SHOTS + '/s01-saved.png' });
+  // 3. one phone adds a batch while the other uses from another: both kept
+  await Promise.all([act(mum, 'add', 'soy', 3, '2027-03-03', 'bnew'), act(dad, 'use', 'soy', 'bb')]);
+  await both('soy', { ba: 1, bb: 1, bnew: 3 }, 'an added batch and a use from another batch');
+  // 4. Edit: dad opens the form, mum uses one meanwhile, dad saves a new name: the stock keeps mum's use
+  await go(dad, '#/edit/soy');
+  await dad.fill('#pa-form [name="name"]', 'Soy sauce');
+  await act(mum, 'use', 'soy', 'bnew'); await drain(mum);
+  await dad.waitForFunction(() => window.__pantry.S.items.get('soy').batches.find(b => b.id === 'bnew').qty === 2);
+  await dad.click('#pa-save'); await settle(dad);
+  await both('soy', { ba: 1, bb: 1, bnew: 2 }, 'a form saved after another phone used one');
+  assert.equal((await rawItem('soy')).name, 'Soy sauce');
+  // ... and the same offline: dad renames with no signal, mum uses one, dad reconnects: the new name and mum's use
+  await go(dad, '#/edit/soy'); await net(dad, false);
+  await dad.fill('#pa-form [name="name"]', 'Light soy sauce'); await dad.click('#pa-save'); await settle(dad);
+  await act(mum, 'use', 'soy', 'bnew'); await drain(mum);
+  await net(dad, true);
+  await both('soy', { ba: 1, bb: 1, bnew: 1 }, 'an offline rename and a use');
+  assert.equal((await rawItem('soy')).name, 'Light soy sauce');
+  await mum.waitForFunction(() => window.__pantry.S.items.get('soy').name === 'Light soy sauce');
+  // 5. Undo after another phone changed the item gives back only this phone's change
+  const used = await act(mum, 'use', 'soy', 'bb');   // bb 1 -> 0
+  await act(dad, 'use', 'soy', 'ba'); await drain(dad);   // ba 1 -> 0
+  await act(mum, 'undo'); await drain(mum);
+  await both('soy', { ba: 0, bb: 1, bnew: 1 }, 'undo gave back mum’s unit only');
+  assert.deepEqual(Object.keys(used.ops.inc), ['batches.bb.qty']);
+  // 6. an old-style item (an array): both phones read it; the first change converts it, with ids both phones agree on
+  const Lg = await import('../js/logic.js');
+  await admin.put(`households/${hid}/items/old`, { id: 'old', name: 'Old', ...base, batches: [{ id: 'x1', qty: 2, expiry: '2027-01-01' }, { qty: 1, expiry: null }] });
+  await has(mum, 'old'); await has(dad, 'old');
+  const legacy = Lg.legacyBatchId('old', 1);
+  assert.deepEqual(await shown(mum, 'old'), { x1: 2, [legacy]: 1 }); assert.deepEqual(await shown(dad, 'old'), { x1: 2, [legacy]: 1 });
+  await act(mum, 'use', 'old'); await drain(mum);
+  const conv = await rawItem('old');
+  assert.ok(!Array.isArray(conv.batches), 'the first change turned it into a map');
+  assert.deepEqual(Object.fromEntries(Object.entries(conv.batches).map(([k, v]) => [k, v.qty])), { x1: 1, [legacy]: 1 }, 'ids kept and derived, the dated batch used first');
+  // another old item, converted by a use on one phone, then (an older phone) written back as an array: readers cope
+  await admin.put(`households/${hid}/items/old2`, { id: 'old2', name: 'Old two', ...base, batches: [{ id: 'y1', qty: 4, expiry: '2027-01-01' }] });
+  await has(mum, 'old2'); await has(dad, 'old2');
+  await act(mum, 'use', 'old2', 'y1');
+  await both('old2', { y1: 3 }, 'an old item converted by a use');
+  assert.equal(SYNC_REFUSED(await dad.evaluate(() => window.__pantry.S.refused)), 0, 'nothing refused');
+  // an older phone writes the array back over a map item: readers cope, and the next change converts it again
+  await admin.put(`households/${hid}/items/old2`, { id: 'old2', name: 'Old two', ...base, batches: [{ id: 'y1', qty: 3, expiry: '2027-01-01' }] });
+  await dad.waitForFunction(() => window.__pantry.S.items.get('old2')._arr === true);
+  assert.deepEqual(await shown(dad, 'old2'), { y1: 3 });
+  await act(dad, 'use', 'old2'); await both('old2', { y1: 2 }, 'converted again');
+  // 7. a change the server refuses is kept on the phone and says Needs attention, with Retry and Discard
+  await admin.put(`households/${hid}/items/gone`, { id: 'gone', name: 'Gone soon', ...base, batches: { g1: { qty: 2, expiry: '2027-01-01' } } });
+  await has(dad, 'gone');
+  await net(dad, false);
+  await admin.del(`households/${hid}/items/gone`);
+  await act(dad, 'use', 'gone');
+  await net(dad, true);
+  await go(dad, '#/');
+  await dad.locator('.pa-sync', { hasText: 'Needs attention' }).waitFor();
+  assert.equal(await dad.evaluate(() => window.__pantry.S.refused.length), 1);
+  assert.equal(await dad.evaluate(() => JSON.parse(localStorage.getItem('pantry:refused')).length), 1, 'kept on the phone');
+  await go(dad, '#/settings');
+  await dad.locator('#main .pa-refused', { hasText: 'Gone soon' }).waitFor();
+  assert.match(await dad.locator('#main .pa-refused').textContent(), /removed on another phone/);
+  assert.equal(await dad.locator('[data-act="refused-retry"]').count(), 1); assert.equal(await dad.locator('[data-act="refused-discard"]').count(), 1);
+  if (process.env.SHOTS) await dad.screenshot({ path: process.env.SHOTS + '/s03-attention.png' });
+  // retry: the item is gone, so there is nothing to change; the entry goes
+  await dad.click('[data-act="refused-retry"]'); await settle(dad);
+  await dad.locator('.pa-sync', { hasText: 'Saved' }).waitFor();
+  assert.equal(await dad.evaluate(() => window.__pantry.S.refused.length), 0);
+  assert.equal(await admin.get(`households/${hid}/items/gone`), null, 'a retry never brings a deleted item back');
+  // discard
+  await admin.put(`households/${hid}/items/gone2`, { id: 'gone2', name: 'Gone too', ...base, batches: { g1: { qty: 2, expiry: '2027-01-01' } } });
+  await has(dad, 'gone2'); await net(dad, false);
+  await admin.del(`households/${hid}/items/gone2`);
+  await act(dad, 'use', 'gone2'); await net(dad, true);
+  await dad.locator('.pa-sync', { hasText: 'Needs attention' }).waitFor();
+  await dad.click('[data-act="refused-discard"]'); await settle(dad);
+  await dad.locator('.pa-sync', { hasText: 'Saved' }).waitFor();
+  assert.equal(await dad.evaluate(() => JSON.parse(localStorage.getItem('pantry:refused')).length), 0);
+  assert.equal(await admin.get(`households/${hid}/items/gone2`), null);
+
+  // ---- the rules for stock: the map and the array both accepted, anything else refused; history is write-once ----
+  const stockRules = await mum.evaluate(async hid => {
+    const F = await import('https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js');
+    const db = F.getFirestore(), d = (...p) => F.doc(db, 'households', hid, ...p);
+    const out = {};
+    const tryIt = async (name, fn) => { try { await fn(); out[name] = 'ok'; } catch (e) { out[name] = e.code; } };
+    const item = (id, batches) => ({ id, name: 'Rules ' + id, ...(batches === undefined ? {} : { batches }) });
+    const many = (n, f = i => ({ qty: i, expiry: null })) => Object.fromEntries(Array.from({ length: n }, (_, i) => ['b' + i, f(i)]));
+    await tryIt('map', () => F.setDoc(d('items', 'r1'), item('r1', { a: { qty: 2, expiry: '2027-01-01' }, 'b-2_X': { qty: 0, expiry: null }, c: { qty: 1 } })));
+    await tryIt('empty map', () => F.setDoc(d('items', 'r2'), item('r2', {})));
+    await tryIt('array', () => F.setDoc(d('items', 'r3'), item('r3', [{ id: 'a', qty: 1, expiry: null }])));
+    await tryIt('no batches', () => F.setDoc(d('items', 'r4'), item('r4')));
+    await tryIt('60 batches', () => F.setDoc(d('items', 'r5'), item('r5', many(60))));
+    await tryIt('61 batches', () => F.setDoc(d('items', 'r6'), item('r6', many(61))));
+    await tryIt('61 in an array', () => F.setDoc(d('items', 'r7'), item('r7', Array.from({ length: 61 }, (_, i) => ({ id: 'a' + i, qty: 1 })))));
+    await tryIt('an id with a dot', () => F.setDoc(d('items', 'r8'), item('r8', { 'a.b': { qty: 1 } })));
+    await tryIt('an id with a space', () => F.setDoc(d('items', 'r9'), item('r9', { 'a b': { qty: 1 } })));
+    await tryIt('a 41-character id', () => F.setDoc(d('items', 'r10'), item('r10', { ['x'.repeat(41)]: { qty: 1 } })));
+    await tryIt('a 40-character id', () => F.setDoc(d('items', 'r11'), item('r11', { ['x'.repeat(40)]: { qty: 1 } })));
+    await tryIt('a bad id late in the map', () => F.setDoc(d('items', 'r12'), item('r12', { ...many(30), 'zz zz': { qty: 1 } })));
+    await tryIt('qty a string', () => F.setDoc(d('items', 'r13'), item('r13', { a: { qty: '2' } })));
+    await tryIt('qty 10000', () => F.setDoc(d('items', 'r14'), item('r14', { a: { qty: 10000 } })));
+    await tryIt('qty 9999', () => F.setDoc(d('items', 'r15'), item('r15', { a: { qty: 9999 } })));
+    await tryIt('qty -99', () => F.setDoc(d('items', 'r16'), item('r16', { a: { qty: -99 } })));
+    await tryIt('qty -100', () => F.setDoc(d('items', 'r17'), item('r17', { a: { qty: -100 } })));
+    await tryIt('a bad qty among the first 12', () => F.setDoc(d('items', 'r18'), item('r18', { ...many(5), z: { qty: 'x' } })));
+    await tryIt('a bad qty after the first 12 (known limit: not checked)', () => F.setDoc(d('items', 'r18b'), item('r18b', { ...many(30), z: { qty: 'x' } })));
+    await tryIt('expiry a number', () => F.setDoc(d('items', 'r19'), item('r19', { a: { qty: 1, expiry: 5 } })));
+    await tryIt('a batch that is not a map', () => F.setDoc(d('items', 'r20'), item('r20', { a: 3 })));
+    await tryIt('batches a string', () => F.setDoc(d('items', 'r21'), item('r21', 'lots')));
+    await tryIt('batches a number', () => F.setDoc(d('items', 'r22'), item('r22', 5)));
+    // changes by field: an add, a use, a new batch, a removal, all on a map item
+    await tryIt('inc a quantity', () => F.updateDoc(d('items', 'r1'), { 'batches.a.qty': F.increment(-1) }));
+    await tryIt('a new batch by fields', () => F.updateDoc(d('items', 'r1'), { 'batches.n1.qty': F.increment(3), 'batches.n1.expiry': '2027-02-02' }));
+    await tryIt('remove a batch', () => F.updateDoc(d('items', 'r1'), { 'batches.c': F.deleteField() }));
+    await tryIt('inc below the floor', () => F.updateDoc(d('items', 'r1'), { 'batches.b-2_X.qty': F.increment(-100) }));
+    await tryIt('inc to the floor', () => F.updateDoc(d('items', 'r1'), { 'batches.b-2_X.qty': F.increment(-99) }));
+    await tryIt('a bad id by field', () => F.updateDoc(d('items', 'r1'), { 'batches.bad id.qty': F.increment(1) }));
+    // an old array turned into a map by one write (what the app does for an old-style item)
+    await tryIt('convert an array', () => F.updateDoc(d('items', 'r3'), { batches: { a: { qty: 1, expiry: null } } }));
+    await tryIt('a whole item with an array over a map', () => F.setDoc(d('items', 'r3'), item('r3', [{ id: 'a', qty: 1, expiry: null }])));
+    // history: created once, never edited; deleting a line (Undo) is fine; writing it again exactly as it is is fine
+    const e = (id, qty = 1) => ({ id, itemId: 'r1', type: 'use', qty, at: '2026-10-16T00:00:00.000Z', by: 'Mum' });
+    await tryIt('event create', () => F.setDoc(d('events', 'ev1'), e('ev1')));
+    await tryIt('event rewritten as it is', () => F.setDoc(d('events', 'ev1'), e('ev1')));
+    await tryIt('event changed', () => F.setDoc(d('events', 'ev1'), e('ev1', 5)));
+    await tryIt('event field changed', () => F.updateDoc(d('events', 'ev1'), { qty: 7 }));
+    await tryIt('event field added', () => F.updateDoc(d('events', 'ev1'), { note: 'x' }));
+    await tryIt('event delete', () => F.deleteDoc(d('events', 'ev1')));
+    await tryIt('event create again', () => F.setDoc(d('events', 'ev1'), e('ev1')));
+    await tryIt('shop line create and change', async () => { await F.setDoc(d('shop', 'sl1'), { id: 'sl1', name: 'Milk', done: false }); await F.updateDoc(d('shop', 'sl1'), { done: true }); });
+    return out;
+  }, hid);
+  assert.deepEqual(stockRules, {
+    map: 'ok', 'empty map': 'ok', array: 'ok', 'no batches': 'ok', '60 batches': 'ok', '61 batches': 'permission-denied', '61 in an array': 'permission-denied',
+    'an id with a dot': 'permission-denied', 'an id with a space': 'permission-denied', 'a 41-character id': 'permission-denied', 'a 40-character id': 'ok',
+    'a bad id late in the map': 'permission-denied', 'qty a string': 'permission-denied', 'qty 10000': 'permission-denied', 'qty 9999': 'ok', 'qty -99': 'ok',
+    'qty -100': 'permission-denied', 'a bad qty among the first 12': 'permission-denied', 'a bad qty after the first 12 (known limit: not checked)': 'ok', 'expiry a number': 'permission-denied', 'a batch that is not a map': 'permission-denied',
+    'batches a string': 'permission-denied', 'batches a number': 'permission-denied',
+    'inc a quantity': 'ok', 'a new batch by fields': 'ok', 'remove a batch': 'ok', 'inc below the floor': 'permission-denied', 'inc to the floor': 'ok', 'a bad id by field': 'permission-denied',
+    'convert an array': 'ok', 'a whole item with an array over a map': 'ok',
+    'event create': 'ok', 'event rewritten as it is': 'ok', 'event changed': 'permission-denied', 'event field changed': 'permission-denied', 'event field added': 'permission-denied',
+    'event delete': 'ok', 'event create again': 'ok', 'shop line create and change': 'ok',
+  }, 'stock rules');
+  const outsiderStock = await stranger.evaluate(async hid => {
+    const F = await import('https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js');
+    const db = F.getFirestore(), out = [];
+    try { await F.setDoc(F.doc(db, 'households', hid, 'items', 'x1'), { id: 'x1', name: 'x', batches: { a: { qty: 1 } } }); out.push('wrote'); } catch (e) { out.push(e.code); }
+    try { await F.updateDoc(F.doc(db, 'households', hid, 'items', 'r1'), { 'batches.a.qty': F.increment(1) }); out.push('wrote'); } catch (e) { out.push(e.code); }
+    try { await F.setDoc(F.doc(db, 'households', hid, 'events', 'evx'), { id: 'evx', type: 'use' }); out.push('wrote'); } catch (e) { out.push(e.code); }
+    try { await F.updateDoc(F.doc(db, 'households', hid, 'events', 'ev1'), { qty: 1 }); out.push('wrote'); } catch (e) { out.push(e.code); }
+    try { await F.deleteDoc(F.doc(db, 'households', hid, 'events', 'ev1')); out.push('deleted'); } catch (e) { out.push(e.code); }
+    return out;
+  }, hid);
+  assert.deepEqual(outsiderStock, Array(5).fill('permission-denied'), 'outsider and stock: ' + outsiderStock.join(', '));
+  assert.ok(await admin.get(`households/${hid}/events/ev1`), 'the outsider didn’t delete history');
+
   // ---- merging two pantries for one email (owner: "merge duplicate emails into 1 pantry") ----
   const KINDS5 = ['items', 'events', 'shop', 'photos'];
   const seedPantry = async (id, owner, members, tag, { items = 2, extra = {} } = {}) => {
     await admin.put(`households/${id}`, { name: 'Our pantry', owner, members, createdAt: '2026-10-16T00:00:00.000Z' });
     for (let i = 0; i < items; i++) {
-      await admin.put(`households/${id}/items/${tag}i${i}`, { id: `${tag}i${i}`, name: `${tag} item ${i}`, batches: [], hasPhoto: true, thumb: 'data:image/jpeg;base64,AAAA', ...extra });
+      await admin.put(`households/${id}/items/${tag}i${i}`, { id: `${tag}i${i}`, name: `${tag} item ${i}`, batches: i === 0 ? [{ id: `${tag}q`, qty: 2, expiry: null }] : [], hasPhoto: true, thumb: 'data:image/jpeg;base64,AAAA', ...extra });
       await admin.put(`households/${id}/photos/${tag}i${i}`, { id: `${tag}i${i}`, data: 'data:image/jpeg;base64,BBBB', updatedAt: 'x' });
     }
     await admin.put(`households/${id}/events/${tag}e1`, { id: `${tag}e1`, itemId: `${tag}i0`, type: 'add', at: '2026-10-16T00:00:00.000Z' });
@@ -368,6 +562,9 @@ try {
   const counts = {};
   for (const k of KINDS5) counts[k] = (await admin.list(`households/dupB/${k}`)).length;
   assert.deepEqual(counts, { items: 5, events: 2, shop: 2, photos: 5 }, 'everything of both is in the kept pantry');
+  // an item still holding the old array of batches arrives in the new shape (the merge copies through the one door)
+  const arrived = await admin.get('households/dupB/items/Ai0');
+  assert.ok(arrived.batches && !Array.isArray(arrived.batches) && arrived.batches.Aq?.qty === 2, 'the old array became a map: ' + JSON.stringify(arrived.batches));
   assert.deepEqual((await admin.get('households/dupB/settings/places')).list, ['Fridge', 'Cellar', 'Garage'], 'places merged');
   const names = (await admin.get('households/dupB/settings/people')).names;
   assert.deepEqual(names, { 'twin@example.com': 'B:twin', 'pal2@example.com': 'B:pal2', 'pal3@example.com': 'B:pal3', 'pal1@example.com': 'A:pal1' }, 'names joined, the kept pantry’s names win');

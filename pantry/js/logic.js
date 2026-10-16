@@ -30,9 +30,178 @@ export function daysBetween(a, b) {
 
 export const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
 
+// ---- batches: two shapes in the database, one in memory -----------------------------------------------------------------
+//
+// An item's stock is a list of batches. In Firestore it is stored two ways (16 Oct 2026, owner's "pantry sync safety"
+// plan; NOTES.md): the old ARRAY `batches: [{ id, qty, expiry, ... }]`, and the new MAP `batches: { <batchId>: { qty,
+// expiry, ... } }`. The map lets one phone change `batches.<id>.qty` without sending the whole item (and so without
+// overwriting what another phone just did). In memory (S.items) it is always an array of batches that each carry their
+// `id`, so everything below works the same for both. normalizeItem() is the one door every item comes through (load,
+// listen, restore, import, backup, demo, sample); toStored() is the one door out.
+
+export const MAX_BATCHES = 60;   // the rules allow at most 60 batches an item
+export const MAX_QTY = 9999;
+const BATCH_ID = /^[A-Za-z0-9_-]{1,40}$/;
+export const goodBatchId = s => typeof s === 'string' && BATCH_ID.test(s);
+// A short stable hash of text (FNV-1a, 32 bits), for ids two phones must agree on.
+const hash = s => { let h = 0x811c9dc5; for (const c of String(s)) { h ^= c.codePointAt(0); h = Math.imul(h, 0x01000193) >>> 0; } return h.toString(36); };
+// The id an id-less batch of an old array gets: from the item's id and its place in the array, so two phones that
+// convert the same old item agree on it.
+export const legacyBatchId = (itemId, index) => `L${hash(itemId)}-${index}`;
+// Stock never shows below 0: two phones using the last unit at once can leave -1 in the database.
+export const clampQty = v => { const n = Number(v); return Number.isFinite(n) ? Math.min(MAX_QTY, Math.max(0, n)) : 0; };
+
+// Batches from either shape as an array, each with its `id`, quantity clamped to 0 or more. An array's own ids are kept
+// when they are good and unique, else derived (legacyBatchId); a map's keys are its ids (in key order, so every
+// phone lists them the same).
+export function normalizeBatches(raw, itemId = '') {
+  const out = [], seen = new Set();
+  const push = (b, id) => { seen.add(id); out.push({ ...b, id, qty: clampQty(b.qty) }); };
+  if (Array.isArray(raw)) {
+    raw.forEach((b, i) => {
+      if (!b || typeof b !== 'object') return;
+      let id = goodBatchId(b.id) && !seen.has(b.id) ? b.id : legacyBatchId(itemId, i);
+      while (seen.has(id)) id += 'x';
+      push(b, id);
+    });
+  } else if (raw && typeof raw === 'object') {
+    for (const k of Object.keys(raw).sort()) if (goodBatchId(k) && raw[k] && typeof raw[k] === 'object') push(raw[k], k);
+  }
+  return out;
+}
+// An item as the app holds it: `batches` an array with ids. `_arr` remembers that the stored copy was an old-style
+// array (the next change then converts it: see updateData in cloud.js). Safe to call twice.
+export function normalizeItem(it) {
+  if (!it || typeof it !== 'object') return it;
+  const arr = it._arr !== undefined ? !!it._arr : Array.isArray(it.batches);
+  return { ...it, batches: normalizeBatches(it.batches, it.id), _arr: arr };
+}
+// The stored form of batches: a map keyed by id, each batch without its id, spent batches (nothing left) left out.
+export function batchMap(batches) {
+  const out = {};
+  for (const b of batches || []) {
+    if (!(b.qty > 0)) continue;
+    const { id, ...rest } = b;
+    out[id] = Object.fromEntries(Object.entries(rest).filter(([, v]) => v !== undefined));
+  }
+  return out;
+}
+// An item as it goes to the database (a new item, a restore): batches as a map, no `_` helpers.
+export function toStored(it) {
+  const n = normalizeItem(it);
+  const out = {};
+  for (const [k, v] of Object.entries(n)) if (!k.startsWith('_') && v !== undefined) out[k] = v;
+  out.batches = batchMap(n.batches);
+  return out;
+}
+// The same item as plain data for a backup file: batches as an array (the file stays readable by older versions).
+export function plainItem(it) {
+  const out = {};
+  for (const [k, v] of Object.entries(normalizeItem(it))) if (!k.startsWith('_')) out[k] = v;
+  return out;
+}
+
+// ---- changes as instructions -------------------------------------------------------------------------------------------
+//
+// A change to an item is `ops = { set: { path: value }, inc: { path: n }, del: [path] }`, paths dotted
+// (`location`, `batches.<id>.expiry`, `batches.<id>`), never two that overlap. applyOps() does them to an item in
+// memory; cloud.js sends the same ops as one Firestore update (set a field, increment() a number, deleteField()), and
+// the on-phone and demo stores call applyOps too, so all three behave alike. Nothing here ever sends a whole item built
+// from a copy that may be stale: two phones each using one unit make two `inc -1`s, and the server adds them.
+
+export const emptyOps = () => ({ set: {}, inc: {}, del: [] });
+export const opsEmpty = o => !o || (!Object.keys(o.set || {}).length && !Object.keys(o.inc || {}).length && !(o.del || []).length);
+export const opsPaths = o => [...Object.keys(o?.set || {}), ...Object.keys(o?.inc || {}), ...(o?.del || [])];
+// True when no path is the same as, or inside, another (Firestore refuses an update that overlaps itself).
+export function opsValid(o) {
+  const ps = opsPaths(o);
+  return ps.every(p => typeof p === 'string' && p && !p.startsWith('.') && !p.endsWith('.'))
+    && !ps.some((p, i) => ps.some((q, j) => i !== j && (p === q || p.startsWith(q + '.'))));
+}
+// Two sets of instructions as one (they must not overlap): Put away sets the place and adds the stock.
+export function mergeOps(...list) {
+  const out = emptyOps();
+  for (const o of list) { if (!o) continue; Object.assign(out.set, o.set); Object.assign(out.inc, o.inc); out.del.push(...(o.del || [])); }
+  return out;
+}
+const split = p => p.split('.');
+function getPath(item, path) {
+  const [a, id, f] = split(path);
+  if (a === 'batches') {
+    const b = (item.batches || []).find(x => x.id === id);
+    return f === undefined ? (b ? { ...b } : undefined) : b?.[f];
+  }
+  return split(path).reduce((o, k) => (o == null ? undefined : o[k]), item);
+}
+const same = (a, b) => JSON.stringify(a ?? null) === JSON.stringify(b ?? null);
+
+// Do `ops` to an item (any shape in, a normalized item out; never changes the one given). A batch that an `inc` or a
+// `set` names but the item doesn't have is created, as the database does. Quantities are clamped for display.
+export function applyOps(item, ops = {}) {
+  const it = normalizeItem(item);
+  const out = { ...it };
+  const bm = new Map(it.batches.map(b => [b.id, { ...b }]));
+  const batch = id => { if (!bm.has(id)) bm.set(id, { id, qty: 0 }); return bm.get(id); };
+  const deep = (path, fn) => {
+    const ks = split(path); let o = out;
+    for (const k of ks.slice(0, -1)) { o[k] = o[k] && typeof o[k] === 'object' ? { ...o[k] } : {}; o = o[k]; }
+    fn(o, ks[ks.length - 1]);
+  };
+  for (const [path, v] of Object.entries(ops.set || {})) {
+    const [a, id, f] = split(path);
+    if (a === 'batches') { if (!id) continue; if (f === undefined) bm.set(id, { ...(v || {}), id, qty: Number(v?.qty) || 0 }); else batch(id)[f] = v; }
+    else deep(path, (o, k) => { o[k] = v; });
+  }
+  for (const [path, n] of Object.entries(ops.inc || {})) {
+    const [a, id, f] = split(path);
+    if (a === 'batches') { if (id && f) { const b = batch(id); b[f] = (Number(b[f]) || 0) + n; } }
+    else deep(path, (o, k) => { o[k] = (Number(o[k]) || 0) + n; });
+  }
+  for (const path of ops.del || []) {
+    const [a, id, f] = split(path);
+    if (a === 'batches') { if (id && f === undefined) bm.delete(id); else if (id && bm.has(id)) delete bm.get(id)[f]; }
+    else deep(path, (o, k) => { delete o[k]; });
+  }
+  out.batches = [...bm.values()].sort((x, y) => (x.id < y.id ? -1 : x.id > y.id ? 1 : 0)).map(b => ({ ...b, qty: clampQty(b.qty) }));
+  out._arr = false;
+  return out;
+}
+// The instructions that undo `ops` (done to `before`), for this phone's Undo. An `inc` is undone by the opposite `inc`
+// (so what another phone did meanwhile stays). A field is put back only if it still holds what `ops` set (`now`: the
+// item as it is now), and only if it existed. Fields that stamp who changed it are left alone (Undo is a change too).
+const STAMPS = new Set(['updatedAt', 'updatedBy']);
+export function invertOps(ops, before, now = null) {
+  const b = normalizeItem(before), n = now ? normalizeItem(now) : null, inv = emptyOps();
+  for (const [p, d] of Object.entries(ops.inc || {})) inv.inc[p] = -d;
+  for (const [p, v] of Object.entries(ops.set || {})) {
+    if (STAMPS.has(p)) continue;
+    const [a, id] = split(p);
+    if (a === 'batches' && !b.batches.some(x => x.id === id)) continue;   // a batch this change made: its `inc` empties it
+    if (n && !same(getPath(n, p), v)) continue;                            // someone changed it since
+    const old = getPath(b, p);
+    if (old === undefined) inv.del.push(p); else inv.set[p] = old;
+  }
+  for (const p of ops.del || []) {
+    const old = getPath(b, p);
+    if (old === undefined || (split(p)[0] === 'batches' && split(p).length === 2 && !(old.qty > 0))) continue;   // a spent batch stays gone
+    if (n && getPath(n, p) !== undefined) continue;
+    if (split(p)[0] === 'batches' && split(p).length === 2) { const { id, ...rest } = old; inv.set[p] = rest; } else inv.set[p] = old;
+  }
+  return inv;
+}
+// Spent batches (nothing left) to tidy away with the next added stock: only when an item has piled up 40 batches (the
+// rules allow 60), and then all the spent ones. Otherwise they stay, hidden at 0: deleting one from a copy that may be a
+// moment out of date could remove a unit another phone has just given back with Undo (found by the randomised
+// two-phone test), and a spent batch costs next to nothing. A batch that is gone is simply made again by the next `inc`.
+export function spentBatches(item) {
+  const list = normalizeItem(item).batches;
+  return list.length >= 40 ? list.filter(b => !(b.qty > 0)).map(b => `batches.${b.id}`) : [];
+}
+
 // ---- stock -------------------------------------------------------------------------------------------------
 
-export const totalQty = item => (item.batches || []).reduce((n, b) => n + (Number(b.qty) || 0), 0);
+const batchesOf = item => (Array.isArray(item.batches) ? item.batches : normalizeBatches(item.batches, item.id));
+export const totalQty = item => batchesOf(item).reduce((n, b) => n + clampQty(b.qty), 0);
 
 // The date a batch should be used by: the printed date, or "opened on + keeps N days after opening",
 // whichever comes first.
@@ -51,7 +220,7 @@ export function batchUseBy(batch, item) {
 
 // Batches in "first expiring, first out" order: opened ones first, then by use-by date (no date last).
 export function fefo(item) {
-  return [...(item.batches || [])].filter(b => b.qty > 0).sort((a, b) => {
+  return [...batchesOf(item)].filter(b => b.qty > 0).sort((a, b) => {
     if (!!a.openedAt !== !!b.openedAt) return a.openedAt ? -1 : 1;
     const x = batchUseBy(a, item) || '9999', y = batchUseBy(b, item) || '9999';
     return x < y ? -1 : x > y ? 1 : 0;
@@ -86,51 +255,65 @@ export function expiryLabel(date, today = ymd()) {
   return `${Math.round(d / 365)} years left`;
 }
 
-// Stock changes. Each returns { item, event } (a new item object; never mutates the one given).
+// Stock changes. Each returns { item, event, ops }: `ops` is the change as instructions (what is sent), `item` is the
+// result of doing them to the item given (a new object; the one given is never changed), `event` the history line.
 function ev(item, type, qty, by, at = new Date().toISOString(), extra = {}) {
   return { id: uid(), itemId: item.id, name: item.name, type, qty, at, by: by || '', ...extra };
 }
+const bp = (id, f) => `batches.${id}.${f}`;
+const done = (item, ops, event) => ({ item: applyOps(item, ops), event, ops });
+const nothing = item => ({ item, event: null, ops: emptyOps() });
 
-export function addStock(item, { qty = 1, expiry = null, by, at, price = null } = {}) {
-  const batches = [...(item.batches || []), { id: uid(), qty: Number(qty) || 1, expiry: expiry || null, openedAt: null, addedAt: ymd(at ? new Date(at) : new Date()) }];
-  return { item: { ...item, batches }, event: ev(item, 'add', Number(qty) || 1, by, at, price != null ? { price } : {}) };
+export function addStock(item, { qty = 1, expiry = null, by, at, price = null, id = uid() } = {}) {
+  const n = Number(qty) || 1;
+  const ops = emptyOps();
+  ops.set[bp(id, 'expiry')] = expiry || null;
+  ops.set[bp(id, 'openedAt')] = null;
+  ops.set[bp(id, 'addedAt')] = ymd(at ? new Date(at) : new Date());
+  ops.inc[bp(id, 'qty')] = n;
+  ops.del.push(...spentBatches(item));
+  return done(item, ops, ev(item, 'add', n, by, at, price != null ? { price } : {}));
 }
 
 // Take n units out of the batches, first expiring first. type: 'use' (used up) or 'discard' (thrown away).
 // The event also says how the units stood against their dates, for "used before expiry": saved = units used up
 // while still in date (dated batches only); a discard where every unit was already past its date is recorded as
 // type 'expired', so wasted-because-forgotten shows apart from thrown away.
+// Each batch is changed with `inc -n` (never a rewrite), so two phones using one each make two.
 export function takeOut(item, { qty = 1, type = 'use', by, at, batchId = null, today = ymd() } = {}) {
   let left = Number(qty) || 1;
-  const order = batchId ? (item.batches || []).filter(b => b.id === batchId) : fefo(item);
-  const take = new Map();
+  const order = batchId ? batchesOf(item).filter(b => b.id === batchId && b.qty > 0) : fefo(item);
+  const ops = emptyOps();
   let inDate = 0, past = 0;
   for (const b of order) {
     if (left <= 0) break;
     const n = Math.min(b.qty, left);
-    take.set(b.id, n);
+    ops.inc[bp(b.id, 'qty')] = -n;
     left -= n;
     const d = batchUseBy(b, item);
     if (d && d < today) past += n; else if (d) inDate += n;
   }
   const taken = (Number(qty) || 1) - left;
-  if (!taken) return { item, event: null };
-  const batches = (item.batches || []).map(b => take.has(b.id) ? { ...b, qty: b.qty - take.get(b.id) } : b).filter(b => b.qty > 0);
+  if (!taken) return nothing(item);
   const kind = type === 'discard' && past === taken ? 'expired' : type;
-  return { item: { ...item, batches }, event: ev(item, kind, taken, by, at, kind === 'use' && inDate ? { saved: inDate } : {}) };
+  return done(item, ops, ev(item, kind, taken, by, at, kind === 'use' && inDate ? { saved: inDate } : {}));
 }
 
-// Open one unit: split it off its batch with today's opening date (so "keeps N days after opening" starts).
+// Open one unit: it moves to a batch of its own with today's opening date (so "keeps N days after opening" starts). That
+// batch's id comes from the source batch and the day, so two phones opening on the same day add to the same one.
 export function openOne(item, { by, at, today = ymd(), batchId = null } = {}) {
   const b = fefo(item).find(b => !b.openedAt && (!batchId || b.id === batchId));
-  if (!b) return { item, event: null };
-  const batches = [];
-  for (const x of item.batches || []) {
-    if (x.id !== b.id) { batches.push(x); continue; }
-    batches.push({ ...x, id: uid(), qty: 1, openedAt: today });
-    if (x.qty > 1) batches.push({ ...x, qty: x.qty - 1 });
-  }
-  return { item: { ...item, batches }, event: ev(item, 'open', 1, by, at) };
+  if (!b) return nothing(item);
+  const id = `${b.id}-o${today.replace(/-/g, '')}`.slice(0, 40);
+  const ops = emptyOps();
+  ops.inc[bp(b.id, 'qty')] = -1;
+  ops.inc[bp(id, 'qty')] = 1;
+  ops.set[bp(id, 'expiry')] = b.expiry || null;
+  ops.set[bp(id, 'addedAt')] = b.addedAt ?? null;
+  ops.set[bp(id, 'openedAt')] = today;
+  if (b.thawedAt) ops.set[bp(id, 'thawedAt')] = b.thawedAt;
+  ops.del.push(...spentBatches(item).filter(p => p !== `batches.${id}`));
+  return done(item, ops, ev(item, 'open', 1, by, at));
 }
 
 // Staples (rice, oil, salt, wet-market vegetables) can be kept as Plenty / Low / Out instead of a count: the item has
@@ -139,25 +322,35 @@ export const LEVELS = ['plenty', 'low', 'out'];
 export const isStaple = it => it?.measure === 'level';
 export const levelOf = it => (LEVELS.includes(it?.level) ? it.level : 'plenty');
 export function setLevel(item, { level = 'plenty', by, at } = {}) {
-  if (!LEVELS.includes(level)) return { item, event: null };
-  return { item: { ...item, level }, event: ev(item, 'level', 1, by, at, { level }) };
+  if (!LEVELS.includes(level)) return nothing(item);
+  const ops = emptyOps();
+  ops.set.level = level;
+  return done(item, ops, ev(item, 'level', 1, by, at, { level }));
 }
 
 // Freeze one batch: it moves to `place` (the item's place, as places belong to items), keeps until the later of its
 // own date and `days` from today, and is marked frozen on today. Thaw: back to `place`, use within `days`.
-// Each returns { item, event } like the others (event types 'freeze' and 'thaw', counted nowhere but the history).
+// Each returns { item, event, ops } like the others (event types 'freeze' and 'thaw', counted nowhere but the history).
 export function freezeBatch(item, { batchId, days = 91, place, by, at, today = ymd() } = {}) {
-  const b = (item.batches || []).find(x => x.id === batchId) || fefo(item).find(x => !x.frozenAt);
-  if (!b || b.frozenAt) return { item, event: null };
+  const b = batchesOf(item).find(x => x.id === batchId) || fefo(item).find(x => !x.frozenAt);
+  if (!b || b.frozenAt) return nothing(item);
   const keep = addDays(today, days), was = batchUseBy(b, item);
-  const batches = item.batches.map(x => x.id === b.id ? { ...x, frozenAt: today, thawedAt: null, expiry: was && was > keep ? was : keep } : x);
-  return { item: { ...item, batches, location: place || item.location }, event: ev(item, 'freeze', b.qty, by, at) };
+  const ops = emptyOps();
+  ops.set[bp(b.id, 'frozenAt')] = today;
+  ops.set[bp(b.id, 'thawedAt')] = null;
+  ops.set[bp(b.id, 'expiry')] = was && was > keep ? was : keep;
+  if (place || item.location) ops.set.location = place || item.location;
+  return done(item, ops, ev(item, 'freeze', b.qty, by, at));
 }
 export function thawBatch(item, { batchId, days = 2, place, by, at, today = ymd() } = {}) {
-  const b = (item.batches || []).find(x => x.id === batchId);
-  if (!b) return { item, event: null };
-  const batches = item.batches.map(x => x.id === b.id ? { ...x, frozenAt: null, thawedAt: today, expiry: addDays(today, days) } : x);
-  return { item: { ...item, batches, location: place || item.location }, event: ev(item, 'thaw', b.qty, by, at) };
+  const b = batchesOf(item).find(x => x.id === batchId);
+  if (!b) return nothing(item);
+  const ops = emptyOps();
+  ops.set[bp(b.id, 'frozenAt')] = null;
+  ops.set[bp(b.id, 'thawedAt')] = today;
+  ops.set[bp(b.id, 'expiry')] = addDays(today, days);
+  if (place || item.location) ops.set.location = place || item.location;
+  return done(item, ops, ev(item, 'thaw', b.qty, by, at));
 }
 
 // ---- consumption patterns ------------------------------------------------------------------------------------
@@ -393,7 +586,7 @@ export function shareText(lines) {
 // ---- backups ---------------------------------------------------------------------------------------------------
 
 export function backup(data, at = new Date().toISOString()) {
-  return { app: 'pantry', v: 1, at, items: data.items || [], events: data.events || [], shop: data.shop || [], settings: data.settings || [], photos: data.photos || [] };
+  return { app: 'pantry', v: 1, at, items: (data.items || []).map(plainItem), events: data.events || [], shop: data.shop || [], settings: data.settings || [], photos: data.photos || [] };
 }
 // Reads a backup file's text. Returns { items, events, shop, settings, photos } with only well-formed documents, or throws a plain
 // message when the file is not a pantry backup.
@@ -404,6 +597,7 @@ export function parseBackup(text) {
   const ok = o => o && typeof o === 'object' && typeof o.id === 'string' && o.id && !o.id.includes('/');
   const out = {};
   for (const k of ['items', 'events', 'shop', 'settings', 'photos']) out[k] = Array.isArray(j[k]) ? j[k].filter(ok) : [];
+  out.items = out.items.map(plainItem);   // either shape of batches in, an array with ids out
   out.settings = out.settings.filter(isPlacesDoc);   // only the list of places (older backups have none)
   out.photos = out.photos.filter(p => typeof p.data === 'string' && p.data.startsWith('data:image/'));
   return out;

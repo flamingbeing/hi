@@ -1,10 +1,17 @@
+import { applyOps, toStored } from './logic.js';
+
 // Storage backends. All three give the same small interface, so the app doesn't care where data lives:
 //   load()                 -> { items: [], events: [], shop: [], settings: [] }   (never the photos: see photo.js)
 //   get(kind, id)          one document, or null (the full photo of an item, fetched when the item is opened)
 //   list(kind)             every document of one kind (backups and copying photos into the family pantry)
 //   put(kind, obj)         save one document (obj.id is its key); returns false when it was refused
 //   del(kind, id)          delete one document
+//   patch(kind, id, ops)   change one item by instructions (logic.js applyOps: set a field, add to a number, remove a
+//                          field or batch), never by rewriting it from a copy; the same result on all three backends
+//   patchMany(kind, list)  [{ id, ops }] at once
 //   listen(cb)             cb(kind, docs, removedIds) when another device changes something (cloud only)
+// Items go in as the map shape of batches (logic.js toStored) and come out as they were stored (either shape): the app
+// runs every item through normalizeItem when it loads or hears of one.
 // The local backend keeps everything in this browser's IndexedDB (nothing leaves the phone).
 // The memory backend (demo mode, ?demo) keeps made-up items in memory only: nothing is saved anywhere.
 // The cloud backend (cloud.js) keeps the family's shared copy in Firestore.
@@ -63,7 +70,15 @@ export async function openLocal() {
       r.onsuccess = () => res(r.result || []);
       r.onerror = () => rej(r.error);
     }),
-    put: (kind, obj) => tx(db, 'readwrite', s => s.put(obj, `${kind}/${obj.id}`)),
+    put: (kind, obj) => tx(db, 'readwrite', s => s.put(kind === 'items' ? toStored(obj) : obj, `${kind}/${obj.id}`)),
+    // read, change, write in one transaction (nothing else can slip in between)
+    patch: (kind, id, ops) => new Promise((res, rej) => {
+      const t = db.transaction(STORE, 'readwrite'), st = t.objectStore(STORE), r = st.get(`${kind}/${id}`);
+      r.onsuccess = () => { st.put(toStored(applyOps(r.result || { id }, ops)), `${kind}/${id}`); };
+      t.oncomplete = () => res(true);
+      t.onerror = () => rej(t.error);
+    }),
+    async patchMany(kind, list) { for (const x of list) await this.patch(kind, x.id, x.ops); },
     del: (kind, id) => tx(db, 'readwrite', s => s.delete(`${kind}/${id}`)),
     clear: () => tx(db, 'readwrite', s => s.clear()),
     listen() {},
@@ -78,7 +93,9 @@ export function openMemory(seed = {}) {
     async load() { return Object.fromEntries(KINDS.map(k => [k, [...data[k].values()]])); },
     async get(kind, id) { return data[kind].get(id) ?? null; },
     async list(kind) { return [...data[kind].values()]; },
-    put(kind, obj) { data[kind].set(obj.id, obj); },
+    put(kind, obj) { data[kind].set(obj.id, kind === 'items' ? toStored(obj) : obj); },
+    patch(kind, id, ops) { data[kind].set(id, toStored(applyOps(data[kind].get(id) || { id }, ops))); return true; },
+    patchMany(kind, list) { for (const x of list) this.patch(kind, x.id, x.ops); },
     del(kind, id) { data[kind].delete(id); },
     async clear() { for (const k of ALL_KINDS) data[k].clear(); },
     listen() {},
