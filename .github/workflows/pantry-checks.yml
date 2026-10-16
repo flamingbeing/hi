@@ -27,6 +27,7 @@ jobs:
       - run: node pantry/test/config.test.mjs
       - run: node pantry/test/quick.test.mjs
       - run: node pantry/test/tour.test.mjs
+      - run: node pantry/test/scan.test.mjs
       - name: Install Playwright and axe-core
         run: |
           npm install --no-save playwright@1.56.1 axe-core

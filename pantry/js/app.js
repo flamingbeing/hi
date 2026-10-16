@@ -459,6 +459,7 @@ function wireForm() {
   f.addEventListener('input', e => {
     const t = e.target; if (!t.name || !S.draft) return;
     S.draft[t.name] = t.value; S.dirty = true;
+    if (t.name === 'category' || t.name === 'location') S.draft._picked = { ...S.draft._picked, [t.name]: true };
     if (t.name === 'name' && t.value.trim()) { t.removeAttribute('aria-invalid'); $('#pa-name-err').hidden = true; }
     if (t.name === 'expiry') for (const c of document.querySelectorAll('.pa-dates .ha-chip')) c.setAttribute('aria-pressed', String(c.dataset.v === t.value && !!t.value));
   });
@@ -475,18 +476,28 @@ function fillDraft(fields) {
 function suggestions(q) {
   if (!q.trim()) return [];
   const out = [];
-  for (const it of items()) { const s = L.score(q, `${it.name} ${it.brand}`); if (s) out.push({ s: s + 2, mine: it }); }
-  for (const [i, c] of CATALOGUE.entries()) { const s = L.score(q, `${c.name} ${c.brand} ${c.category}`); if (s) out.push({ s, cat: c, i }); }
+  const have = new Set();
+  for (const it of items()) {
+    have.add(L.norm(`${it.brand} ${it.name}`));
+    const s = L.score(q, `${it.name} ${it.brand}`); if (s) out.push({ s: s + 2, mine: it });
+  }
+  for (const [i, c] of CATALOGUE.entries()) {
+    if (have.has(L.norm(`${c.brand} ${c.name}`))) continue;   // already in the pantry: offer that one only
+    const s = L.score(q, `${c.name} ${c.brand} ${c.category}`); if (s) out.push({ s, cat: c, i });
+  }
   return out.sort((a, b) => b.s - a.s).slice(0, 8);
+}
+// Suggestion rows (the Add screen's finder and the unknown-barcode sheet): pantry items first, then the catalogue.
+function suggRows(list, { mine = 'sugg-mine', cat = 'sugg' } = {}) {
+  const row = (act, data, thumbHtml, title, sub, trail = '') => `<li><button type="button" class="ha-row" data-act="${act}" ${data}>${thumbHtml}<span class="ha-row-body"><span class="ha-row-title">${title}</span>${sub ? `<span class="ha-row-sub">${sub}</span>` : ''}</span>${trail}</button></li>`;
+  return list.map(x => x.mine
+    ? row(mine, `data-id="${esc(x.mine.id)}"`, thumb(x.mine), esc(x.mine.name), subOf(x.mine), `<span class="ha-row-trail"><span class="ha-badge ha-badge--accent">In the pantry</span></span>`)
+    : row(cat, `data-i="${x.i}"`, `<span class="ha-row-thumb">${icon(CAT_ICON[x.cat.category] || 'box')}</span>`, esc(x.cat.name), [x.cat.brand, x.cat.size].filter(Boolean).map(esc).join(' · '))).join('');
 }
 function showSugg() {
   const q = $('#pa-find')?.value || '', ul = $('#pa-sugg');
   if (!ul) return;
-  const list = suggestions(q);
-  const row = (act, data, thumbHtml, title, sub, trail = '') => `<li><button type="button" class="ha-row" data-act="${act}" ${data}>${thumbHtml}<span class="ha-row-body"><span class="ha-row-title">${title}</span>${sub ? `<span class="ha-row-sub">${sub}</span>` : ''}</span>${trail}</button></li>`;
-  ul.innerHTML = list.map(x => x.mine
-    ? row('sugg-mine', `data-id="${esc(x.mine.id)}"`, thumb(x.mine), esc(x.mine.name), subOf(x.mine), `<span class="ha-row-trail"><span class="ha-badge ha-badge--accent">In the pantry</span></span>`)
-    : row('sugg', `data-i="${x.i}"`, `<span class="ha-row-thumb">${icon(CAT_ICON[x.cat.category] || 'box')}</span>`, esc(x.cat.name), [x.cat.brand, x.cat.size].filter(Boolean).map(esc).join(' · '))).join('')
+  ul.innerHTML = suggRows(suggestions(q))
     + (q.trim() ? `<li><button type="button" class="ha-row ha-row--action" data-act="sugg-own"><span class="ha-row-icon">${icon('plus')}</span><span class="ha-row-body"><span class="ha-row-title">Add “${esc(q.trim())}”</span><span class="ha-row-sub">Not in the list? Type the details below.</span></span></button></li>` : '');
   ul.hidden = !q.trim();
   $('#pa-find-foot').hidden = !!q.trim();
@@ -576,15 +587,70 @@ async function gotBarcode(code) {
   haToast('Looking up the barcode…');
   const { lookup } = await import('./scan.js');
   const p = await lookup(code);
-  if (!S.draft) return;
-  if (!p) { fillDraft({ barcode: code }); haToast('Barcode saved. Type the name once and it’s known next time.'); $('#pa-form [name="name"]')?.focus(); return; }
-  fillDraft({ barcode: code, name: p.name, brand: p.brand, size: p.size });
+  if (!S.draft || screen() !== 'add') return;
+  if (!p) { haHideToast(); fillDraft({ barcode: code }); openUnknown(code); return; }
+  // a household or toiletry database guesses the category and place, unless someone has already chosen them
+  const d = S.draft, picked = d._picked || {}, def = blank(), guess = {};
+  if (p.category && !picked.category && d.category === def.category) guess.category = p.category;
+  if (p.location && !picked.location && d.location === def.location) guess.location = p.location;
+  fillDraft({ barcode: code, name: p.name, brand: p.brand, size: p.size, ...guess });
   haToast(`Found ${p.name}`);
   if (p.image && !S.draft.photo) {
     const { fromUrl } = await import('./photo.js');
     const ph = await fromUrl(p.image);
     if (ph && S.draft && !S.draft.photo) fillDraft({ photo: ph });
   }
+}
+
+// No database knows this barcode: find it in the family's pantry or the Singapore list once, and it's known from
+// then on. The barcode is already in the form, so Cancel still keeps it.
+function openUnknown(code) {
+  const s = haSheet({
+    title: 'We don’t know this barcode yet', closeLabel: 'Cancel',
+    body: `<p class="ha-text pa-unk-text">${navigator.onLine === false ? 'No signal to look it up online. ' : ''}Find what it is, and scanning barcode <span class="pa-unk-code">${esc(code)}</span> finds it next time.</p>
+      <div class="ha-search" role="search">${icon('search')}
+        <input type="search" id="pa-unk-find" placeholder="Soy sauce, Dynamo, tissue…" aria-label="Find the product" autocomplete="off" enterkeyhint="search" autofocus>
+        <button type="button" class="ha-search-clear" data-act="unk-clear" aria-label="Clear">${icon('close')}</button></div>
+      <ul class="ha-list" id="pa-unk-list" aria-label="Matching products" hidden></ul>
+      <ul class="ha-list pa-unk-new"><li><button type="button" class="ha-row ha-row--action" data-act="unk-new"><span class="ha-row-icon">${icon('edit')}</span><span class="ha-row-body"><span class="ha-row-title">Type a new name</span><span class="ha-row-sub" id="pa-unk-new-sub">Not in the list? Fill in the details yourself.</span></span></button></li></ul>`,
+    onClose: afterSheet,
+  });
+  const input = $('#pa-unk-find', s.el), ul = $('#pa-unk-list', s.el), sub = $('#pa-unk-new-sub', s.el);
+  const show = () => {
+    const q = input.value.trim();
+    ul.innerHTML = suggRows(suggestions(q), { mine: 'unk-mine', cat: 'unk-cat' });
+    ul.hidden = !ul.children.length;
+    sub.textContent = q ? `Start with “${q}” and fill in the rest.` : 'Not in the list? Fill in the details yourself.';
+  };
+  input.addEventListener('input', show);
+  s.el.addEventListener('click', async e => {
+    const b = e.target.closest('[data-act^="unk-"]');
+    if (!b) return;
+    const act = b.dataset.act;
+    if (act === 'unk-clear') { input.value = ''; show(); input.focus(); return; }
+    const q = input.value.trim();
+    await haCloseSheet(s.el);
+    if (act === 'unk-mine') {
+      const mine = S.items.get(b.dataset.id); if (!mine) return;
+      const it = save('items', { ...mine, barcode: code });
+      S.draft = null; S.dirty = false;
+      haGo('#/item/' + it.id, { replace: screen() === 'add' });
+      haToast(`Barcode added to ${it.name}`);
+      openBought(it);
+      return;
+    }
+    if (!S.draft || screen() !== 'add') return;
+    if (act === 'unk-cat') {
+      const c = CATALOGUE[Number(b.dataset.i)];
+      fillDraft({ name: c.name, brand: c.brand, size: c.size, category: c.category, location: c.location, openDays: c.openDays ?? '', barcode: code });
+      $('#h-f-details')?.scrollIntoView({ block: 'start' });
+      haAnnounce(`${c.name} filled in`);
+      return;
+    }
+    if (q && !S.draft.name.trim()) fillDraft({ name: q });
+    const n = $('#pa-form [name="name"]');
+    n?.focus(); n?.scrollIntoView({ block: 'center' });
+  });
 }
 
 // ---- the "bought more" sheet ----------------------------------------------------------------------------------
@@ -792,7 +858,7 @@ function viewSettings() {
       ${S.mode === 'local' ? btnRow('wipe', 'Delete everything on this phone', { cls: ' ha-row--danger' }) : ''}
     </ul>`, { id: 'data' })}
     ${section('On your home screen', `<div class="ha-card pa-install"><p class="ha-card-text"><strong>iPhone:</strong> in Safari, tap Share, then Add to Home Screen.</p><p class="ha-card-text"><strong>Android:</strong> in Chrome, open the menu, then Add to home screen or Install app.</p><p class="ha-card-text">It then opens like an app and works without signal.</p></div>`, { id: 'install' })}
-    ${section('About', '', { id: 'about', footer: 'Product suggestions are common Singapore supermarket goods; “keeps once opened” days are a rough guide, so check the label. Barcode look-ups use Open Food Facts. Shop links open FairPrice’s, Sheng Siong’s, Cold Storage’s and Shopee’s own search.' })}
+    ${section('About', '', { id: 'about', footer: 'Product suggestions are common Singapore supermarket goods; “keeps once opened” days are a rough guide, so check the label. Barcode look-ups use Open Food Facts, Open Products Facts and Open Beauty Facts. Shop links open FairPrice’s, Sheng Siong’s, Cold Storage’s and Shopee’s own search.' })}
     <div id="pa-version"></div>`;
 }
 

@@ -19,6 +19,6 @@ happening now is [STATUS.md](STATUS.md).
 | `auth/firebase/init.json` | Served at `/__/firebase/init.json` for Firebase's sign-in pages (written by `tools/set-config.mjs`) |
 | `sw.js`, `manifest.webmanifest`, `icons/` | Offline support and the home-screen icon (`tools/icons.mjs` renders the PNGs) |
 | `firestore.rules`, `firebase.json` | Members-only households; deployed on merge by `.github/workflows/deploy-firestore-rules.yml` |
-| `test/` | `logic.test.mjs`, `config.test.mjs` (plain node), `e2e.mjs` (phone browser test), `sync.e2e.mjs` + `run-sync.sh` (emulators) |
+| `test/` | `logic.test.mjs`, `config.test.mjs`, `scan.test.mjs` (plain node), `e2e.mjs` (phone browser test), `sync.e2e.mjs` + `run-sync.sh` (emulators) |
 
 Try it without any account: `<preview>/_sites/pantry.flamingbeing.com/?demo` (made-up items, nothing saved).

@@ -48,6 +48,9 @@ label.ha-row:focus-within:has(.pa-file){outline:2px solid var(--home-focus);outl
 .pa-scan{overflow:hidden;border-radius:var(--home-r-md);background:var(--home-ink);aspect-ratio:4/3}
 .pa-scan video{display:block;width:100%;height:100%;object-fit:cover}
 .pa-scan-msg{margin:var(--home-s3) 0;color:var(--home-ink-2)}
+.pa-unk-text{color:var(--home-ink-2)}
+.pa-unk-code{font-variant-numeric:tabular-nums;white-space:nowrap;color:var(--home-ink)}
+#pa-unk-list{margin:0 0 var(--home-s3)}
 .pa-file-btn{position:relative}
 .pa-file-btn:focus-within{outline:2px solid var(--home-focus);outline-offset:2px}
 .pa-install .ha-card-text+.ha-card-text{margin-top:var(--home-s2)}
