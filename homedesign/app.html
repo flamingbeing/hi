@@ -459,7 +459,8 @@ document.getElementById('demo-confirm').addEventListener('click', async () => ha
 document.getElementById('demo-toast').addEventListener('click', () => haToast('Saved'));
 document.getElementById('demo-toast-undo').addEventListener('click', () => haToast('Bread removed', { action: 'Undo', onAction: () => haToast('Bread is back') }));
 haStepper(document.getElementById('k-step'), { min: 0, max: 10 });
-document.getElementById('icon-grid').innerHTML = ['home', 'list', 'plus', 'minus', 'cart', 'settings', 'search', 'camera', 'barcode', 'check', 'close', 'chevron-right', 'chevron-left', 'trash', 'edit', 'share', 'calendar', 'clock', 'box', 'bell', 'user', 'users', 'info', 'alert']
+document.getElementById('icon-grid').innerHTML = ['home', 'list', 'plus', 'minus', 'cart', 'settings', 'search', 'camera', 'barcode', 'check', 'close', 'chevron-right', 'chevron-left', 'trash', 'edit', 'share', 'calendar', 'clock', 'box', 'bell', 'user', 'users', 'info', 'alert',
+  'bottle', 'jar', 'tin', 'bowl', 'cup', 'carton', 'bread', 'leaf', 'fish', 'snowflake', 'cookie', 'sparkle', 'roll', 'droplet', 'pill', 'paw', 'heart', 'download', 'upload', 'external', 'refresh', 'cloud']
   .map(n => `<li>${haIcon(n)}<span>${n}</span></li>`).join('');
 
 // ---- settings ----

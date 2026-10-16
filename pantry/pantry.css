@@ -1,0 +1,58 @@
+/* Pantry: the app's own content styles, on top of the home app kit (/homedesign/app.css, DESIGN-APP.md).
+   Every class starts with pa-. Only tokens from /homedesign/tokens.css; no new colours. */
+
+.pa-wrap{white-space:normal;overflow-wrap:anywhere;text-align:right}
+
+/* a problem worth seeing (sync failed) */
+.pa-alert{display:flex;gap:var(--home-s2);align-items:flex-start;margin:0 0 var(--home-s4);background:var(--home-bad-bg);color:var(--home-bad)}
+.pa-alert .ha-icon{flex:none;width:20px;height:20px}
+
+/* item screen */
+.pa-hero{display:block;width:100%;max-height:240px;margin:0 0 var(--home-s5);border-radius:var(--home-r-lg);object-fit:cover;background:var(--home-fill)}
+.pa-batch{row-gap:var(--home-s2)}
+.pa-batch-acts{flex:1 0 100%;display:flex;flex-wrap:wrap;gap:var(--home-s2);margin:2px 0 4px}
+.pa-batch-acts .ha-btn--quiet{background:var(--home-fill);color:var(--home-ink-2)}
+.pa-actions{margin:calc(-1 * var(--home-s2)) 0 var(--home-s6)}
+.pa-cols-label{margin:var(--home-s4) 0 var(--home-s2);color:var(--home-muted);font-size:var(--home-t-small)}
+.pa-cols{height:120px}
+.pa-delete{margin:var(--home-s2) 0 0}
+
+/* add and edit */
+.pa-finder .ha-search{margin-bottom:var(--home-s2)}
+.pa-finder #pa-sugg{margin:0 0 var(--home-s2)}
+.pa-finder .ha-btn-row{margin:var(--home-s2) 0 0}
+.pa-finder .ha-btn-row>.ha-btn{flex:0 1 auto}
+.pa-photo-row{display:flex;gap:var(--home-s3);align-items:flex-start}
+.pa-photo-fields{flex:1;min-width:0}
+.pa-photo{position:relative;flex:none;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;width:88px;height:88px;
+  margin-top:26px;border-radius:var(--home-r-md);background:var(--home-surface);box-shadow:inset 0 0 0 1px var(--home-control);
+  color:var(--home-accent);font-size:var(--home-t-label);font-weight:600;text-align:center;line-height:1.2;overflow:hidden;cursor:pointer}
+.pa-photo img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.pa-photo img+span{position:absolute;left:0;right:0;bottom:0;padding:3px 2px;background:var(--home-toast);color:var(--home-on-toast)}
+.pa-photo:active{background:var(--home-pressed)}
+.pa-photo:focus-within{outline:2px solid var(--home-focus);outline-offset:2px}
+.pa-photo-del{margin:calc(-1 * var(--home-s2)) 0 var(--home-s2)}
+.pa-file{position:absolute;width:1px;height:1px;opacity:0;overflow:hidden;pointer-events:none}
+.pa-two{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,9em),1fr));column-gap:var(--home-s3)}
+.pa-gap{margin-top:var(--home-s4);margin-bottom:var(--home-s2)}
+.pa-dates{margin-top:0}
+label.ha-row:focus-within:has(.pa-file){outline:2px solid var(--home-focus);outline-offset:-3px;border-radius:var(--home-r-lg)}
+
+/* a one-line form: shopping list, family member */
+.pa-addline{display:flex;gap:var(--home-s2);align-items:center;margin:0 0 var(--home-s5)}
+.pa-addline .ha-input{flex:1;min-width:0;min-height:44px;padding-block:8px}
+.pa-addline .ha-btn{flex:none}
+.pa-member{margin:var(--home-s3) 0 0}
+
+/* the barcode scanner sheet */
+.pa-scan{overflow:hidden;border-radius:var(--home-r-md);background:var(--home-ink);aspect-ratio:4/3}
+.pa-scan video{display:block;width:100%;height:100%;object-fit:cover}
+.pa-scan-msg{margin:var(--home-s3) 0;color:var(--home-ink-2)}
+.pa-file-btn{position:relative}
+.pa-file-btn:focus-within{outline:2px solid var(--home-focus);outline-offset:2px}
+.pa-install .ha-card-text+.ha-card-text{margin-top:var(--home-s2)}
+
+/* home and lists: the three numbers stay in one row; a name keeps its words whole (the badge moves under it first) */
+.pa-stats{grid-template-columns:repeat(3,minmax(0,1fr))}
+.pa-item .ha-row-body{flex-basis:8em}
+.pa-item .ha-row-title{overflow-wrap:break-word}

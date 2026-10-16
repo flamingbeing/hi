@@ -14,6 +14,7 @@ import { fileURLToPath } from 'node:url';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 const SHOTS = process.env.SHOTS;
+const ICONS = (fs.readFileSync(path.join(ROOT, 'homedesign/icons.svg'), 'utf8').match(/<symbol /g) || []).length;   // every icon in the sprite is in both grids
 if (SHOTS) fs.mkdirSync(SHOTS, { recursive: true });
 
 function findAxe() {
@@ -83,7 +84,7 @@ try {
     {
       const { ctx, page, errors } = await open(size, 'index.html');
       ok(await page.locator('h1').count() === 1, 'index: one h1');
-      ok(await page.locator('#icons-grid li').count() === 24, 'index: 24 icons');
+      ok(await page.locator('#icons-grid li').count() === ICONS, `index: ${ICONS} icons`);
       const iconBox = await page.locator('#icons-grid svg').first().boundingBox();
       ok(iconBox && Math.round(iconBox.width) === 24, 'index: icons draw at 24px');
       await noSideways(page, `index ${size.name}`);
@@ -197,7 +198,7 @@ try {
 
       // Kit tab: every component, axe clean
       await tabbar.locator('a[href="#/kit"]').click(); await waitIdle(page);
-      ok(await page.locator('#icon-grid li').count() === 24, 'app: 24 icons in the kit');
+      ok(await page.locator('#icon-grid li').count() === ICONS, `app: ${ICONS} icons in the kit`);
       await noSideways(page, `app kit ${size.name}`);
       await axe(page, `app kit ${size.name}`);
       if (size.name === '390') await shot(page, 'app-390-kit', true);

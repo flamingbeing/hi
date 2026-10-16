@@ -14,7 +14,7 @@ phone's own font, one slate-blue accent. Two versions:
 | `web.css` | Web components (`h-`) |
 | `app.css` | Phone app kit (`ha-`) |
 | `app.js` | The kit's behaviour, an ES module (sheets, toasts, routes and history, collapsing title, stepper, version lines) |
-| `icons.svg` | 24 line icons as an SVG sprite (`#i-<name>`) |
+| `icons.svg` | 46 line icons as an SVG sprite (`#i-<name>`) |
 | `index.html`, `app.html` | The web guide and the phone specimen |
 | `test/contrast.test.mjs` | Checks every documented colour pair (plain node, runs in Checks) |
 | `test/e2e.mjs` | Browser test: both pages at 390, 360, 320px and desktop, axe, history, sheets, Undo, version lines, 200% text |

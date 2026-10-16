@@ -8,7 +8,7 @@ Worker. `flamingbeing.com` itself (the owner's server page) is not served by it.
 | Address | Folder | What |
 |---|---|---|
 | `design.flamingbeing.com` | `homedesign/` | The design system's guide pages |
-| `pantry.flamingbeing.com` | `pantry/` (+ `/__/auth/`) | Household inventory (coming) |
+| `pantry.flamingbeing.com` | `pantry/` (+ `/__/auth/`) | Household inventory (custom domain: owner, `pantry/SETUP.md` step 1) |
 
 - **Previews:** `https://<branch>-flamingbeing-home.<account>.workers.dev/`. A preview serves the whole repo; try a
   host's view at `<preview>/_sites/pantry.flamingbeing.com/?demo`. Sign-in never works on previews (on purpose).
@@ -42,5 +42,5 @@ minutes"). Owner's click: Workers → flamingbeing-home → Settings → Build �
 3. Worker → **Settings → Builds**: on both the **Production** and **Previews Base** tabs pick or create an **API
    token**; on Previews Base turn on **Builds for preview branches** and **Enable Preview URLs**. Keep PR comments on.
 4. Worker → **Settings → Domains & Routes → Add → Custom domain**: `design.flamingbeing.com`. Cloudflare makes the
-   DNS record and certificate itself. (Later, the same for `pantry.flamingbeing.com`.)
+   DNS record and certificate itself. The same for `pantry.flamingbeing.com` (pantry/SETUP.md step 1).
 5. Check: open https://design.flamingbeing.com/ on the phone.

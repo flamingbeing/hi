@@ -144,10 +144,11 @@ Inputs are never under 16px (iOS zooms into smaller ones). Numbers in tables and
 <div class="h-prose">…long reading…</div>
 ```
 
-Icons: `<svg class="home-icon" aria-hidden="true"><use href="/homedesign/icons.svg#i-cart"/></svg>`. 24 line icons,
+Icons: `<svg class="home-icon" aria-hidden="true"><use href="/homedesign/icons.svg#i-cart"/></svg>`. 46 line icons,
 24px, 1.75 stroke, round ends, drawn in the text colour: home, list, plus, minus, cart, settings, search, camera,
 barcode, check, close, chevron-right, chevron-left, trash, edit, share, calendar, clock, box, bell, user, users, info,
-alert. An icon next to a word is decorative (`aria-hidden`); an icon alone needs an `aria-label` on its button.
+alert; for household things bottle, jar, tin, bowl, cup, carton, bread, leaf, fish, snowflake, cookie, sparkle, roll,
+droplet, pill, paw, heart; and download, upload, external (opens another site), refresh, cloud. An icon next to a word is decorative (`aria-hidden`); an icon alone needs an `aria-label` on its button.
 
 ## Behaviour and motion
 

@@ -1,0 +1,64 @@
+# Deploys a changed firestore.rules to its Firebase project on merge to main (AGENTS.md, "Rules that bite").
+# The rules are compiled first, so a syntax error fails the run and leaves the live rules as they were.
+# Signs in with the FIREBASE_SERVICE_ACCOUNT secret (the rules-deployer service account, Firebase Rules Admin on each
+# project); the project id comes from a repo variable. Until the owner has set both (pantry/SETUP.md), the run skips
+# cleanly instead of failing. A manual run (Run workflow) deploys every app's rules over the live ones: ask the owner.
+name: Deploy Firestore rules
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'pantry/firestore.rules'
+  workflow_dispatch:
+
+jobs:
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      pantry: ${{ steps.filter.outputs.pantry }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: filter
+        uses: dorny/paths-filter@v3
+        with:
+          filters: |
+            pantry: 'pantry/firestore.rules'
+
+  deploy:
+    needs: changes
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - dir: pantry
+            project_var: PANTRY_FIREBASE_PROJECT
+            changed: pantry
+    steps:
+      - name: Ready to deploy?
+        id: ready
+        env:
+          WANTED: ${{ github.event_name == 'workflow_dispatch' || needs.changes.outputs[matrix.changed] == 'true' }}
+          PROJECT: ${{ vars[matrix.project_var] }}
+          HAS_KEY: ${{ secrets.FIREBASE_SERVICE_ACCOUNT != '' }}
+        run: |
+          if [ "$WANTED" != "true" ]; then echo "go=false" >> "$GITHUB_OUTPUT"; echo "${{ matrix.dir }}: rules unchanged"; exit 0; fi
+          if [ -z "$PROJECT" ] || [ "$HAS_KEY" != "true" ]; then
+            echo "go=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::${{ matrix.dir }}: skipped. Set the repo variable ${{ matrix.project_var }} and the secret FIREBASE_SERVICE_ACCOUNT first (${{ matrix.dir }}/SETUP.md)."
+            exit 0
+          fi
+          echo "go=true" >> "$GITHUB_OUTPUT"
+      - uses: actions/checkout@v4
+        if: steps.ready.outputs.go == 'true'
+      - name: Deploy ${{ matrix.dir }}/firestore.rules
+        if: steps.ready.outputs.go == 'true'
+        working-directory: ${{ matrix.dir }}   # its firebase.json names firestore.rules
+        env:
+          SA_KEY: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          PROJECT: ${{ vars[matrix.project_var] }}
+        run: |
+          echo "$SA_KEY" > "$RUNNER_TEMP/sa.json"
+          export GOOGLE_APPLICATION_CREDENTIALS="$RUNNER_TEMP/sa.json"
+          npx --yes firebase-tools@13 deploy --only firestore:rules --project "$PROJECT" --non-interactive

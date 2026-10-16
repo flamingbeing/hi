@@ -8,7 +8,7 @@ This **public** repo holds two things:
 - **The Koh family home apps** on `*.flamingbeing.com`, served by one Cloudflare Worker ([HOSTING.md](HOSTING.md)):
   - `homedesign/`: the Koh family home design system (web and phone app kit), shared by every home app at
     `/homedesign/`; its own guide at `design.flamingbeing.com`. Start with `homedesign/README.md`.
-  - `pantry/` (coming): the family's household inventory at `pantry.flamingbeing.com`. Start with `pantry/NOTES.md`.
+  - `pantry/`: the family's household inventory at `pantry.flamingbeing.com`. Start with `pantry/NOTES.md`.
 
 Accounts, settings and costs: [OPERATIONS.md](OPERATIONS.md). Site-wide work in progress: [STATUS.md](STATUS.md).
 
