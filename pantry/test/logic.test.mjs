@@ -29,11 +29,12 @@ const it = item([{ id: 'a', qty: 2, expiry: '2027-05-01' }, { id: 'b', qty: 1, e
 assert.deepEqual(L.fefo(it).map(b => b.id), ['c', 'b', 'a']);
 assert.equal(L.totalQty(it), 4);
 let r = L.takeOut(it, { qty: 2, at: '2026-10-16T10:00:00Z' });
-assert.deepEqual(r.item.batches.map(b => [b.id, b.qty]), [['a', 2]]);
+const live = r => r.item.batches.filter(b => b.qty > 0);   // a batch used up stays at 0 until it is tidied
+assert.deepEqual(live(r).map(b => [b.id, b.qty]), [['a', 2]]);
 assert.equal(r.event.type, 'use'); assert.equal(r.event.qty, 2);
 assert.equal(it.batches.length, 3, 'never mutates');
 r = L.takeOut(it, { qty: 9 });
-assert.equal(r.event.qty, 4); assert.equal(r.item.batches.length, 0);
+assert.equal(r.event.qty, 4); assert.equal(live(r).length, 0);
 assert.equal(L.takeOut(item([]), {}).event, null);
 r = L.takeOut(it, { type: 'discard', batchId: 'a' });
 assert.equal(r.event.type, 'discard'); assert.equal(r.item.batches.find(b => b.id === 'a').qty, 1);
@@ -135,7 +136,7 @@ assert.equal(L.shareText(['Milk', 'Eggs']), 'Shopping list\n- Milk\n- Eggs');
 
 // backups: round trip, and anything else is refused in plain words
 const b = L.backup({ items: [{ id: 'a', name: 'x' }], events: [], shop: [{ id: 's' }] }, '2026-10-16T00:00:00Z');
-assert.deepEqual(L.parseBackup(JSON.stringify(b)), { items: [{ id: 'a', name: 'x' }], events: [], shop: [{ id: 's' }], settings: [], photos: [] });
+assert.deepEqual(L.parseBackup(JSON.stringify(b)), { items: [{ id: 'a', name: 'x', batches: [] }], events: [], shop: [{ id: 's' }], settings: [], photos: [] });
 // the list of places travels too; anything else under settings is dropped
 const sb = L.backup({ settings: [{ id: 'places', list: ['Fridge', 'Basement store'], updatedAt: 'x' }, { id: 'other', list: ['x'] }, { id: 'places', list: [3] }] });
 assert.deepEqual(L.parseBackup(JSON.stringify(sb)).settings, [{ id: 'places', list: ['Fridge', 'Basement store'], updatedAt: 'x' }]);
@@ -143,7 +144,7 @@ assert.deepEqual(L.parseBackup(JSON.stringify(sb)).settings, [{ id: 'places', li
 const pb = L.backup({ items: [{ id: 'a', thumb: 'data:image/jpeg;base64,t', hasPhoto: true }], photos: [{ id: 'a', data: 'data:image/jpeg;base64,p' }, { id: 'b', data: 'javascript:x' }, { id: 'c' }] });
 assert.deepEqual(L.parseBackup(JSON.stringify(pb)).photos, [{ id: 'a', data: 'data:image/jpeg;base64,p' }]);
 assert.deepEqual(L.parseBackup(JSON.stringify({ app: 'pantry', items: [] })).photos, [], 'an old backup has no photos');
-assert.deepEqual(L.parseBackup(JSON.stringify({ app: 'pantry', items: [{ id: 'ok' }, { id: 'a/b' }, { name: 'no id' }, null] })).items, [{ id: 'ok' }]);
+assert.deepEqual(L.parseBackup(JSON.stringify({ app: 'pantry', items: [{ id: 'ok' }, { id: 'a/b' }, { name: 'no id' }, null] })).items, [{ id: 'ok', batches: [] }]);
 assert.throws(() => L.parseBackup('{"app":"other"}'), /not a pantry backup/);
 assert.throws(() => L.parseBackup('nonsense'), /not a pantry backup/);
 

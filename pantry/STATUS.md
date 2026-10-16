@@ -36,6 +36,11 @@
 
 - 16 Oct 2026: merge duplicate pantries (Settings card and sheet; copies, counts, then deletes the extra one; owner only).
 
+- 16 Oct 2026: sync safety, PR-A of three (plan: PLAN-sync.md): batches as a map (both shapes read), every stock change sent as
+  instructions (increment, field sets) and Undo as the inverse, Edit sends only changed fields, the Saved / Waiting for signal /
+  Needs attention chip with Retry and Discard in Settings, history write-once in the rules (rules change, deploys on merge).
+  Next: PR-B (deletes as markers, Recently removed 30 days, shopping list as field updates), PR-C (names by field, one record per place).
+
 ## Waiting on the owner
 
 - Billing: waiting on the owner (Blaze), then the US$5 budget and daily backups.
@@ -56,6 +61,9 @@
   reminders (push, needs a Worker cron), money saved or wasted, recipe-idea links, pasting an online order.
 
 ## Decisions
+
+- 16 Oct 2026: never save a whole item from a stale copy: changes travel as instructions (no transactions); batches are a map;
+  spent batches linger at 0 until 40; history is write-once; refused writes are kept and shown, not dropped (NOTES.md).
 
 - 16 Oct 2026: three ways in: Google, emailed link, password; rules keep requiring a verified email, so a new password
   account sees nothing until it taps the emailed link (NOTES.md).
