@@ -40,3 +40,8 @@
 - 16 Oct 2026: **22 more icons** for household things and actions (from the pantry): bottle, jar, tin, bowl, cup,
   carton, bread, leaf, fish, snowflake, cookie, sparkle, roll, droplet, pill, paw, heart, download, upload, external,
   refresh, cloud (46 in all). The guide and specimen list them; the e2e test counts the sprite instead of a fixed 24.
+- 16 Oct 2026: **Top bar never overlaps** (seen in the pantry guide at 200% text): the bar's grid gives each side
+  column at least its buttons' width and the title what is left (ellipsis, still at most 40vw, centred while the sides
+  are equal); a back label truncates and, when its column is under 4.5em, shows only the chevron (label kept as the
+  accessible name, 44px target). Looks the same at normal sizes. `e2e.mjs` (and the pantry's) check the lead, title
+  and trail boxes stay apart at 390 and 320px, at normal and 200% text.

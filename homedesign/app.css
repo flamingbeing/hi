@@ -41,10 +41,14 @@ html.ha{font-size:106.25%;background:var(--home-bg);overscroll-behavior-y:contai
    small centred title (app.js: haLargeTitle) */
 .ha-bar{position:sticky;top:0;z-index:20;padding:var(--ha-safe-t) calc(var(--home-s2) + var(--ha-safe-r)) 0 calc(var(--home-s2) + var(--ha-safe-l));
   background:transparent;transition:background-color var(--home-d-fast) linear,box-shadow var(--home-d-fast) linear}
-.ha-bar-row{display:grid;grid-template-columns:minmax(44px,1fr) auto minmax(44px,1fr);align-items:center;min-height:var(--ha-bar-h);max-width:680px;margin:0 auto}
-.ha-bar-lead{justify-self:start;display:flex;align-items:center;min-width:0}
+/* lead, title and trail never overlap (any width, text up to 200%+): the side columns are at least as wide as their
+   buttons and share what is left equally, so the title stays centred and truncates. A back button gives way instead:
+   its label truncates, then shows only the chevron (the label stays its accessible name) */
+.ha-bar-row{display:grid;grid-template-columns:minmax(max-content,1fr) minmax(0,auto) minmax(max-content,1fr);align-items:center;min-height:var(--ha-bar-h);max-width:680px;margin:0 auto}
+.ha-bar-lead{display:flex;align-items:center;min-width:44px}
+.ha-bar-lead:has(.ha-back){container-type:inline-size}
 .ha-bar-trail{justify-self:end;display:flex;align-items:center;gap:var(--home-s1)}
-.ha-bar-title{margin:0;max-width:40vw;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;text-align:center;
+.ha-bar-title{margin:0;min-width:0;max-width:40vw;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;text-align:center;
   font-size:var(--home-t-body);font-weight:600;line-height:1.3;letter-spacing:-.01em;
   opacity:0;transform:translateY(4px);transition:opacity var(--home-d-fast) linear,transform var(--home-d-fast) var(--home-ease)}
 .ha-bar.is-collapsed,.ha-bar--solid{background:var(--home-bar);box-shadow:0 .5px 0 var(--home-line);-webkit-backdrop-filter:var(--ha-blur);backdrop-filter:var(--ha-blur)}
@@ -59,9 +63,10 @@ html.ha{font-size:106.25%;background:var(--home-bg);overscroll-behavior-y:contai
   text-decoration:none!important;white-space:nowrap;cursor:pointer;transition:opacity var(--home-d-press) linear}
 .ha-bar-btn:active{opacity:.4}
 .ha-bar-btn .ha-icon{width:24px;height:24px}
-.ha-back{max-width:44vw;padding-left:0;justify-content:flex-start}
-.ha-back .ha-icon{width:28px;height:28px;margin-right:-2px}
-.ha-back span{overflow:hidden;text-overflow:ellipsis}
+.ha-back{max-width:min(40vw,100%);padding-left:0;justify-content:flex-start}
+.ha-back .ha-icon{flex:none;width:28px;height:28px;margin-right:-2px}
+.ha-back span{min-width:0;overflow:hidden;text-overflow:ellipsis}
+@container (max-width:4.5em){.ha-back span{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}}
 .ha-large-title{margin:var(--home-s1) 0 var(--home-s4);padding:0 var(--home-s1);font-size:var(--home-t-large);font-weight:700;line-height:1.18;
   letter-spacing:-.022em;text-wrap:balance;overflow-wrap:anywhere}
 .ha-large-sub{margin:calc(-1 * var(--home-s3)) 0 var(--home-s5);padding:0 var(--home-s1);color:var(--home-muted);font-size:var(--home-t-small);line-height:1.45}

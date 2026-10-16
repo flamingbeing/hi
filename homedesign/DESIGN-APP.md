@@ -44,6 +44,9 @@ Nothing that reads as a sentence is under 16px; only the short labels in the las
 - `<html lang="en-SG" class="ha">`, `<body class="ha-body ha-has-tabbar">` (or `ha-has-toolbar` during a task).
 - **Top:** `header.ha-bar` (sticky, safe-area top) > `.ha-bar-row` > `.ha-bar-lead` (back) · `.ha-bar-title`
   (small, centred, hidden until the large title scrolls away) · `.ha-bar-trail` (icon or text buttons).
+  The three never overlap at any width or text size: the side columns are at least as wide as their buttons, the
+  title truncates with an ellipsis, and a back label truncates (at most 40vw), then shows only the chevron, keeping
+  the label as the button's accessible name.
   Transparent at rest; then translucent white with a blur and a hairline (`.is-collapsed`, set by `haLargeTitle()`).
 - **Content:** `main.ha-main`, max 680px, 16px gutters plus side safe areas, bottom padding clears the tab bar, and it
   clips sideways overflow. Each screen starts with `h1.ha-large-title` (top level) or has a back button (pushed).

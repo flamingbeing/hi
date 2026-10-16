@@ -56,6 +56,22 @@ async function axe(page, what) {
     .violations.map(x => `${x.id} (${x.impact}): ${x.nodes.slice(0, 3).map(n => n.target.join(' ')).join(' | ')}`));
   ok(v.length === 0, `${what}: axe violations\n  ${v.join('\n  ')}`);
 }
+// the top bar's lead, title and trail never overlap (and the back button keeps a 44px target and its name)
+async function barApart(page, what) {
+  const r = await page.evaluate(() => {
+    const box = e => { const b = e.getBoundingClientRect(); return { l: b.left, r: b.right, t: b.top, b: b.bottom, w: b.width, h: b.height }; };
+    const title = document.querySelector('.ha-bar-title');
+    const parts = [...document.querySelectorAll('.ha-bar-lead > *, .ha-bar-trail > *')].filter(e => e.getClientRects().length)
+      .map(e => ({ side: e.closest('.ha-bar-lead') ? 'lead' : 'trail', ...box(e) }));
+    const back = document.querySelector('.ha-back');
+    return { title: title && title.textContent.trim() ? box(title) : null, parts, back: back && { ...box(back), name: back.textContent.trim() } };
+  });
+  const hit = (a, b) => Math.min(a.r, b.r) - Math.max(a.l, b.l) > 0.5 && Math.min(a.b, b.b) - Math.max(a.t, b.t) > 0.5;
+  for (const p of r.parts) if (r.title) ok(!hit(p, r.title), `${what}: bar ${p.side} (${Math.round(p.l)}-${Math.round(p.r)}) overlaps the title (${Math.round(r.title.l)}-${Math.round(r.title.r)})`);
+  const lead = r.parts.filter(p => p.side === 'lead'), trail = r.parts.filter(p => p.side === 'trail');
+  for (const a of lead) for (const b of trail) ok(!hit(a, b), `${what}: bar lead overlaps the trail`);
+  if (r.back) ok(r.back.w >= 43.5 && r.back.h >= 43.5 && r.back.name, `${what}: back button keeps a 44px target and its name (${Math.round(r.back.w)}x${Math.round(r.back.h)} "${r.back.name}")`);
+}
 const shot = async (page, name, full = false) => { if (SHOTS) await page.screenshot({ path: path.join(SHOTS, name + '.png'), fullPage: full }); };
 const hash = page => new URL(page.url()).hash;
 const go = async (page, h) => { await page.evaluate(x => { location.hash = x; }, h); await settle(page); };
@@ -330,6 +346,13 @@ try {
     await go(page, '#/guide');
     await noSideways(page, `guide ${w}`);
     await axe(page, `guide ${w}`);
+    // the bar ("Pantry" back, "How to use it") stays apart, at normal and 200% text
+    await page.evaluate(() => scrollTo(0, 900)); await settle(page);
+    await barApart(page, `guide ${w} bar`);
+    await page.evaluate(() => { document.documentElement.style.fontSize = '212.5%'; }); await settle(page);
+    await barApart(page, `guide ${w} bar at 200% text`);
+    if (w === 390) await shot(page, 'g0-guide-bar-200pc');
+    await page.evaluate(() => { document.documentElement.style.fontSize = ''; scrollTo(0, 0); }); await settle(page);
     if (w === 390) {
       await shot(page, 'g1-guide-top');
       await page.evaluate(() => scrollTo(0, 900)); await settle(page);
@@ -372,6 +395,14 @@ try {
       if (w !== 390) await axe(page, `demo ${w} ${hsh}`);
       if (w === 320 && SHOTS) await shot(page, `320-${hsh.replace(/[#/]+/g, '-').replace(/^-|-$/g, '') || 'home'}`);
     }
+    if (w === 320) {
+      // 200% text at the narrowest width: the bar never overlaps on any screen
+      await page.evaluate(() => { document.documentElement.style.fontSize = '212.5%'; });
+      for (const hsh of ['#/', '#/items', '#/item/' + itemId, '#/add', '#/edit/' + itemId, '#/shop', '#/settings', '#/guide']) {
+        await go(page, hsh); await page.evaluate(() => scrollTo(0, 900)); await settle(page);
+        await barApart(page, `demo 320 200% ${hsh}`);
+      }
+    }
     if (w === 390) {
       // edit: change the name, save goes back to the item
       await go(page, '#/item/' + itemId);
@@ -386,7 +417,7 @@ try {
       ok(await page.evaluate(id => window.__pantry.S.items.has(id), itemId), 'Undo restores it');
       // 200% text: still no sideways scroll
       await page.evaluate(() => { document.documentElement.style.fontSize = '212.5%'; });
-      for (const hsh of ['#/', '#/items', '#/item/' + itemId, '#/add', '#/shop', '#/settings', '#/guide']) { await go(page, hsh); await noSideways(page, `demo 200% ${hsh}`); }
+      for (const hsh of ['#/', '#/items', '#/item/' + itemId, '#/add', '#/edit/' + itemId, '#/shop', '#/settings', '#/guide']) { await go(page, hsh); await noSideways(page, `demo 200% ${hsh}`); await barApart(page, `demo 200% ${hsh}`); }
     }
     ok(errors.length === 0, `demo ${w}: console errors ${errors.join('; ')}`);
     await ctx.close();
