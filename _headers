@@ -1,0 +1,3 @@
+# Read by Cloudflare: keeps every page out of search engines (the Worker sets the same header too).
+/*
+  X-Robots-Tag: noindex, nofollow

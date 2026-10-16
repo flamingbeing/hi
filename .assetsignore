@@ -1,0 +1,13 @@
+# Files the Worker never serves (HOSTING.md).
+.git
+.github
+.claude
+.agents
+wrangler.jsonc
+node_modules
+.wrangler
+worker
+tools
+songs
+suno-songs
+*.log
