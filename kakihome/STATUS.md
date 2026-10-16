@@ -2,6 +2,10 @@
 
 ## Now
 
+- **Feature freeze (owner, 16 Oct 2026): no new features.** Kaki Home is being shared with people outside the family
+  to try out. Only fixes (bugs, security, cost) from now on, and only when the owner asks. The family's own app is the
+  pantry: new ideas go there.
+
 - 16 Oct 2026: names for household members (PR "Kaki Home: names for household members"); the owner's household
   ("Our home") was created with the pantry family's members by the owner's helper.
 
@@ -16,6 +20,9 @@
   repo variable were all set up by the owner's helper; the config is committed and the rules deploy on merge.)
 
 ## Next
+
+- Nothing planned (feature freeze). If the owner asks: the pantry's photo thumbnails (cost) and its barcode name
+  clean-up are the fixes worth porting.
 
 - Ideas from the proposal that need a server or AI: push reminders, receipt and photo reading, recommendations,
   linked households with view / notify / update roles.

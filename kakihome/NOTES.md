@@ -4,6 +4,9 @@ Lasting decisions and how to test. Now: [STATUS.md](STATUS.md). Setup: [SETUP.md
 
 ## Decisions
 
+- **16 Oct 2026, feature freeze** (owner): no new features; Kaki Home is shared with people outside the family to try
+  out. Fixes only, when asked. Each person who signs in starts their own household; the rules keep households apart.
+
 - **16 Oct 2026, a separate app** (owner): Kaki Home tries out a product idea and stays apart from the family pantry:
   own subdomain (`kakihome.flamingbeing.com`), own IndexedDB and localStorage names (`kakihome`), own cache prefix
   (`kakihome-`), own Firebase project. Started as a copy of `pantry/` (16 Oct, after the pantry's welcome PR); the two
