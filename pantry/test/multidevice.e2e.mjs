@@ -17,6 +17,12 @@
 //     lines 0-1 only removed, 2-3 removed and restored, 4 never removed: the final done of every line is that last tick,
 //     whatever else happened to it (a tick and a remove never undo each other), a removed line nobody restored stays removed,
 //     and every phone shows what the server has.
+//   - names and places (PR-C): each phone names itself (set, now and then cleared) as a field of settings/people, so the last name
+//     each phone set (or cleared) is the one on the server and on every phone, whoever was offline; places are one document
+//     each: every place a phone added exists once, live unless removed; one removed and not restored is still removed (and
+//     stays hidden on every phone: a rename or a move landing on it brings nothing back); a place's name is one some phone gave
+//     it; the eleven default places made from the old list by whichever phone changed places first exist once, however many
+//     phones tried at once (some offline); and every phone's list of places is the server's, in the same order.
 // Run by pantry/test/run-sync.sh; one seed: SEED=7 node test/multidevice.e2e.mjs (inside the emulators), more: SEEDS=1,2,3.
 import assert from 'node:assert/strict';
 import { serve } from './serve.mjs';
@@ -70,6 +76,7 @@ const net = async (p, on) => { try { await p.evaluate(async ([on, u]) => { const
 const drain = async p => { try { await p.evaluate(async u => { const F = await import(u); await F.waitForPendingWrites(F.getFirestore()); }, FSJS); } catch (e) { console.error('drain failed on', p.who, e.message); throw e; } };
 const act = (p, name, ...args) => p.evaluate(([n, a]) => window.__pantry.act[n](...a), [name, args]);
 const local = (p, id) => p.evaluate(id => { const it = window.__pantry.S.items.get(id); return it && { name: it.name, removed: !!it.removedAt, batches: it.batches.map(b => [b.id, b.qty]) }; }, id);
+const localPlaces = (p, ids) => p.evaluate(ids => [...window.__pantry.S.places.values()].filter(d => ids.includes(d.id)).map(d => ({ id: d.id, name: d.name, removed: !!d.removedAt })), ids);
 const localLine = (p, id) => p.evaluate(id => { const m = window.__pantry.S.shop.get(id); return m && { done: !!m.done, removed: !!m.removedAt }; }, id);
 
 let seedNow = null;
@@ -120,12 +127,41 @@ try {
     const history = {};
     let nowStep = 0, nowWho = 0, nowKind = '';
     const tally = (id, ops) => { for (const [path, d] of Object.entries(ops?.inc || {})) { const b = path.split('.')[1]; expected[id][b] = (expected[id][b] || 0) + d; (history[`${id}/${b}`] ||= []).push(`step ${nowStep} phone ${nowWho} ${nowKind} ${d > 0 ? '+' : ''}${d}`); } };
-    const counts = { use: 0, add: 0, open: 0, rename: 0, undo: 0, delete: 0, restore: 0, tick: 0, 'remove line': 0, 'restore line': 0, toggles: 0 };
+    // names: phone i names only itself, so the last set (or clear) is what must be everywhere; places: ids this seed added
+    const emails = phones.map(p => p.who);
+    const names0 = (await admin.get(`households/${hid}/settings/people`))?.names || {};   // (what earlier seeds left)
+    const nameLast = emails.map(e => names0[e] ?? ''), nameEver = emails.map(() => new Set());
+    const placeIds = [], placeNameEver = {}, placeRemoved = new Set(), placeRestored = new Set();
+    const counts = { use: 0, add: 0, open: 0, rename: 0, undo: 0, delete: 0, restore: 0, tick: 0, 'remove line': 0, 'restore line': 0, 'name myself': 0, 'add place': 0, 'rename place': 0, 'move place': 0, 'remove place': 0, 'restore place': 0, toggles: 0 };
 
     for (let step = 0; step < STEPS; step++) {
       const i = Math.floor(R() * 3), p = phones[i], id = pick(ids);
       nowStep = step; nowWho = i;
       const r = R();
+      if (R() < 0.34) {
+        // names and places (a third of the steps)
+        const q = R();
+        if (q < 0.2) {
+          const v = R() < 0.15 ? '' : `n${seed}-${i}-${step}`;
+          await act(p, 'namePerson', emails[i], v); nameLast[i] = v; if (v) nameEver[i].add(v); counts['name myself']++;
+        } else if (q < 0.5) {
+          const name = `Pl${seed}-${step}`;
+          const pid = await act(p, 'addPlace', name); placeIds.push(pid); placeNameEver[pid] = new Set([name]); counts['add place']++;
+        } else if (q < 0.9 || !placeIds.length) {
+          const mine = (await localPlaces(p, placeIds)).filter(x => !x.removed);
+          if (!mine.length) continue;
+          const t = pick(mine), q2 = R();
+          if (q2 < 0.35) { const name = `Pl${seed}-${step}r`; if (await act(p, 'renamePlace', t.id, name)) { placeNameEver[t.id].add(name); counts['rename place']++; } }
+          else if (q2 < 0.75) { await act(p, 'reorderPlace', t.id, R() < 0.5 ? -1 : 1); counts['move place']++; }
+          else { await act(p, 'removePlace', t.id); placeRemoved.add(t.id); counts['remove place']++; }
+        } else {
+          const gone = (await localPlaces(p, placeIds)).filter(x => x.removed);
+          if (!gone.length) continue;
+          const t = pick(gone); await act(p, 'restorePlace', t.id); placeRestored.add(t.id); counts['restore place']++;
+        }
+        await p.waitForTimeout(Math.floor(R() * 60));
+        continue;
+      }
       if (process.env.MD_DEBUG) console.log('STEP', step, 'phone', i, 'id', id.split('-')[1], 'r', r.toFixed(2), 'offline', offline.join());
       if (r < 0.10 && !process.env.NOTOGGLE) {
         // (a phone that comes back online sends everything it has before it may drop offline again: toggling the SDK's
@@ -213,6 +249,31 @@ try {
         if (mustBeRemoved(lid) && !gone) problem += `${lid}: removed, never restored, but it is back; `;
         for (const [n, p] of phones.entries()) { const l = await localLine(p, lid); if (l.removed !== gone || l.done !== raw.done) problem += `${lid}: phone ${n} has done ${l.done}/removed ${l.removed}, the server ${raw.done}/${gone}; `; }
       }
+      // names: the last name each phone set (or cleared) for itself, on the server and on every phone
+      const srvPeople = (await admin.get(`households/${hid}/settings/people`))?.names || {};
+      for (const [k, email] of emails.entries()) {
+        if ((srvPeople[email] ?? '') !== nameLast[k]) problem += `name of phone ${k}: server has ${JSON.stringify(srvPeople[email] ?? '')}, the last it saved was ${JSON.stringify(nameLast[k])}; `;
+        for (const [n, ph] of phones.entries()) { const got = (await ph.evaluate(() => window.__pantry.S.settings.get('people')?.names) || {})[email] ?? ''; if (got !== nameLast[k]) problem += `name of phone ${k}: phone ${n} shows ${JSON.stringify(got)}, expected ${JSON.stringify(nameLast[k])}; `; }
+      }
+      // places: every place added exists once on the server, live unless removed; removed and never restored: still removed; a
+      // name someone gave it; the default places once; every phone shows the server's list, in order
+      const placeDocs = await admin.list(`households/${hid}/places`);
+      const byId = new Map();
+      for (const d of placeDocs) byId.set(d.id, [...(byId.get(d.id) || []), d]);
+      for (const id of placeIds) {
+        const d = byId.get(id) || [];
+        if (d.length !== 1) { problem += `place ${id}: ${d.length} documents on the server; `; continue; }
+        const gone = typeof d[0].removedAt === 'string';
+        if (!placeNameEver[id].has(d[0].name)) problem += `place ${id}: name ${d[0].name} was never given to it; `;
+        if (placeRemoved.has(id) && !placeRestored.has(id) && !gone) problem += `place ${id}: removed, never restored, but it is back; `;
+        if (!placeRemoved.has(id) && gone) problem += `place ${id}: hidden but never removed; `;
+        if (!gone && ('removedBy' in d[0])) problem += `place ${id}: removedBy left behind; `;
+      }
+      const seeded = placeDocs.filter(d => /^p-/.test(d.id));
+      if (seeded.length && seeded.length !== 11) problem += `${seeded.length} default places on the server, expected 11; `;
+      const wantList = placeDocs.filter(d => !d.removedAt).sort((a, b) => a.order - b.order || (a.name < b.name ? -1 : a.name > b.name ? 1 : 0) || (a.id < b.id ? -1 : 1)).map(d => d.name);
+      if (new Set(wantList.map(x => x.toLowerCase())).size !== wantList.length) problem += `the server has the same place name twice; `;
+      if (placeDocs.length) for (const [n, ph] of phones.entries()) { const got = await ph.evaluate(() => window.__pantry.places()); if (JSON.stringify(got) !== JSON.stringify(wantList)) problem += `phone ${n} lists places ${JSON.stringify(got)} but the server has ${JSON.stringify(wantList)}; `; if (new Set(got).size !== got.length) problem += `phone ${n} lists a place twice; `; }
       const onServer = new Set((await admin.list(`households/${hid}/events`)).map(e => e.id).filter(x => [...events].includes(x) || true));
       const mineOnServer = [...onServer].filter(x => x);
       for (const e of events) if (!onServer.has(e)) problem += `event ${e} missing; `;

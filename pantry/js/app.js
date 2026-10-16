@@ -26,7 +26,7 @@ const EMULATOR = params.has('emulator') && /^(localhost|127\.0\.0\.1)$/.test(loc
 const WELCOME = params.has('welcome');   // show the welcome even in the demo, or again
 
 const S = {
-  items: new Map(), events: new Map(), shop: new Map(), settings: new Map(), pics: new Map(),
+  items: new Map(), events: new Map(), shop: new Map(), places: new Map(), settings: new Map(), pics: new Map(),
   backend: null, local: null, mode: DEMO ? 'demo' : 'local', cloud: null, user: null, household: null, pantries: [], lookupFailed: false, creating: false, pending: null, localCount: 0,
   q: '', place: '', sort: prefs.get('sort', 'expiry'),
   draft: null, dirty: false, pendingRender: false, syncError: false,
@@ -143,6 +143,14 @@ function patchLines(list) {
   if (S.backend.patchMany) Promise.resolve(S.backend.patchMany('shop', sent)).catch(err => { S.syncError = S.cloud ? S.cloud.explain(err, 'Saving') : 'Saving didn’t work.'; redraw(); });
   return sent;
 }
+// Any other small document (a place, the names) changed the same way: by field, never rewritten whole from a copy. A document this
+// phone doesn't have yet is made by the change itself (the backends merge the fields into whatever is there).
+function patchDoc(kind, id, ops) {
+  const before = S[kind].get(id) || null;
+  S[kind].set(id, L.applyFieldOps(before || { id }, ops));
+  S.backend.patch(kind, id, ops, { before });
+  return ops;
+}
 const removeLine = id => patchLine(id, L.removeOps(who()));
 const restoreLine = id => patchLine(id, L.restoreOps());
 // A new line: whole, under a new random id (so two phones adding the same words make two lines; duplicates are tolerated).
@@ -191,13 +199,68 @@ function saveMany(kind, list) {
   return out;
 }
 
-// ---- places (places.js): the household's own ordered list, shared with the family ----------------------------------
+// ---- places (places.js): the household's own ordered list, one document a place, shared with the family ---------------------
 
-const placeNames = () => P.placeList(S.settings.get(P.PLACES_ID));
+// The ONE door for reading places (like items(): a removed place never shows): the household's live place documents by order,
+// then name; with none yet, its old list (settings/places) or the defaults, as entries that aren't documents yet (`virtual`).
+// An entry is { id, name, order, dupes, virtual? }. Every screen that lists, picks or matches places comes through here.
+const placeList = () => P.placeEntries([...S.places.values()], S.settings.get(P.PLACES_ID));
+const placeNames = () => placeList().map(e => e.name);
+const placeByName = name => placeList().find(e => e.name === name) || null;
+// Recently removed shows the removed places (within their 30 days), newest removal first.
+const removedPlaces = () => L.recentlyRemoved([...S.places.values()]);
 // Every place to offer, the list's order first, then places items still use that aren't in it.
 const placeChoices = (extra = '') => P.allPlaces(placeNames(), items(), extra);
 const defaultPlace = () => { const l = placeNames(); return l.includes('Kitchen cabinet') ? 'Kitchen cabinet' : l[0]; };
-const savePlaces = list => save('settings', P.placesDoc(list));
+// A change to place documents, by field: stamps updatedAt (a real time: the rules treat SEED_AT specially), changes this
+// phone's copy at once and sends the same fields. `list`: [{ id, ops }].
+function patchPlaces(list) {
+  const at = new Date().toISOString(), sent = [];
+  for (const { id, ops } of list) {
+    const before = S.places.get(id); if (!before) continue;
+    const full = L.mergeOps(ops, { set: { updatedAt: at } });
+    S.places.set(id, L.applyFieldOps(before, full));
+    sent.push({ id, ops: full, before });
+  }
+  if (!sent.length) return sent;
+  if (S.backend.patchMany) Promise.resolve(S.backend.patchMany('places', sent)).catch(err => { S.syncError = S.cloud ? S.cloud.explain(err, 'Saving') : 'Saving didn’t work.'; redraw(); });
+  return sent;
+}
+// Before the first change to places in a household that has no place documents yet: write the ones it is showing (its old list
+// or the defaults) as documents, ids from the names and a fixed time, so two phones doing this at once write the same
+// documents, and one that was offline can't overwrite a change made since (the rules: places.js SEED_AT). The write isn't
+// waited for; if the server turns it down, someone already made them and this phone's copy follows the server.
+function materializePlaces() {
+  const virt = placeList().filter(e => e.virtual);
+  if (!virt.length) return;
+  const fresh = virt.filter(e => !S.places.has(e.id)).map(e => P.seedDoc(e));
+  for (const d of fresh) S.places.set(d.id, d);
+  if (fresh.length && S.backend.putMany) S.backend.putMany('places', fresh).catch(() => { /* another phone made them first */ });
+  else for (const d of fresh) S.backend.put('places', d);
+  // every place was removed and the defaults are showing: bring those documents back
+  patchPlaces(virt.filter(e => S.places.has(e.id) && L.isRemoved(S.places.get(e.id))).map(e => ({ id: e.id, ops: L.restoreOps() })));
+}
+// A new place, after the others, under a new random id (two phones adding at once make two).
+function addPlace(name) {
+  materializePlaces();
+  const doc = P.newPlaceDoc(name, P.nextOrder(placeList()), L.uid());
+  S.places.set(doc.id, doc);
+  S.backend.put('places', doc);
+  return doc;
+}
+const placeIds = e => [e.id, ...(e.dupes || [])];
+// Remove a place (a marker, like an item: Recently removed puts it back) and put it back.
+const removePlace = e => { materializePlaces(); patchPlaces(placeIds(e).map(id => ({ id, ops: L.removeOps(who()) }))); };
+const restorePlaces = ids => patchPlaces(ids.map(id => ({ id, ops: L.restoreOps() })));
+// Rename a place's own document (items kept there move separately: renamePlace).
+const renamePlaceDoc = (e, to) => { materializePlaces(); patchPlaces([{ id: e.id, ops: { set: { name: P.cleanPlace(to) }, inc: {}, del: [] } }]); };
+// Move a place one step: normally one field of one document.
+function movePlace(e, dir) {
+  materializePlaces();
+  const sets = P.reorder(placeList(), e.id, dir);
+  patchPlaces(sets.map(x => ({ id: x.id, ops: { set: { order: x.order }, inc: {}, del: [] } })));
+  return sets.length;
+}
 // A <select>'s options: the list, then "Not in your list" for any other place in use (or the form's own value).
 function placeOptions(value) {
   const { listed, unlisted } = placeChoices(value);
@@ -1437,37 +1500,49 @@ function openPutAway() {
 // ---- Recently removed (Settings → Recently removed, #/removed): 30 days to put things back --------------------------
 
 // What is in it: removed items and shopping lines still inside their 30 days, newest removal first.
-const removedLists = () => ({ items: L.recentlyRemoved([...S.items.values()]), lines: L.recentlyRemoved([...S.shop.values()]) });
+const removedLists = () => ({ items: L.recentlyRemoved([...S.items.values()]), lines: L.recentlyRemoved([...S.shop.values()]), places: removedPlaces() });
 function viewRemoved() {
-  const { items: its, lines } = removedLists();
+  const { items: its, lines, places: pls } = removedLists();
   const landed = new Set(landedItems().map(i => i.id));
   const row = (x, kind) => {
     const by = x.removedBy ? `Removed by ${nameOf(x.removedBy)}` : 'Removed';
-    const sub = [kind === 'items' ? x.location : 'Shopping list', by, L.daysLeftText(L.daysLeft(x)), landed.has(x.id) ? 'Your change is kept' : ''].filter(Boolean).join(' · ');
+    const sub = [kind === 'items' ? x.location : kind === 'places' ? 'Place' : 'Shopping list', by, L.daysLeftText(L.daysLeft(x)), landed.has(x.id) ? 'Your change is kept' : ''].filter(Boolean).join(' · ');
     return `<li><div class="ha-row pa-removed"><span class="ha-row-body"><span class="ha-row-title pa-break">${esc(x.name)}</span><span class="ha-row-sub pa-break">${esc(sub)}</span></span>
       <span class="ha-row-trail"><button type="button" class="ha-btn ha-btn--small" data-act="restore" data-kind="${kind}" data-id="${esc(x.id)}" aria-label="Restore ${esc(x.name)}">Restore</button></span></div></li>`;
   };
   let h = `<h1 class="ha-large-title">Recently removed</h1><p class="ha-large-sub">Kept for ${L.REMOVED_DAYS} days</p>`;
-  if (!its.length && !lines.length) {
+  if (!its.length && !lines.length && !pls.length) {
     return h + `<div class="ha-card ha-empty"><span class="ha-empty-icon">${icon('trash')}</span><p class="ha-empty-title">Nothing removed</p>
-      <p class="ha-empty-text">Items and shopping list lines you delete wait here for ${L.REMOVED_DAYS} days, so you can put them back.</p></div>`;
+      <p class="ha-empty-text">Items, shopping list lines and places you delete wait here for ${L.REMOVED_DAYS} days, so you can put them back.</p></div>`;
   }
   if (its.length) h += section('Items', `<ul class="ha-list" id="pa-removed">${its.map(x => row(x, 'items')).join('')}</ul>`, { id: 'removed-items', count: its.length, footer: 'Restore brings the item back with its history and any change made to it since.' });
   if (lines.length) h += section('Shopping list', `<ul class="ha-list" id="pa-removed-lines">${lines.map(x => row(x, 'shop')).join('')}</ul>`, { id: 'removed-lines', count: lines.length });
+  if (pls.length) h += section('Places', `<ul class="ha-list" id="pa-removed-places">${pls.map(x => row(x, 'places')).join('')}</ul>`, { id: 'removed-places', count: pls.length, footer: 'Restore brings the place back to your list, with any new name it was given since.' });
   return h;
 }
 // Put back: clear the marker. The item returns as it now is (a use or edit that landed while it was hidden is in it).
 function restoreFromList(kind, id) {
+  if (kind === 'places') return restoreRemovedPlace(id);
   const x = (kind === 'shop' ? S.shop : S.items).get(id); if (!x) return;
   (kind === 'shop' ? restoreLine : restoreItem)(id);
   redraw();
   haToast(`${x.name} is back`, { action: 'Undo', onAction: () => { (kind === 'shop' ? removeLine : removeItem)(id); redraw(); haAnnounce('Removed again'); } });
 }
 
+// A removed place back in the list (at its old position, with any rename made since). A live place of the same name is already
+// there (the same name twice would show once), so say so instead.
+function restoreRemovedPlace(id) {
+  const x = S.places.get(id); if (!x) return;
+  if (placeNames().some(n => n.toLowerCase() === P.cleanPlace(x.name).toLowerCase())) return haToast(`${x.name} is already in your list`);
+  restorePlaces([id]);
+  redraw();
+  haToast(`${x.name} is back`, { action: 'Undo', onAction: () => { const e = placeByName(x.name); if (e) { removePlace(e); redraw(); haAnnounce('Removed again'); } } });
+}
+
 // ---- the daily sweep: what was removed more than 30 days ago goes for good -------------------------------------------------
 
 // Once a day per phone (`pantry:lastSweep`), when the family pantry has been read from the server: this phone deletes up to
-// 20 items and shopping lines removed more than 30 days ago (and an item's photo and history). It already holds every item
+// 20 items, shopping lines and places removed more than 30 days ago (and an item's photo and history). It already holds every item
 // in memory, so there is no extra listener and no full read; each delete is a small transaction that checks the document
 // is still removed (a Restore elsewhere a moment ago wins), and a document another phone swept first is just skipped.
 async function sweep({ force = false } = {}) {
@@ -1476,7 +1551,7 @@ async function sweep({ force = false } = {}) {
   if (!force && prefs.get(key) === today()) return 0;
   if (S.mode === 'cloud' && !force && (navigator.onLine === false || S.sync.cache)) return 0;   // from the phone's old copy: not today
   const backend = S.backend, now = Date.now();
-  const due = L.sweepDue([...S.items.values()], [...S.shop.values()], now);
+  const due = L.sweepDue([...S.items.values()], [...S.shop.values()], now, undefined, [...S.places.values()]);
   const cutoff = new Date(now - L.REMOVED_DAYS * 86400000).toISOString();
   let n = 0;
   for (const it of due.items) {
@@ -1491,6 +1566,10 @@ async function sweep({ force = false } = {}) {
   for (const m of due.shop) {
     if (backend !== S.backend) break;
     if (await backend.purge('shop', m.id, cutoff)) { S.shop.delete(m.id); n++; }
+  }
+  for (const d of due.places) {
+    if (backend !== S.backend) break;
+    if (await backend.purge('places', d.id, cutoff)) { S.places.delete(d.id); n++; }
   }
   if (backend === S.backend && !force) prefs.set(key, today());
   if (n) redraw();
@@ -1528,7 +1607,7 @@ function addPlaceFromForm() {
     return;
   }
   const name = P.cleanPlace(inp.value);
-  savePlaces(P.addPlace(list, name));
+  addPlace(name);
   inp.value = ''; inp.removeAttribute('aria-invalid'); err.hidden = true;
   redraw();
   $('#pa-place-name')?.focus();
@@ -1536,7 +1615,7 @@ function addPlaceFromForm() {
 }
 // A place's sheet: rename it, move it up or down, add it to the list, or remove it.
 function openPlace(name) {
-  const listed = () => placeNames().includes(name);
+  const listed = () => !!placeByName(name);
   const n = P.placeCounts(items()).get(name) || 0;
   const pos = () => { const l = placeNames(); return `${l.indexOf(name) + 1} of ${l.length} in your list`; };
   const only = listed() && placeNames().length === 1;
@@ -1589,14 +1668,15 @@ function openPlace(name) {
     if (!b || b.disabled || b.getAttribute('aria-disabled') === 'true' || !stillThere()) return;
     const a = b.dataset.pl;
     if (a === 'up' || a === 'down') {
-      savePlaces(P.movePlace(placeNames(), name, a === 'up' ? -1 : 1));
+      const e = placeByName(name); if (!e) return;
+      movePlace(e, a === 'up' ? -1 : 1);
       S.pendingRender = true;
       moveBtns();
       haAnnounce(`${name} moved ${a}, ${pos()}`);
     } else if (a === 'list') {
       const problem = P.placeProblem(placeNames(), name);
       if (problem) return haToast(problem);
-      savePlaces(P.addPlace(placeNames(), name));
+      addPlace(name);
       await haCloseSheet(el);
       redraw();
       haToast(`${name} is in your list`);
@@ -1604,23 +1684,23 @@ function openPlace(name) {
       const count = P.placeCounts(items()).get(name) || 0;
       await haCloseSheet(el);
       if (count) return openMovePlace(name);
-      const before = placeNames();
-      savePlaces(P.removeFromList(before, name));
+      const e = placeByName(name); if (!e) return;
+      removePlace(e);
       redraw();
-      haToast(`Removed ${name}`, { action: 'Undo', onAction: () => { savePlaces(before); redraw(); haAnnounce('Undone'); } });
+      haToast(`Removed ${name}`, { action: 'Undo', onAction: () => { restorePlaces(placeIds(e)); redraw(); haAnnounce('Undone'); } });
     }
   });
   return s;
 }
 // Renames a place in the list and on every item kept there (one batch), with Undo.
 function renamePlace(from, to) {
-  const before = placeNames(), moved = items().filter(it => it.location === from);
-  if (before.includes(from)) savePlaces(P.renameInList(before, from, to));
+  const e = placeByName(from), moved = items().filter(it => it.location === from);
+  if (e) renamePlaceDoc(e, to);
   patchMany(moved.map(it => ({ id: it.id, ops: { set: { location: P.cleanPlace(to) }, inc: {}, del: [] } })));
   if (S.place === from) S.place = to;
   redraw();
   haToast(`Renamed to ${to}`, { action: 'Undo', onAction: () => {
-    savePlaces(before);
+    if (e) renamePlaceDoc(e, from);
     patchMany(moved.filter(it => S.items.get(it.id)?.location === P.cleanPlace(to)).map(it => ({ id: it.id, ops: { set: { location: from }, inc: {}, del: [] } })));   // only those still there
     if (S.place === to) S.place = from;
     redraw(); haAnnounce('Undone');
@@ -1628,7 +1708,7 @@ function renamePlace(from, to) {
 }
 // Removing a place that items use: first ask where they go (never leaves items pointing at a removed place).
 function openMovePlace(name) {
-  const listed = placeNames().includes(name);
+  const listed = !!placeByName(name);
   const n = P.placeCounts(items()).get(name) || 0;
   const { listed: l, unlisted } = placeChoices();
   const others = [...l, ...unlisted].filter(p => p !== name);
@@ -1641,14 +1721,14 @@ function openMovePlace(name) {
   });
   $('#pa-mv-go', s.el).addEventListener('click', async () => {
     const to = $('#pa-mv-to', s.el).value;
-    const before = placeNames(), moved = items().filter(it => it.location === name);
+    const e = placeByName(name), moved = items().filter(it => it.location === name);
     await haCloseSheet(s.el);
     patchMany(moved.map(it => ({ id: it.id, ops: { set: { location: P.cleanPlace(to) }, inc: {}, del: [] } })));
-    if (before.includes(name)) savePlaces(P.removeFromList(before, name));
+    if (e) removePlace(e);
     if (S.place === name) S.place = '';
     redraw();
     haToast(listed ? `Removed ${name}; ${plural(moved.length, 'item')} moved to ${to}` : `${plural(moved.length, 'item')} moved to ${to}`, { action: 'Undo', onAction: () => {
-      if (before.includes(name)) savePlaces(before);
+      if (e) restorePlaces(placeIds(e));
       patchMany(moved.filter(it => S.items.get(it.id)?.location === P.cleanPlace(to)).map(it => ({ id: it.id, ops: { set: { location: name }, inc: {}, del: [] } })));
       redraw(); haAnnounce('Undone');
     } });
@@ -1679,7 +1759,13 @@ async function setMembers(list) {
   if (S.mode === 'demo') { S.household = { ...S.household, members: list }; redraw(); return; }
   await S.cloud.setMembers(S.household.id, list);
 }
-const saveNames = n => save('settings', PP.peopleDoc(n));
+// One person's name (or clearing it): a change to that one field, `names.<email>` (people.js nameOps), never the whole map from
+// a copy that may be a moment old. A household with no names yet gets the document made by the same change.
+function setPersonName(email, name) {
+  const members = S.household?.members || [], cur = names();
+  const ops = PP.nameOps(email, name, { orphans: PP.orphanNames(cur, members, email) });
+  return patchDoc('settings', PP.PEOPLE_ID, S.settings.has(PP.PEOPLE_ID) ? ops : L.mergeOps(ops, { set: { id: PP.PEOPLE_ID } }));
+}
 // A family member's contact sheet: their Gmail, a name everyone sees, email an invite, stop sharing (not for whoever
 // started it, nor yourself).
 function openPerson(email) {
@@ -1704,8 +1790,7 @@ function openPerson(email) {
   $('#pa-person', s.el).addEventListener('submit', async e => {
     e.preventDefault();
     const v = PP.cleanName($('#pa-person-name', s.el).value);
-    const before = names();
-    if ((before[email] || '') !== v) saveNames(PP.keepMembers(PP.setName(before, email, v), h.members));
+    if ((names()[email] || '') !== v) setPersonName(email, v);
     await haCloseSheet(s.el);
     redraw();
     haToast(v ? `Saved: ${v}` : 'Name removed; the email shows instead');
@@ -1716,7 +1801,7 @@ function openPerson(email) {
     if (!(await haConfirm({ title: 'Stop sharing?', text: `${label} won’t see the pantry any more. You can add them again later.`, ok: 'Stop sharing', danger: true }))) return;
     try {
       await setMembers(h.members.filter(x => x !== email));
-      if (names()[email]) saveNames(PP.setName(names(), email, ''));
+      if (names()[email]) setPersonName(email, '');
       await haCloseSheet(s.el);
       redraw();
       haToast(`Stopped sharing with ${label}`);
@@ -1777,8 +1862,8 @@ function viewSettings() {
     ${section('Family sharing', fam, { id: 'family', footer: famFoot })}
     ${section('Where things are kept', `<ul class="ha-list"><li><a class="ha-row" href="#/places"><span class="ha-row-icon">${icon('home')}</span><span class="ha-row-body"><span class="ha-row-title">Places</span><span class="ha-row-sub">${esc(plural(placeNames().length, 'place'))}: ${esc(placeNames().slice(0, 3).join(', '))}${placeNames().length > 3 ? '…' : ''}</span></span>${chevron()}</a></li></ul>`,
       { id: 'places', footer: `Rename, reorder or add your own places.${S.mode === 'cloud' ? ' Shared with the family.' : ''}` })}
-    ${section('Recently removed', `<ul class="ha-list"><li><a class="ha-row" href="#/removed"><span class="ha-row-icon">${icon('trash')}</span><span class="ha-row-body"><span class="ha-row-title">Recently removed</span><span class="ha-row-sub">${esc((() => { const r = removedLists(), n = r.items.length + r.lines.length; return n ? `${plural(n, 'thing')} you can put back` : 'Nothing right now'; })())}</span></span>${chevron()}</a></li></ul>`,
-      { id: 'removed', footer: `Deleted items and shopping list lines wait here for ${L.REMOVED_DAYS} days, then go for good.` })}
+    ${section('Recently removed', `<ul class="ha-list"><li><a class="ha-row" href="#/removed"><span class="ha-row-icon">${icon('trash')}</span><span class="ha-row-body"><span class="ha-row-title">Recently removed</span><span class="ha-row-sub">${esc((() => { const r = removedLists(), n = r.items.length + r.lines.length + r.places.length; return n ? `${plural(n, 'thing')} you can put back` : 'Nothing right now'; })())}</span></span>${chevron()}</a></li></ul>`,
+      { id: 'removed', footer: `Deleted items, shopping list lines and places wait here for ${L.REMOVED_DAYS} days, then go for good.` })}
     ${section('Reminders', `<div class="ha-chips ha-chips--wrap" role="group" aria-label="Use soon means within">${Object.entries(SOON).map(([v, l]) =>
       `<button type="button" class="ha-chip" aria-pressed="${soonDays() === Number(v)}" data-act="soon" data-v="${v}">${l}</button>`).join('')}</div>`,
       { id: 'remind', footer: 'How far ahead “Use soon” looks, on Home. Kept on this phone.' })}
@@ -1995,7 +2080,7 @@ async function onClick(e) {
     case 'backup': {
       let photos;
       try { photos = await S.backend.list(PHOTOS); } catch (err) { return haToast(S.cloud ? S.cloud.explain(err, 'The backup') : 'The backup didn’t work. Try again.'); }
-      return download(`pantry-backup-${today()}.json`, JSON.stringify(L.backup({ items: [...S.items.values()], events: [...S.events.values()], shop: [...S.shop.values()], settings: [...S.settings.values()], photos })), 'application/json');
+      return download(`pantry-backup-${today()}.json`, JSON.stringify(L.backup({ items: [...S.items.values()], events: [...S.events.values()], shop: [...S.shop.values()], places: [...S.places.values()], settings: [...S.settings.values()], photos })), 'application/json');
     }
     case 'wipe': {
       if (!(await haConfirm({ title: 'Delete everything?', text: 'Every item, its history and the shopping list on this phone are deleted. This can’t be undone. A backup first keeps a copy.', ok: 'Delete everything', danger: true }))) return;
@@ -2050,7 +2135,8 @@ async function onClick(e) {
     case 'copy-up': {
       try {
         const data = L.keepLive(await splitAll({ ...(await S.local.load()), photos: await S.local.list(PHOTOS) }));   // not what was removed over 30 days ago
-        data.settings = mergedPlaces(data.settings);   // the family's places first, then any only this phone had
+        data.places = mergedPlaces(data);   // the family's places first, then any only this phone had (the old list on this phone too)
+        data.settings = [];
         await S.backend.putMany(PHOTOS, data.photos);   // photos first, so no item points at a missing photo
         for (const k of KINDS) await S.backend.putMany(k, data[k]);
         for (const k of KINDS) for (const o of data[k]) S[k].set(o.id, adopt(k, o));
@@ -2066,13 +2152,9 @@ async function onClick(e) {
 // A document as the app holds it once it has been written whole (items: the map shape, nothing left to convert).
 const adopt = (kind, o) => (kind === 'items' ? L.normalizeItem(L.toStored(o)) : o);
 
-// Places from a backup or this phone, added after the pantry's own: [] when there is nothing new to save.
-function mergedPlaces(settings = []) {
-  const doc = settings.find(P.isPlacesDoc);
-  if (!doc) return [];
-  const mine = placeNames(), merged = P.mergePlaces(S.settings.has(P.PLACES_ID) ? mine : [], doc.list);
-  return merged.join('\n') === mine.join('\n') && S.settings.has(P.PLACES_ID) ? [] : [P.placesDoc(merged)];
-}
+// Places from a backup or this phone's own pantry, added after the pantry's own (merged by name): the place documents to write
+// ([] when there is nothing new). `data` holds `places` (documents) and `settings` (an older file's single list).
+const mergedPlaces = data => P.mergeInto({ docs: [...S.places.values()], legacy: S.settings.get(P.PLACES_ID) || null }, { docs: data.places || [], legacy: (data.settings || []).find(P.isPlacesDoc) || null });
 
 function download(name, text, type) {
   const a = document.createElement('a');
@@ -2111,7 +2193,8 @@ async function onChange(e) {
   if (t.id === 'pa-restore' && t.files[0]) {
     try {
       const data = L.parseBackup(await t.files[0].text());
-      data.settings = mergedPlaces(data.settings);
+      data.places = mergedPlaces(data);
+      data.settings = [];   // (a backup holds no names; the old list of places became place documents just above)
       S.pics.clear();
       if (S.backend.putMany) {
         await splitAll(data);   // the family pantry takes only thumbnails on items
@@ -2498,7 +2581,7 @@ function watchUpdates(reg) {
 let R = null;
 async function start() {
   if (DEMO) {
-    S.local = S.backend = openMemory({ ...sampleData(demoBy, { removed: true }), settings: [PP.peopleDoc(DEMO_NAMES)] });
+    S.local = S.backend = openMemory({ ...sampleData(demoBy, { removed: true }), settings: [PP.peopleDoc(DEMO_NAMES)] });   // (with its places as documents, one of them removed)
     S.household = { ...DEMO_FAMILY };
   } else {
     try { S.local = await openLocal(); }
@@ -2543,7 +2626,7 @@ async function start() {
   if ('serviceWorker' in navigator && !EMULATOR) {
     navigator.serviceWorker.register('sw.js').then(watchUpdates).catch(() => { /* no offline copy (private window) */ });
   }
-  window.__pantry = { ...(window.__pantry || {}), S, ...(EMULATOR ? { act: testActions } : {}) };
+  window.__pantry = { ...(window.__pantry || {}), S, places: () => placeList().map(e => e.name), ...(EMULATOR ? { act: testActions } : {}) };
   setTimeout(maybeWelcome, 300);
 }
 
@@ -2561,6 +2644,13 @@ const testActions = {
   removeLine: id => removeLine(id), restoreLine: id => restoreLine(id),
   rename: (id, name) => patchLine(id, { set: { name }, inc: {}, del: [] }),
   sweep: () => sweep({ force: true }),
+  // names and places (PR-C): one person's name, and place documents, by the same functions the sheets call
+  namePerson: (email, name) => { setPersonName(email, name); return true; },
+  addPlace: name => addPlace(name).id,
+  renamePlace: (id, to) => { const e = placeList().find(x => x.id === id); if (e) renamePlaceDoc(e, to); return !!e; },
+  reorderPlace: (id, dir) => { const e = placeList().find(x => x.id === id); return e ? movePlace(e, dir) : 0; },
+  removePlace: id => { const e = placeList().find(x => x.id === id); if (e) removePlace(e); return !!e; },
+  restorePlace: id => { restorePlaces([id]); return true; },
 };
 
 // ---- the welcome, once per phone (guide.js) -------------------------------------------------------------------------

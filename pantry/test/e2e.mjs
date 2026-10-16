@@ -553,20 +553,23 @@ try {
     console.log(`  demo ${w}: ok`);
   }
 
-  // ---------- Recently removed: Settings → Recently removed (demo has two removed items; 30 days; Restore) ----------
+  // ---------- Recently removed: Settings → Recently removed (demo has two removed items and a removed place; 30 days; Restore) ----------
   {
     const { ctx, page, errors } = await open(390, 844, BASE + '?demo');
     await go(page, '#/items');
     ok(await page.locator('#pa-items-list .ha-row', { hasText: /Chilli sauce|Spring onions/ }).count() === 0, 'removed items are not in Items');
     ok(await page.locator('#main').evaluate(m => !/Chilli sauce|Spring onions/.test(m.textContent)), 'nor anywhere on Items');
     await go(page, '#/settings');
-    ok(/2 things you can put back/.test(await page.locator('#h-removed').locator('xpath=..').textContent()), 'Settings says what can be put back');
+    ok(/3 things you can put back/.test(await page.locator('#h-removed').locator('xpath=..').textContent()), 'Settings says what can be put back');
     await page.click('#main a[href="#/removed"]'); await settle(page);
     ok(hash(page) === '#/removed' && await page.locator('h1').textContent() === 'Recently removed', 'Recently removed opens from Settings');
     ok(await page.locator('.ha-back span').textContent() === 'Settings', 'its back button names Settings');
     const rows = await page.locator('#pa-removed .ha-row').allTextContents();
     ok(rows.length === 2 && /Spring onions.*Fridge · Removed by Mum · 2[89] days left/.test(rows[0]) && /Chilli sauce.*Kitchen cabinet · Removed by Dad · 3 days left/.test(rows[1]), 'name, place, who removed it, days left: ' + rows.join(' | '));
     ok(await page.locator('#pa-removed img').count() === 0, 'no thumbnails on removed items');
+    const prow = await page.locator('#pa-removed-places .ha-row').allTextContents();
+    ok(prow.length === 1 && /Garage shelf.*Place · Removed by Dad · 2[67] days left/.test(prow[0]), 'a removed place is there too, with who removed it and the days left: ' + prow.join(' | '));
+    ok(!(await page.evaluate(() => window.__pantry.places())).includes('Garage shelf'), 'and it is not in the list of places');
     await axe(page, 'recently removed');
     await shot(page, 'r01-recently-removed');
     await page.locator('#pa-removed .ha-row', { hasText: 'Chilli sauce' }).locator('[data-act="restore"]').click(); await settle(page);
@@ -575,6 +578,8 @@ try {
     ok(await page.locator('#pa-items-list .ha-row', { hasText: 'Chilli sauce' }).count() === 1, 'and it is back in Items');
     await go(page, '#/removed');
     await page.locator('#pa-removed .ha-row', { hasText: 'Spring onions' }).locator('[data-act="restore"]').click(); await settle(page);
+    await page.locator('#pa-removed-places .ha-row', { hasText: 'Garage shelf' }).locator('[data-act="restore"]').click(); await settle(page);
+    ok(/Garage shelf is back/.test(await toast(page).textContent()) && (await page.evaluate(() => window.__pantry.places())).at(-1) === 'Garage shelf', 'Restore brings a place back to the end of the list');
     ok(/Nothing removed/.test(await page.locator('#main').textContent()), 'the empty state says so');
     await axe(page, 'recently removed (empty)');
     await shot(page, 'r01b-removed-empty');
@@ -596,7 +601,7 @@ try {
   // ---------- places: Settings → Places (the household's own list; demo) ----------
   {
     const { ctx, page, errors } = await open(390, 844, BASE + '?demo');
-    const S = () => page.evaluate(() => ({ list: [...window.__pantry.S.settings.values()].find(d => d.id === 'places')?.list || null, items: [...window.__pantry.S.items.values()].filter(i => !i.removedAt).map(i => ({ id: i.id, name: i.name, location: i.location })) }));
+    const S = () => page.evaluate(() => ({ list: window.__pantry.places(), items: [...window.__pantry.S.items.values()].filter(i => !i.removedAt).map(i => ({ id: i.id, name: i.name, location: i.location })) }));
     const rows = () => page.locator('#pa-places .ha-row-title').allTextContents();
     const count = async name => (await page.locator('#pa-places .ha-row, #pa-places-other .ha-row').filter({ has: page.locator('.ha-row-title', { hasText: new RegExp(`^${name}$`) }) }).locator('.ha-row-value').textContent()).replace(/\D+/g, '');
     const sheet = page.locator('dialog.ha-sheet[open]');
@@ -704,6 +709,14 @@ try {
     await openPlace('Bathroom');
     await sheet.locator('[data-pl="remove"]').click(); await settle(page);
     ok(await sheet.count() === 0 && !(await S()).list.includes('Bathroom') && !(await rows()).includes('Bathroom'), 'an empty place goes at once');
+    ok(await page.evaluate(() => [...window.__pantry.S.places.values()].some(p => p.name === 'Bathroom' && typeof p.removedAt === 'string')), 'removing a place is a marker, the document stays');
+    await toast(page).locator('.ha-toast-action').click(); await settle(page);
+    ok((await S()).list.includes('Bathroom') && (await rows()).includes('Bathroom'), 'Undo puts the place back where it was');
+    await openPlace('Bathroom');
+    await sheet.locator('[data-pl="remove"]').click(); await settle(page);
+    await go(page, '#/removed');
+    ok(/Bathroom.*Place/.test(await page.locator('#pa-removed-places').textContent()), 'a removed place waits in Recently removed');
+    await go(page, '#/places');
 
     // a place an item uses that isn't in the list (a family member's older phone, a backup): still shown everywhere
     const sid = (await S()).items.find(i => i.name === 'Kaya').id;

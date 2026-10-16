@@ -32,7 +32,7 @@ export function refusedReason(code) {
 
 // A short line for a refused change: what it was.
 export function describeRefused(r, nameOf = id => id) {
-  const what = { items: 'item', events: 'history entry', shop: 'shopping list line', settings: 'setting' }[r.kind] || 'change';
+  const what = { items: 'item', events: 'history entry', shop: 'shopping list line', places: 'place', settings: 'setting' }[r.kind] || 'change';
   const name = r.name || (r.kind === 'items' ? nameOf(r.id) : '');
   if (r.op === 'del') return `Removing ${name || `a ${what}`}`;
   if (r.op === 'put') return r.kind === 'items' ? `Saving ${name || 'an item'}` : `Saving a ${what}`;

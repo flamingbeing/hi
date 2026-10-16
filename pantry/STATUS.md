@@ -45,7 +45,15 @@
   `removedBy`) that every list skips; Settings → Recently removed (30 days, Restore); a change that lands on a removed item
   never brings it back, and Home says so when it was yours; a daily sweep deletes what is over 30 days old; shopping ticks,
   renames and removals are field changes; shopping lines now have rules (fields and lengths; rules change, deploys on merge).
-  Next: PR-C (names by field, one record per place).
+  (PR-C followed: see the next entry.)
+
+- 16 Oct 2026: sync safety, PR-C of three, the last (branch, PR to follow): a name is saved as one field (`names.<email>`, a
+  FieldPath update), so two people naming themselves or one naming while another stops sharing never overwrite each other; every
+  place is its own document (`places/{id}`): rename and reorder are field changes (reorder sets `order` to the midpoint of the new
+  neighbours), add is a new document, remove is a marker with Restore in Recently removed and the 30-day sweep; the old single
+  list migrates on the first change (same documents on every phone; the rules refuse a late copy over a real change). Rules change
+  (new `places` collection; deploys on merge). Phones older than this version still write the old list: their place edits don't
+  show on new phones until they update. Plan complete: PLAN-sync.md has the picture and the limits that remain.
 
 ## Waiting on the owner
 
@@ -67,6 +75,10 @@
   reminders (push, needs a Worker cron), money saved or wasted, recipe-idea links, pasting an online order.
 
 ## Decisions
+
+- 16 Oct 2026: names are one field each (keyed instruction, FieldPath); places are one document each with a midpoint `order`;
+  migrating from the old list is made safe by the rules (fixed 1970 `updatedAt`: only as new or identical), not by luck; old
+  phones keep writing `settings/places` and are ignored after the migration (owner: places "one record each"; NOTES.md).
 
 - 16 Oct 2026: a delete is a marker, never a document delete (except the daily sweep of things removed over 30 days ago, and
   merging pantries); Undo is Restore; Recently removed keeps 30 days (owner's yes); shopping lines are fields with caps in the

@@ -136,10 +136,13 @@ assert.equal(L.shareText(['Milk', 'Eggs']), 'Shopping list\n- Milk\n- Eggs');
 
 // backups: round trip, and anything else is refused in plain words
 const b = L.backup({ items: [{ id: 'a', name: 'x' }], events: [], shop: [{ id: 's' }] }, '2026-10-16T00:00:00Z');
-assert.deepEqual(L.parseBackup(JSON.stringify(b)), { items: [{ id: 'a', name: 'x', batches: [] }], events: [], shop: [{ id: 's' }], settings: [], photos: [] });
+assert.deepEqual(L.parseBackup(JSON.stringify(b)), { items: [{ id: 'a', name: 'x', batches: [] }], events: [], shop: [{ id: 's' }], places: [], settings: [], photos: [] });
 // the list of places travels too; anything else under settings is dropped
 const sb = L.backup({ settings: [{ id: 'places', list: ['Fridge', 'Basement store'], updatedAt: 'x' }, { id: 'other', list: ['x'] }, { id: 'places', list: [3] }] });
-assert.deepEqual(L.parseBackup(JSON.stringify(sb)).settings, [{ id: 'places', list: ['Fridge', 'Basement store'], updatedAt: 'x' }]);
+assert.deepEqual(L.parseBackup(JSON.stringify(sb)).settings, [{ id: 'places', list: ['Fridge', 'Basement store'], updatedAt: 'x' }], 'an older file’s single list still reads');
+// places are documents now: they travel in a backup, the malformed ones don't, and one removed over 30 days ago isn't carried
+const pl = L.backup({ places: [{ id: 'p1', name: 'Fridge', order: 1 }, { id: 'p2', name: 'Shed', order: 2, removedAt: '2026-10-01T00:00:00.000Z' }, { id: 'p3', name: 'Old', order: 3, removedAt: '2020-01-01T00:00:00.000Z' }] }, '2026-10-16T00:00:00Z');
+assert.deepEqual(L.parseBackup(JSON.stringify({ ...pl, places: [...pl.places, { id: 'bad', name: 3, order: 1 }, { id: 'bad2', name: 'x' }] })).places.map(p => p.id), ['p1', 'p2']);
 // photos travel in backups too (only pictures, nothing else)
 const pb = L.backup({ items: [{ id: 'a', thumb: 'data:image/jpeg;base64,t', hasPhoto: true }], photos: [{ id: 'a', data: 'data:image/jpeg;base64,p' }, { id: 'b', data: 'javascript:x' }, { id: 'c' }] });
 assert.deepEqual(L.parseBackup(JSON.stringify(pb)).photos, [{ id: 'a', data: 'data:image/jpeg;base64,p' }]);
