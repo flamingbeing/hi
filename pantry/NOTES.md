@@ -206,6 +206,27 @@ Lasting decisions and how to test. What's going on now: [STATUS.md](STATUS.md). 
   - Tests: `test/signin.e2e.mjs` (run by `run-sync.sh`, reads the Auth emulator's `oobCodes`), helpers in
     `test/config.test.mjs`.
 
+- **16 Oct 2026, never a second pantry from a bad signal** (owner: "can the app create a second pantry offline?"): yes,
+  it could. The lookup used `getDocs` on the persistent cache, which answers from the phone's copy when offline (empty or
+  old = "no pantry"), then "Start our family pantry" queued a `setDoc` that committed whenever signal came back. Now
+  `findHouseholds` uses `getDocsFromServer`: offline it throws, the app shows "Can't check right now" with Try again
+  (retries by itself when the phone is back online) and no Start button; `createHousehold` is a transaction, which needs
+  the server and never queues; Start looks the account up on the server first and refuses a second tap while one is
+  going. Test: Firestore blocked in the browser (`sync.e2e.mjs`).
+- **16 Oct 2026, merge duplicate pantries** (owner: "we should merge duplicate emails into 1 pantry"; the real cause of
+  the disappeared list was an account in two households, one a stray one-person pantry). `S.pantries` holds every
+  household the account is in (`findHouseholds`, at most 10). With two or more, Settings shows "Two family pantries"
+  and Home a one-line note; the sheet (`openMerge`) lists each (people, who started it) with the one with most people
+  chosen to keep. **Merge into this one** (after a confirm): `copyHousehold` copies items, events, shop and photos in
+  batches (photos first; an old-style item's `photo` moves to `photos/<id>`), merges settings (`js/merge.js`: places by
+  `mergePlaces`, names joined, the kept pantry's name wins), then COUNTS (`getCountFromServer`: the kept pantry must hold
+  at least what was copied); members are unioned (over 20: refused, nothing done); the app switches to the kept pantry;
+  only then `removeHousehold` deletes the other's documents and the household, one pantry at a time. Any error before
+  that deletes nothing and says so (re-running is safe: the same ids are written again). Only the owner of a pantry that
+  would be deleted may merge it away (the rules: household delete is owner only); otherwise it says "Ask <owner> to merge
+  them". No rules change. Tests: `test/merge.test.mjs`, and the merge section of `test/sync.e2e.mjs` (merge, non-owner,
+  failed copy).
+
 ## How to test
 
 ```
@@ -214,6 +235,7 @@ node pantry/test/quick.test.mjs        # Say or type: dates, places, quantities,
 node pantry/test/tour.test.mjs         # first steps: quick-start list, checklist ticks
 node pantry/test/places.test.mjs       # places: defaults, rename/move/remove, used-but-unlisted, Say or type matching
 node pantry/test/people.test.mjs       # names for the family: cleaning, setting, labels
+node pantry/test/merge.test.mjs        # merging duplicate pantries: members, who may, settings
 node pantry/test/scan.test.mjs         # the barcode look-up chain with a stubbed fetch (plain node)
 node pantry/test/photo.test.mjs        # thumbnail and photo sizes, stepping down to fit the limits (plain node)
 node pantry/test/config.test.mjs       # set-config, sign-in choice, plain-word errors, sw.js rules

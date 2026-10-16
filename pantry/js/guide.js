@@ -58,6 +58,7 @@ const CARDS = {
       row('user', 'Starting it', 'Settings, then Continue with Google (or Use email instead) and Start our family pantry. Add each person’s email.'),
       row('mail', 'Already added by someone?', 'Sign in with the email they added: Google, an emailed link or a password. Your family pantry appears.'),
       row('mail', 'Signing in by email', 'Settings, Use email instead: we email you a link, or you use a password. A new password account needs its emailed link tapped once, then I’ve verified.'),
+      row('users', 'In two family pantries?', 'Settings shows a card, and Home a note. Tap Merge them, keep the one with the most people, and everything moves into it. Only whoever started the others can do it.'),
       row('info', 'Who can see it', 'Only the people added. No one else.'),
     ]),
   },

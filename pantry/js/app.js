@@ -7,6 +7,7 @@ import * as L from './logic.js';
 import { CATALOGUE, CATEGORIES, shelfDays, freezeDays, freezable, FROZEN_DAYS, THAW_DAYS } from './catalogue.js';
 import * as P from './places.js';
 import * as PP from './people.js';
+import * as MG from './merge.js';
 import { openLocal, openMemory, prefs, KINDS, PHOTOS } from './store.js';
 import { sampleData, demoBy, DEMO_FAMILY, DEMO_ME, DEMO_NAMES } from './sample.js';
 import { openWelcome, viewGuide, welcomed, markWelcomed, installed } from './guide.js';
@@ -25,7 +26,7 @@ const WELCOME = params.has('welcome');   // show the welcome even in the demo, o
 
 const S = {
   items: new Map(), events: new Map(), shop: new Map(), settings: new Map(), pics: new Map(),
-  backend: null, local: null, mode: DEMO ? 'demo' : 'local', cloud: null, user: null, household: null, pending: null, localCount: 0,
+  backend: null, local: null, mode: DEMO ? 'demo' : 'local', cloud: null, user: null, household: null, pantries: [], lookupFailed: false, creating: false, pending: null, localCount: 0,
   q: '', place: '', sort: prefs.get('sort', 'expiry'),
   draft: null, dirty: false, pendingRender: false, syncError: false,
   since: null,   // when this phone last looked (Since you last looked), an ISO time
@@ -301,6 +302,7 @@ function viewHome() {
   const all = items();
   let h = `<h1 class="ha-large-title">Pantry</h1><p class="ha-large-sub">${esc(statusLine())}</p>`;
   if (S.syncError) h += `<div class="ha-panel pa-alert" role="status">${icon('alert')}<span>Some changes didn’t reach the family pantry. ${esc(S.syncError)}</span></div>`;
+  if (S.mode === 'cloud' && S.pantries.length > 1) h += `<a class="ha-panel pa-alert" href="#/settings">${icon('alert')}<span>You’re in more than one family pantry. Merge them in Settings.</span></a>`;
   h += viewTour();
   h += viewSince();
   if (!all.length) {
@@ -1546,6 +1548,11 @@ function viewSettings() {
     fam = `<ul class="ha-list">${btnRow('signin', 'Continue with Google', { iconName: 'user' })}</ul>
       <p class="pa-quiet"><button type="button" class="ha-btn ha-btn--plain ha-btn--compact" data-act="email-open">Use email instead</button></p>`;
     famFoot = 'Sign in to share one pantry with the family: everyone sees the same items and shopping list. Only the people added can see it.';
+  } else if (!S.household && S.lookupFailed) {
+    // couldn't ask the server (no signal): not "no pantry", so no Start button
+    fam = `<ul class="ha-list">${row(`<span class="ha-row-icon">${icon('alert')}</span><span class="ha-row-body"><span class="ha-row-title">Can’t check right now</span><span class="ha-row-sub pa-break">${esc(S.user.email)}</span></span>`)}
+      ${btnRow('hh-check', 'Try again', { iconName: 'refresh' })}${btnRow('signout', 'Sign out')}</ul>`;
+    famFoot = 'Connect to the internet and try again. Your family pantry is looked up first, so a second one is never started by mistake.';
   } else if (!S.household) {
     fam = `<ul class="ha-list">${row(`<span class="ha-row-icon">${icon('user')}</span><span class="ha-row-body"><span class="ha-row-title">Signed in</span><span class="ha-row-sub">${esc(S.user.email)}</span></span>`)}
       ${btnRow('hh-create', 'Start our family pantry')}${btnRow('hh-check', 'Check again')}${btnRow('signout', 'Sign out')}</ul>`;
@@ -1556,6 +1563,7 @@ function viewSettings() {
     famFoot = 'They sign in with that email (Google, or an emailed link or password) to see the pantry. Tap someone to give them a name, email them the link again, or stop sharing. Whoever started it can’t be removed.';
   }
   return `<h1 class="ha-large-title">Settings</h1>
+    ${mergeCard()}
     ${section('Family sharing', fam, { id: 'family', footer: famFoot })}
     ${section('Where things are kept', `<ul class="ha-list"><li><a class="ha-row" href="#/places"><span class="ha-row-icon">${icon('home')}</span><span class="ha-row-body"><span class="ha-row-title">Places</span><span class="ha-row-sub">${esc(plural(placeNames().length, 'place'))}: ${esc(placeNames().slice(0, 3).join(', '))}${placeNames().length > 3 ? '…' : ''}</span></span>${chevron()}</a></li></ul>`,
       { id: 'places', footer: `Rename, reorder or add your own places.${S.mode === 'cloud' ? ' Shared with the family.' : ''}` })}
@@ -1791,6 +1799,7 @@ async function onClick(e) {
       try { await S.cloud.signIn(); } catch (err) { haToast(S.cloud.explain(err, 'Sign-in')); }
       return;
     case 'email-open': return openEmailSheet();
+    case 'merge-open': return openMerge();
     case 'verified': return checkVerified();
     case 'verify-resend':
       try { await S.cloud.resendVerification(); haToast('Sent again. Check your email.'); } catch (err) { haToast(S.cloud.explain(err, 'Sending it')); }
@@ -1804,21 +1813,26 @@ async function onClick(e) {
       return;
     }
     case 'hh-create': {
+      if (S.creating) return;   // a double tap, or a second try while the first is still going
+      S.creating = true;
       try {
-        // never a second pantry for someone already in one (the first lookup may have failed on a bad signal)
-        const had = await S.cloud.findHousehold(S.user.email, prefs.get('household') || '');
-        if (had) { await useHousehold(had); return haToast('You’re already in a family pantry; it’s open now.'); }
+        // never a second pantry for someone already in one: ask the server right now (offline this throws, and nothing
+        // is created: the create itself also needs the server)
+        const had = await locate(S.user.email);
+        if (had) { S.lookupFailed = false; await useHousehold(had); return haToast('You’re already in a family pantry; it’s open now.'); }
         await useHousehold(await S.cloud.createHousehold(S.user.email, 'Our pantry'));
         haToast('Family pantry started. Add the family below.');
       } catch (err) { haToast(S.cloud.explain(err, 'Starting the family pantry')); }
+      finally { S.creating = false; }
       return;
     }
     case 'hh-check': {
       try {
-        const h = await S.cloud.findHousehold(S.user.email, prefs.get('household') || '');
-        if (!h) return haToast('Not added yet. Ask whoever started it to add you.');
+        const h = await locate(S.user.email);
+        S.lookupFailed = false;
+        if (!h) { redraw(); return haToast('Not added yet. Ask whoever started it to add you.'); }
         await useHousehold(h);
-      } catch (err) { haToast(S.cloud.explain(err, 'Checking')); }
+      } catch (err) { S.lookupFailed = true; redraw(); haToast(S.cloud.explain(err, 'Checking')); }
       return;
     }
     case 'person': return openPerson(b.dataset.v);
@@ -1968,11 +1982,77 @@ async function useLocal() {
   unwatch?.(); unwatch = null;
   S.backend = S.local;
   S.mode = 'local';
-  S.household = null; S.syncError = false;
+  S.household = null; S.pantries = []; S.lookupFailed = false; S.syncError = false;
   S.pics.clear();
   loadInto(await S.local.load());
   migratePhotos();
   redraw();
+}
+
+// ---- two family pantries for one account: merge them into one ---------------------------------------------------------
+
+// The Settings card, only when this account is in more than one family pantry (a second "Start our family pantry"
+// made a duplicate). Only an owner can delete a pantry, so someone else is asked to do it.
+function mergeCard() {
+  if (S.mode !== 'cloud' || S.pantries.length < 2) return '';
+  const p = MG.plan(S.pantries, S.household?.id, me());
+  const notMine = [...new Set(p.notMine.map(h => nameOf(h.owner)))];
+  const body = p.notMine.length && !S.pantries.some(h => h.owner === me())
+    ? `<li><div class="ha-row"><span class="ha-row-icon">${icon('alert')}</span><span class="ha-row-body"><span class="ha-row-title">You’re in more than one family pantry</span><span class="ha-row-sub pa-break">Ask ${esc(notMine.join(' or '))} to merge them.</span></span></div></li>`
+    : `<li><button type="button" class="ha-row ha-row--action" data-act="merge-open"><span class="ha-row-icon">${icon('alert')}</span><span class="ha-row-body"><span class="ha-row-title">You’re in more than one family pantry</span><span class="ha-row-sub">Merge them into one</span></span>${chevron()}</button></li>`;
+  return section('Two family pantries', `<ul class="ha-list">${body}</ul>`, { id: 'merge', footer: 'The same email is in more than one family pantry, so you may see a different one on another phone. Merging moves everything into one.' });
+}
+// The merge sheet: each pantry (name, who started it, how many people), the one with the most people chosen to keep.
+async function openMerge() {
+  let all;
+  try { all = await S.cloud.findHouseholds(me()); } catch (err) { return haToast(S.cloud.explain(err, 'Looking')); }
+  S.pantries = all;
+  if (all.length < 2) { redraw(); return haToast('There’s only one family pantry now.'); }
+  let keep = S.cloud.pickHousehold(all, '').id;
+  const s = haSheet({ title: 'Merge family pantries', closeLabel: 'Cancel', grey: true, body: '', onClose: afterSheet });
+  const body = $('.ha-sheet-body', s.el);
+  const draw = () => {
+    const p = MG.plan(all, keep, me());
+    const rows = all.map(h => `<li><label class="ha-row pa-pick"><span class="ha-row-body"><span class="ha-row-title pa-break">${esc(h.name || 'Our pantry')}</span>
+      <span class="ha-row-sub pa-break">${esc(plural((h.members || []).length, 'person', 'people'))} · started by ${esc(nameOf(h.owner))}</span></span>
+      <input type="radio" name="pa-keep" value="${esc(h.id)}"${h.id === keep ? ' checked' : ''} aria-label="Keep ${esc(h.name || 'Our pantry')}, ${esc(plural((h.members || []).length, 'person', 'people'))}"></label></li>`).join('');
+    const why = p.over ? `Together they have ${p.total} people and a family pantry holds ${MG.MAX_MEMBERS}. Remove some people first, then merge.`
+      : p.notMine.length ? `Only whoever started a pantry can merge it away. Ask ${[...new Set(p.notMine.map(h => nameOf(h.owner)))].join(' or ')} to merge them.` : '';
+    body.innerHTML = `<p class="pa-em-lead">Choose the one to keep. Everything in the others (items, history, shopping lists, photos, places, names and people) moves into it, then the others are deleted.</p>
+      <ul class="ha-list" role="radiogroup" aria-label="Pantry to keep">${rows}</ul>
+      ${why ? `<p class="ha-field-error" role="alert">${icon('alert')}<span>${esc(why)}</span></p>` : ''}
+      <p class="ha-section-footer" id="pa-merge-msg" role="status"></p>
+      <button type="button" class="ha-btn ha-btn--primary ha-btn--block" data-pm="go"${p.canMerge ? '' : ' disabled'}>Merge into this one</button>`;
+  };
+  draw();
+  let busy = false;
+  s.el.addEventListener('change', e => { if (e.target.name === 'pa-keep' && !busy) { keep = e.target.value; draw(); } });
+  s.el.addEventListener('click', async e => {
+    if (!e.target.closest('[data-pm="go"]') || busy) return;
+    const p = MG.plan(all, keep, me());
+    if (!p.canMerge) return;
+    if (!(await haConfirm({ title: 'Merge and delete the others?', text: `${plural(p.others.length, 'other pantry', 'other pantries')} will be deleted after everything is copied into ${p.keep.name || 'Our pantry'}. This can’t be undone.`, ok: 'Merge', danger: true }))) return;
+    busy = true;
+    const say = t => { const m = $('#pa-merge-msg', s.el); if (m) m.textContent = t; };
+    body.querySelectorAll('button, input').forEach(b => { b.disabled = true; });
+    try {
+      say('Copying…');
+      for (const o of p.others) await S.cloud.copyHousehold(p.keep.id, o.id, p.members);   // any failure stops here: nothing deleted
+      if (p.members.length !== (p.keep.members || []).length) await S.cloud.addMembers(p.keep.id, p.members);
+      if (S.household?.id !== p.keep.id) await useHousehold({ ...p.keep, members: p.members });   // leave the ones about to go
+      say('Removing the extra pantries…');
+      for (const o of p.others) await S.cloud.removeHousehold(o.id);
+      S.pantries = [{ ...p.keep, members: p.members }];
+      await haCloseSheet(s.el);
+      redraw();
+      haToast(`Merged. One family pantry now, with ${plural(p.members.length, 'person', 'people')}.`);
+    } catch (err) {
+      busy = false;
+      say(`${S.cloud.explain(err, 'Merging')} Nothing was lost; the pantries are as they were, so you can try again.`);
+      body.querySelectorAll('button, input').forEach(b => { b.disabled = false; });
+    }
+  });
+  return s;
 }
 
 // ---- signing in by email (besides Google): an emailed link, or a password ----------------------------------------------
@@ -1984,8 +2064,16 @@ async function handleUser(u) {
   S.user = u && u.verified ? u : null;
   if (!S.user) { if (S.mode !== 'local') await useLocal(); else redraw(); return; }
   let h = null;
-  try { h = await S.cloud.findHousehold(S.user.email, prefs.get('household') || ''); } catch (e) { console.warn('household', e?.code); }
+  S.lookupFailed = false;
+  try { h = await locate(S.user.email); } catch (e) { console.warn('household', e?.code); S.lookupFailed = true; }   // can't tell (no signal): never "none"
   if (h) await useHousehold(h); else redraw();
+}
+// Which family pantry this account opens: the one this phone used last, else the biggest. Every one it is in is kept in
+// S.pantries (two means a duplicate to merge: Settings offers it).
+async function locate(email) {
+  const all = await S.cloud.findHouseholds(email);
+  S.pantries = all;
+  return S.cloud.pickHousehold(all, prefs.get('household') || '');
 }
 // "I've verified": reload the account and its token, then carry on as signed in (or say it isn't done yet).
 async function checkVerified({ quiet = false } = {}) {
@@ -2136,7 +2224,7 @@ async function start() {
   document.addEventListener('change', onChange);
   document.addEventListener('input', onInput);
   document.addEventListener('submit', onSubmit);
-  addEventListener('online', redraw);
+  addEventListener('online', () => { if (S.user && !S.household && S.lookupFailed && S.cloud) handleUser(S.user); else redraw(); });
   addEventListener('offline', redraw);
   R = haRouter({
     render: r => draw(r),

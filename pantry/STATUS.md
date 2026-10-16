@@ -34,6 +34,8 @@
 - 16 Oct 2026: sign in by email link and password besides Google (branch, PR to follow); also the household pick fix
   (an account in two pantries opened the wrong one).
 
+- 16 Oct 2026: merge duplicate pantries (Settings card and sheet; copies, counts, then deletes the extra one; owner only).
+
 ## Waiting on the owner
 
 - Billing: waiting on the owner (Blaze), then the US$5 budget and daily backups.
