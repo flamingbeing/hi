@@ -55,8 +55,10 @@ const CARDS = {
     icon: 'users', title: 'Share it with the household',
     text: 'Everyone then sees the same items and shopping list. You can skip this and use it on this phone alone.',
     body: list([
-      row('user', 'Starting it', 'Settings, then Sign in with Google and Start our household. Add each person’s Gmail.'),
-      row('mail', 'Already added by someone?', 'Sign in with the Gmail they added. Your household on Kaki Home appears.'),
+      row('user', 'Starting it', 'Settings, then Continue with Google (or Use email instead) and Start our household. Add each person’s email.'),
+      row('mail', 'Already added by someone?', 'Sign in with the email they added: Google, an emailed link or a password. Your household on Kaki Home appears.'),
+      row('mail', 'Signing in by email', 'Settings, Use email instead: we email you a link, or you use a password. A new password account needs its emailed link tapped once, then I’ve verified.'),
+      row('users', 'In two households?', 'Settings shows a card, and Home a note. Tap Merge them, keep the one with the most people, and everything moves into it. Only whoever started the others can do it.'),
       row('info', 'Who can see it', 'Only the people added. No one else.'),
     ]),
   },
@@ -73,8 +75,8 @@ const CARDS = {
     icon: 'user', title: 'Sign in to join',
     text: 'Sign in once and the household appears on this phone.',
     body: list([
-      row('user', 'Tap Sign in with Google', 'On the Settings screen, under Household sharing.'),
-      row('mail', 'Use the Gmail they added', 'The address the invite was sent to. Another account sees an empty list.'),
+      row('user', 'Tap Continue with Google', 'On the Settings screen, under Household sharing. No Google? Tap Use email instead: an emailed link, or a password.'),
+      row('mail', 'Use the email they added', 'The address the invite was sent to. Another account sees an empty list.'),
     ]),
   },
 };
@@ -192,9 +194,9 @@ export function viewGuide() {
       row('clock', 'Two “Used 1”s', 'After the second, the item shows how long one lasts and when it will run out, and puts it on the list in time.'),
     ])}
     ${section('family', 'Household sharing', [
-      row('user', 'Start it', 'One person: Settings, Sign in with Google, then Start our household.'),
-      row('users', 'Add the household', 'Family, helpers or caregivers: type each person’s Gmail and tap Add. The envelope emails them the link.'),
-      row('mail', 'When you’re invited', 'Open the link, then Settings, Sign in with Google, using the Gmail that was added.'),
+      row('user', 'Start it', 'One person: Settings, Continue with Google (or Use email instead), then Start our household.'),
+      row('users', 'Add the household', 'Family, helpers or caregivers: type each person’s email and tap Add. The envelope emails them the link.'),
+      row('mail', 'When you’re invited', 'Open the link, then Settings, Continue with Google or Use email instead, with the email that was added.'),
       row('info', 'Who can see it', 'Only the people added. Whoever started it can stop sharing with anyone else.'),
     ])}
     ${section('phone', 'Phone tips', [
