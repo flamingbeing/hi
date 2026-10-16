@@ -175,6 +175,7 @@ export function viewGuide() {
       row('box', 'Open', 'Tap when you open one. Its countdown starts (only for things with “keeps once opened”).'),
       row('trash', 'Bin 1', 'Tap when one is thrown away. If it was past its date, it counts as expired. Home counts what gets wasted each month.'),
       row('refresh', 'Undo', 'Tapped the wrong thing? Tap Undo in the message at the bottom.'),
+      row('trash', 'Recently removed', 'Deleted something by mistake? Settings, Recently removed keeps deleted items and shopping list lines for 30 days. Tap Restore.'),
       row('cart', 'Bought more', 'On the item, add what you bought and its date.'),
       row('snowflake', 'Freeze and Thaw', 'Freeze moves it to the freezer and keeps it about 3 months. Thaw moves it to the fridge: use within 2 days.'),
       row('barcode', 'Scan many', 'On Home: choose Bought, Used up or Add to list, then scan one barcode after another. Done saves them all, with one Undo.'),

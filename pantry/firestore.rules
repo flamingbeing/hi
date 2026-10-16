@@ -64,6 +64,29 @@ service cloud.firestore {
       let b = d.get('batches', []);
       return b is list ? b.size() <= 60 : (b is map && batchMap(b));
     }
+    // Removing without losing (16 Oct 2026): deleting an item or a shopping line sets `removedAt` (an ISO time, at most 40
+    // characters) and `removedBy` (a name, at most 40 characters) and leaves the document; putting it back removes both
+    // fields. Each is absent or a string of that shape (never null, a number or a long text). The app deletes a document for
+    // good only in the daily sweep of what was removed more than 30 days ago, and when merging two pantries.
+    function removedOk(d) {
+      return (!('removedAt' in d) || (d.removedAt is string && d.removedAt.size() <= 40 && d.removedAt.matches('[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9:.]+Z')))
+        && (!('removedBy' in d) || (d.removedBy is string && d.removedBy.size() <= 40));
+    }
+    // A shopping line (16 Oct 2026): { id, name, done } and, as the app writes them, itemId (an item's id, or null), at
+    // (when added), by and doneBy (names), and the two removal fields. Nothing else. Old phones still write the whole line;
+    // that stays allowed, and so does a change by field (ticking, renaming, removing): the rules see the line as it will be.
+    function shopOk(d, id) {
+      return d.keys().hasOnly(['id', 'name', 'itemId', 'done', 'at', 'by', 'doneBy', 'removedAt', 'removedBy'])
+        && d.keys().hasAll(['id', 'name', 'done'])
+        && d.id == id
+        && d.name is string && d.name.size() <= 80
+        && d.done is bool
+        && (d.get('itemId', null) == null || (d.itemId is string && d.itemId.size() <= 100))
+        && (!('at' in d) || (d.at is string && d.at.size() <= 40))
+        && (!('by' in d) || (d.by is string && d.by.size() <= 200))
+        && (!('doneBy' in d) || (d.doneBy is string && d.doneBy.size() <= 200))
+        && removedOk(d);
+    }
     function member(hid) {
       return signedIn() && email() in get(/databases/$(database)/documents/households/$(hid)).data.members;
     }
@@ -83,10 +106,13 @@ service cloud.firestore {
         && request.resource.data.keys().hasOnly(['name', 'owner', 'members', 'createdAt']);
       allow delete: if signedIn() && email() == resource.data.owner;
 
-      // reading and deleting: every kind; writing items, photos and settings has limits (below)
+      // reading and deleting: every kind; writing items, shopping lines, photos and settings has limits (below)
       match /{kind}/{id} {
         allow read, delete: if kind in ['items', 'events', 'shop', 'photos', 'settings'] && member(hid);
-        allow create, update: if kind == 'shop' && member(hid);
+      }
+      // Shopping lines: see shopOk. Created whole or changed by field.
+      match /shop/{id} {
+        allow create, update: if member(hid) && shopOk(request.resource.data, id);
       }
       // History is write-once (16 Oct 2026): a line is created, and may be deleted (Undo, deleting an item, merging);
       // nothing edits one. Writing a line again exactly as it is (restoring a backup, re-running a merge) is allowed.
@@ -100,6 +126,7 @@ service cloud.firestore {
       match /items/{id} {
         allow create, update: if member(hid)
           && stockOk(request.resource.data)
+          && removedOk(request.resource.data)
           && request.resource.data.get('thumb', '') is string
           && request.resource.data.get('thumb', '').size() <= 12288
           && (request.resource.data.get('photo', '') == ''

@@ -36,7 +36,7 @@ export function describeRefused(r, nameOf = id => id) {
   const name = r.name || (r.kind === 'items' ? nameOf(r.id) : '');
   if (r.op === 'del') return `Removing ${name || `a ${what}`}`;
   if (r.op === 'put') return r.kind === 'items' ? `Saving ${name || 'an item'}` : `Saving a ${what}`;
-  return `A change to ${name || `an ${what}`}`;
+  return `A change to ${name || `${/^[aeiou]/.test(what) ? 'an' : 'a'} ${what}`}`;
 }
 
 // The list after a new refusal (newest last): at most MAX_REFUSED, and small enough for localStorage.

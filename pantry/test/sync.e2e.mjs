@@ -219,9 +219,10 @@ try {
   await dad.waitForFunction(t => [...document.querySelectorAll('#pa-items-list img.ha-row-thumb')].some(i => i.getAttribute('src') === t), moved.thumb);
   await go(dad, '#/item/old2');
   await dad.waitForFunction(d => document.querySelector('#pa-hero')?.src === d, real);
-  // deleting an item in the app deletes its photo
+  // deleting an item in the app hides it (a marker) and keeps its photo until the sweep purges it after 30 days
   await dad.click('[data-act="delete"]'); await settle(dad); await settle(dad);
-  assert.equal(await admin.get(`households/${hid}/photos/old2`), null, 'deleting the item deleted its photo');
+  assert.equal(typeof (await admin.get(`households/${hid}/items/old2`)).removedAt, 'string', 'deleting the item marks it');
+  assert.equal((await admin.get(`households/${hid}/photos/old2`))?.data, real, 'its photo stays until it is purged');
 
   // ---- places: settings/places is members-only, only that id, only id/list/updatedAt, at most 40 names of 1-40 characters ----
   const placeRules = await mum.evaluate(async hid => {
@@ -402,16 +403,16 @@ try {
   assert.ok(!Array.isArray(conv.batches), 'the first change turned it into a map');
   assert.deepEqual(Object.fromEntries(Object.entries(conv.batches).map(([k, v]) => [k, v.qty])), { x1: 1, [legacy]: 1 }, 'ids kept and derived, the dated batch used first');
   // another old item, converted by a use on one phone, then (an older phone) written back as an array: readers cope
-  await admin.put(`households/${hid}/items/old2`, { id: 'old2', name: 'Old two', ...base, batches: [{ id: 'y1', qty: 4, expiry: '2027-01-01' }] });
-  await has(mum, 'old2'); await has(dad, 'old2');
-  await act(mum, 'use', 'old2', 'y1');
-  await both('old2', { y1: 3 }, 'an old item converted by a use');
+  await admin.put(`households/${hid}/items/old3`, { id: 'old3', name: 'Old three', ...base, batches: [{ id: 'y1', qty: 4, expiry: '2027-01-01' }] });
+  await has(mum, 'old3'); await has(dad, 'old3');
+  await act(mum, 'use', 'old3', 'y1');
+  await both('old3', { y1: 3 }, 'an old item converted by a use');
   assert.equal(SYNC_REFUSED(await dad.evaluate(() => window.__pantry.S.refused)), 0, 'nothing refused');
   // an older phone writes the array back over a map item: readers cope, and the next change converts it again
-  await admin.put(`households/${hid}/items/old2`, { id: 'old2', name: 'Old two', ...base, batches: [{ id: 'y1', qty: 3, expiry: '2027-01-01' }] });
-  await dad.waitForFunction(() => window.__pantry.S.items.get('old2')._arr === true);
-  assert.deepEqual(await shown(dad, 'old2'), { y1: 3 });
-  await act(dad, 'use', 'old2'); await both('old2', { y1: 2 }, 'converted again');
+  await admin.put(`households/${hid}/items/old3`, { id: 'old3', name: 'Old three', ...base, batches: [{ id: 'y1', qty: 3, expiry: '2027-01-01' }] });
+  await dad.waitForFunction(() => window.__pantry.S.items.get('old3')._arr === true);
+  assert.deepEqual(await shown(dad, 'old3'), { y1: 3 });
+  await act(dad, 'use', 'old3'); await both('old3', { y1: 2 }, 'converted again');
   // 7. a change the server refuses is kept on the phone and says Needs attention, with Retry and Discard
   await admin.put(`households/${hid}/items/gone`, { id: 'gone', name: 'Gone soon', ...base, batches: { g1: { qty: 2, expiry: '2027-01-01' } } });
   await has(dad, 'gone');
@@ -521,6 +522,218 @@ try {
   assert.deepEqual(outsiderStock, Array(5).fill('permission-denied'), 'outsider and stock: ' + outsiderStock.join(', '));
   assert.ok(await admin.get(`households/${hid}/events/ev1`), 'the outsider didn’t delete history');
 
+  // ---- removing without losing: a delete is a marker, a change that lands on a removed thing never brings it back ----
+  const rawAt = path => admin.get(`households/${hid}/${path}`);
+  const hiddenOn = (p, id, kind = 'items') => p.waitForFunction(([id, kind]) => !!window.__pantry.S[kind].get(id)?.removedAt, [id, kind]);
+  const liveOn = (p, id, kind = 'items') => p.waitForFunction(([id, kind]) => { const x = window.__pantry.S[kind].get(id); return !!x && !x.removedAt; }, [id, kind]);
+  const seenIn = (p, name) => p.evaluate(n => [...window.__pantry.S.items.values()].some(i => !i.removedAt && i.name === n), name);
+  const quiet = async () => { await drain(mum); await drain(dad); assert.equal(await mum.evaluate(() => window.__pantry.S.refused.length) + await dad.evaluate(() => window.__pantry.S.refused.length), 0, 'nothing refused'); };
+  const seedRm = async (id, name = id, extra = {}) => { await admin.put(`households/${hid}/items/${id}`, { id, name, ...base, batches: { a: { qty: 4, expiry: '2027-01-01', openedAt: null, addedAt: '2026-10-01' } }, ...extra }); await has(mum, id); await has(dad, id); };
+  // 1. A deletes while B (no signal) uses one: it stays hidden, B's use is in it, B is told, Restore brings it back with the use
+  await seedRm('rm1', 'Rice rm');
+  await net(dad, false);
+  await act(mum, 'remove', 'rm1'); await drain(mum);
+  await act(dad, 'use', 'rm1', 'a');   // (dad hasn't heard)
+  assert.equal(typeof (await rawAt('items/rm1')).removedAt, 'string', 'the item is still there, marked');
+  await net(dad, true);
+  await hiddenOn(dad, 'rm1'); await quiet();
+  const rm1 = await rawAt('items/rm1');
+  assert.equal(rm1.batches.a.qty, 3, 'B’s use landed on the hidden item'); assert.equal(typeof rm1.removedBy, 'string');
+  assert.equal(await seenIn(mum, 'Rice rm'), false); assert.equal(await seenIn(dad, 'Rice rm'), false, 'hidden on both phones');
+  await go(dad, '#/');
+  await dad.locator('#pa-landed').waitFor();
+  assert.match(await dad.locator('#pa-landed').textContent(), /Rice rm: this was removed on another phone; find it in Recently removed/);
+  assert.equal(await mum.locator('#pa-landed').count(), 0, 'the phone that removed it is not told');
+  if (process.env.SHOTS) await dad.screenshot({ path: process.env.SHOTS + '/r02-removed-note-live.png' });
+  await dad.click('#pa-landed'); await settle(dad);
+  const row1 = dad.locator('#pa-removed .ha-row', { hasText: 'Rice rm' });
+  assert.match(await row1.locator('.ha-row-sub').textContent(), /Fridge · Removed by .* · (30|29) days left · Your change is kept/);
+  await go(dad, '#/'); assert.equal(await dad.locator('#pa-landed').count(), 0, 'the note goes once Recently removed has been opened');
+  await go(dad, '#/removed');
+  await dad.locator('#pa-removed .ha-row', { hasText: 'Rice rm' }).locator('[data-act="restore"]').click(); await settle(dad);
+  await liveOn(mum, 'rm1'); await quiet();
+  const rm1b = await rawAt('items/rm1');
+  assert.ok(!('removedAt' in rm1b) && !('removedBy' in rm1b), 'Restore clears both fields'); assert.equal(rm1b.batches.a.qty, 3, 'with the use');
+  assert.equal(await seenIn(mum, 'Rice rm'), true, 'and it is back on the other phone');
+  // 2. A edits while B deletes: the delete wins visibility, the edit is kept, Restore shows it
+  await seedRm('rm2', 'Oats rm');
+  await Promise.all([act(mum, 'set', 'rm2', 'name', 'Oats renamed'), act(dad, 'remove', 'rm2')]);
+  await quiet(); await hiddenOn(mum, 'rm2'); await hiddenOn(dad, 'rm2');
+  assert.equal((await rawAt('items/rm2')).name, 'Oats renamed'); assert.equal(await seenIn(mum, 'Oats renamed'), false);
+  await act(mum, 'restore', 'rm2'); await quiet(); await liveOn(dad, 'rm2');
+  assert.equal(await seenIn(dad, 'Oats renamed'), true, 'Restore shows the edit');
+  // 3. both delete: the same marker twice, nothing refused, one Restore puts it back
+  await seedRm('rm3', 'Tea rm');
+  await Promise.all([act(mum, 'remove', 'rm3'), act(dad, 'remove', 'rm3')]); await quiet();
+  await hiddenOn(mum, 'rm3'); await hiddenOn(dad, 'rm3');
+  assert.equal(typeof (await rawAt('items/rm3')).removedAt, 'string');
+  await act(dad, 'restore', 'rm3'); await quiet(); await liveOn(mum, 'rm3');
+  // 4. Undo of a delete (the toast) is a Restore: another phone's change meanwhile is kept
+  await seedRm('rm4', 'Salt rm');
+  await go(mum, '#/item/rm4');
+  await mum.click('[data-act="delete"]'); await settle(mum);
+  await hiddenOn(dad, 'rm4');
+  await act(dad, 'use', 'rm4', 'a'); await drain(dad);   // B hasn't been told in time: it uses one on the hidden item
+  await mum.locator('.ha-toast-action').click(); await settle(mum); await quiet();
+  await liveOn(dad, 'rm4');
+  const rm4 = await rawAt('items/rm4');
+  assert.ok(!('removedAt' in rm4)); assert.equal(rm4.batches.a.qty, 3, 'Undo kept the other phone’s use');
+  // a delete from the item screen keeps its history and photo; Recently removed shows it with the days left
+  await go(mum, '#/item/rm4'); await mum.click('[data-act="delete"]'); await settle(mum); await quiet();
+  assert.ok(await rawAt('items/rm4'), 'the document is still there');
+  await go(mum, '#/settings');
+  assert.match(await mum.locator('#h-removed').locator('xpath=..').textContent(), /2 things you can put back/);
+  // 5. the shopping list: tick vs remove (both orders), two ticks, a new line while another is removed
+  const lines = {};
+  for (const k of ['l1', 'l2', 'l3', 'l4', 'l5']) { lines[k] = await act(mum, 'addLine', 'Line ' + k); }
+  await drain(mum);
+  for (const k of Object.keys(lines)) { await liveOn(dad, lines[k], 'shop'); }
+  const rl = k => rawAt('shop/' + lines[k]);
+  await Promise.all([act(mum, 'tick', lines.l1, true), act(dad, 'removeLine', lines.l1)]); await quiet();   // tick and remove together
+  await hiddenOn(mum, lines.l1, 'shop'); await hiddenOn(dad, lines.l1, 'shop');
+  assert.equal((await rl('l1')).done, true, 'the tick is kept on the removed line'); assert.equal(typeof (await rl('l1')).removedAt, 'string');
+  await act(dad, 'removeLine', lines.l2); await drain(dad); await hiddenOn(mum, lines.l2, 'shop');   // remove, then a tick from a phone that hadn't heard
+  await mum.evaluate(id => { window.__pantry.S.shop.set(id, { ...window.__pantry.S.shop.get(id), removedAt: undefined }); }, lines.l2);   // (its copy is a moment old)
+  await act(mum, 'tick', lines.l2, true); await quiet();
+  assert.equal((await rl('l2')).done, true); assert.equal(typeof (await rl('l2')).removedAt, 'string', 'a tick never brings a removed line back');
+  await Promise.all([act(mum, 'tick', lines.l3, true), act(dad, 'tick', lines.l3, true)]); await quiet();   // both tick: fine
+  assert.equal((await rl('l3')).done, true); assert.ok(!(await rl('l3')).removedAt);
+  const [added] = await Promise.all([act(mum, 'addLine', 'New line while removing'), act(dad, 'removeLine', lines.l4)]);   // a new line and a removal: both kept
+  await quiet(); await liveOn(dad, added, 'shop'); await hiddenOn(mum, lines.l4, 'shop');
+  assert.equal((await rawAt('shop/' + added)).name, 'New line while removing'); assert.equal(typeof (await rl('l4')).removedAt, 'string');
+  // lines with a marker are hidden everywhere (the list, the badge, the share text) and Restore puts them back, ticked as they were
+  await go(mum, '#/shop');
+  assert.equal(await mum.locator('#main label.ha-row', { hasText: 'Line l1' }).count(), 0, 'a removed line is not on the list');
+  assert.equal(await mum.locator('#main label.ha-row', { hasText: 'Line l3' }).count(), 1);
+  assert.ok(!(await mum.evaluate(() => document.querySelector('#pa-wa-going')?.href || '')).includes('Line%20l1'), 'nor in the WhatsApp text');
+  await go(mum, '#/removed');
+  assert.equal(await mum.locator('#pa-removed-lines .ha-row').count(), 3, 'the three removed lines are in Recently removed');
+  await mum.locator('#pa-removed-lines .ha-row', { hasText: 'Line l1' }).locator('[data-act="restore"]').click(); await settle(mum); await quiet();
+  await liveOn(dad, lines.l1, 'shop');
+  assert.ok(!(await rl('l1')).removedAt && (await rl('l1')).done === true, 'Restore keeps the tick');
+  // renaming a line is a field too
+  await act(dad, 'rename', lines.l5, 'Line five'); await quiet();
+  await mum.waitForFunction(id => window.__pantry.S.shop.get(id).name === 'Line five', lines.l5);
+  assert.equal((await rl('l5')).name, 'Line five');
+  // the line on the screen: Undo of a remove is Restore
+  await go(mum, '#/shop');
+  await mum.locator('#main label.ha-row', { hasText: 'Line five' }).locator('[data-act="shop-del"]').click(); await settle(mum);
+  assert.equal(await mum.locator('#main label.ha-row', { hasText: 'Line five' }).count(), 0);
+  if (process.env.SHOTS) await mum.screenshot({ path: process.env.SHOTS + '/r03-shop-live.png' });
+  await mum.locator('.ha-toast-action').click(); await settle(mum); await quiet();
+  assert.ok(!(await rl('l5')).removedAt, 'Undo cleared the marker'); assert.equal(await mum.locator('#main label.ha-row', { hasText: 'Line five' }).count(), 1);
+  // 6. the sweep: only what was removed more than 30 days ago, and a second phone's sweep is harmless
+  const oldAt = new Date(Date.now() - 40 * 86400000).toISOString(), recent = new Date(Date.now() - 5 * 86400000).toISOString();
+  await seedRm('sw-old', 'Swept', { removedAt: oldAt, removedBy: 'Mum', hasPhoto: true, thumb: 'data:image/jpeg;base64,AAAA' });
+  await seedRm('sw-new', 'Not yet', { removedAt: recent, removedBy: 'Mum' });
+  await seedRm('sw-live', 'Live one');
+  await admin.put(`households/${hid}/photos/sw-old`, { id: 'sw-old', data: 'data:image/jpeg;base64,BBBB', updatedAt: 'x' });
+  await admin.put(`households/${hid}/events/sw-ev1`, { id: 'sw-ev1', itemId: 'sw-old', type: 'add', qty: 1, at: oldAt, by: 'Mum' });
+  await admin.put(`households/${hid}/events/sw-ev2`, { id: 'sw-ev2', itemId: 'sw-new', type: 'add', qty: 1, at: recent, by: 'Mum' });
+  await admin.put(`households/${hid}/shop/sw-oldl`, { id: 'sw-oldl', name: 'Old line', done: true, removedAt: oldAt, removedBy: 'Mum' });
+  await admin.put(`households/${hid}/shop/sw-newl`, { id: 'sw-newl', name: 'New line', done: false, removedAt: recent, removedBy: 'Mum' });
+  for (const [k, id] of [['items', 'sw-old'], ['items', 'sw-new'], ['shop', 'sw-oldl'], ['shop', 'sw-newl']]) { await mum.waitForFunction(([k, id]) => window.__pantry.S[k].has(id), [k, id]); await dad.waitForFunction(([k, id]) => window.__pantry.S[k].has(id), [k, id]); await mum.waitForFunction(([k, id]) => window.__pantry.S[k].has(id), [k, id]); }
+  await dad.waitForFunction(() => window.__pantry.S.events.has('sw-ev1'));
+  const [n1, n2] = [await act(mum, 'sweep'), await act(dad, 'sweep')];   // two phones sweep at once (dad hadn't heard it was done)
+  assert.equal(n1 + n2 >= 2 && n1 + n2 <= 4, true, `swept ${n1} + ${n2}`);
+  await quiet();
+  assert.equal(await rawAt('items/sw-old'), null, 'older than 30 days: deleted'); assert.equal(await rawAt('photos/sw-old'), null, 'with its photo');
+  assert.equal(await rawAt('events/sw-ev1'), null, 'and its history'); assert.equal(await rawAt('shop/sw-oldl'), null, 'an old removed shopping line too');
+  assert.ok(await rawAt('items/sw-new'), 'newer than 30 days: kept'); assert.ok(await rawAt('events/sw-ev2')); assert.ok(await rawAt('shop/sw-newl'));
+  assert.ok(await rawAt('items/sw-live'), 'a live item is never swept');
+  assert.equal(await act(dad, 'sweep'), 0, 'a third sweep finds nothing');
+  // a Restore elsewhere wins over a phone whose copy is old: the sweep checks the server first
+  await seedRm('sw-race', 'Race', { removedAt: oldAt, removedBy: 'Mum' });
+  await admin.put(`households/${hid}/items/sw-race`, { id: 'sw-race', name: 'Race', ...base, batches: { a: { qty: 4, expiry: '2027-01-01' } } });   // restored on another phone
+  await dad.evaluate(id => { const S = window.__pantry.S; S.items.set(id, { ...S.items.get(id), removedAt: new Date(Date.now() - 40 * 86400000).toISOString() }); }, 'sw-race');   // dad's copy still says removed
+  assert.equal(await act(dad, 'sweep'), 0, 'not deleted: it was put back');
+  assert.ok(await rawAt('items/sw-race'));
+  // the sweep runs by itself once a day: lastSweep says when
+  await mum.evaluate(() => localStorage.removeItem('pantry:lastSweep'));
+
+  // ---- the rules for removed things and shopping lines ----
+  const removedRules = await mum.evaluate(async hid => {
+    const F = await import('https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js');
+    const db = F.getFirestore(), d = (...p) => F.doc(db, 'households', hid, ...p);
+    const out = {};
+    const tryIt = async (name, fn) => { try { await fn(); out[name] = 'ok'; } catch (e) { out[name] = e.code; } };
+    const at = '2026-10-16T01:02:03.000Z';
+    const item = (id, extra = {}) => ({ id, name: 'Rules ' + id, batches: {}, ...extra });
+    await tryIt('item removed', () => F.setDoc(d('items', 'x1'), item('x1', { removedAt: at, removedBy: 'Dad' })));
+    await tryIt('item removed by field', () => F.updateDoc(d('items', 'x1'), { removedAt: '2026-10-17T00:00:00.000Z', removedBy: 'Mum' }));
+    await tryIt('item restored', () => F.updateDoc(d('items', 'x1'), { removedAt: F.deleteField(), removedBy: F.deleteField() }));
+    await tryIt('item removed by field again', () => F.updateDoc(d('items', 'x1'), { removedAt: at, removedBy: '' }));
+    await tryIt('a use on a removed item', () => F.setDoc(d('items', 'x2'), item('x2', { removedAt: at, removedBy: 'Dad', batches: { a: { qty: 2 } } })).then(() => F.updateDoc(d('items', 'x2'), { 'batches.a.qty': F.increment(-1) })));
+    await tryIt('removedBy 40 characters', () => F.updateDoc(d('items', 'x1'), { removedBy: 'x'.repeat(40) }));
+    await tryIt('removedBy 41 characters', () => F.updateDoc(d('items', 'x1'), { removedBy: 'x'.repeat(41) }));
+    await tryIt('removedBy a number', () => F.updateDoc(d('items', 'x1'), { removedBy: 5 }));
+    await tryIt('removedBy null', () => F.updateDoc(d('items', 'x1'), { removedBy: null }));
+    await tryIt('removedAt a number', () => F.updateDoc(d('items', 'x1'), { removedAt: 1760000000000 }));
+    await tryIt('removedAt null', () => F.updateDoc(d('items', 'x1'), { removedAt: null }));
+    await tryIt('removedAt not a time', () => F.updateDoc(d('items', 'x1'), { removedAt: 'yesterday' }));
+    await tryIt('removedAt 41 characters', () => F.updateDoc(d('items', 'x1'), { removedAt: '2026-10-16T' + '0'.repeat(29) + 'Z' }));
+    await tryIt('removedAt a boolean', () => F.setDoc(d('items', 'x3'), item('x3', { removedAt: true })));
+    await tryIt('removedAt a map', () => F.setDoc(d('items', 'x4'), item('x4', { removedAt: { a: 1 } })));
+    // the item can still be deleted for good (the sweep, merging)
+    await tryIt('item deleted for good', () => F.deleteDoc(d('items', 'x2')));
+    // shopping lines
+    const line = (id, extra = {}) => ({ id, name: 'Milk', done: false, at, by: 'Mum', itemId: null, ...extra });
+    await tryIt('line created', () => F.setDoc(d('shop', 'y1'), line('y1')));
+    await tryIt('line with an item', () => F.setDoc(d('shop', 'y2'), line('y2', { itemId: 'abc123', doneBy: 'Dad' })));
+    await tryIt('line without optional fields (an old phone)', () => F.setDoc(d('shop', 'y3'), { id: 'y3', name: 'Eggs', done: true }));
+    await tryIt('line whole again (an old phone)', () => F.setDoc(d('shop', 'y1'), line('y1', { done: true })));
+    await tryIt('tick by field', () => F.updateDoc(d('shop', 'y1'), { done: true, doneBy: 'Dad' }));
+    await tryIt('rename by field', () => F.updateDoc(d('shop', 'y1'), { name: 'Oat milk' }));
+    await tryIt('remove by field', () => F.updateDoc(d('shop', 'y1'), { removedAt: at, removedBy: 'Dad' }));
+    await tryIt('restore by field', () => F.updateDoc(d('shop', 'y1'), { removedAt: F.deleteField(), removedBy: F.deleteField() }));
+    await tryIt('name 80 characters', () => F.setDoc(d('shop', 'y4'), line('y4', { name: 'x'.repeat(80) })));
+    await tryIt('name 81 characters', () => F.setDoc(d('shop', 'y5'), line('y5', { name: 'x'.repeat(81) })));
+    await tryIt('name a number', () => F.setDoc(d('shop', 'y6'), line('y6', { name: 5 })));
+    await tryIt('no name', () => F.setDoc(d('shop', 'y7'), { id: 'y7', done: false }));
+    await tryIt('done a string', () => F.setDoc(d('shop', 'y8'), line('y8', { done: 'yes' })));
+    await tryIt('no done', () => F.setDoc(d('shop', 'y9'), { id: 'y9', name: 'x' }));
+    await tryIt('an unknown field', () => F.setDoc(d('shop', 'y10'), line('y10', { colour: 'red' })));
+    await tryIt('an unknown field by update', () => F.updateDoc(d('shop', 'y1'), { colour: 'red' }));
+    await tryIt('the old `text` field', () => F.setDoc(d('shop', 'y11'), { id: 'y11', text: 'Milk', done: false }));
+    await tryIt('an id that is not the document’s', () => F.setDoc(d('shop', 'y12'), line('other')));
+    await tryIt('itemId a number', () => F.setDoc(d('shop', 'y13'), line('y13', { itemId: 5 })));
+    await tryIt('by 201 characters', () => F.setDoc(d('shop', 'y14'), line('y14', { by: 'x'.repeat(201) })));
+    await tryIt('name too long by update', () => F.updateDoc(d('shop', 'y1'), { name: 'x'.repeat(81) }));
+    await tryIt('done a string by update', () => F.updateDoc(d('shop', 'y1'), { done: 'yes' }));
+    await tryIt('line removedBy 41 characters', () => F.updateDoc(d('shop', 'y1'), { removedBy: 'x'.repeat(41) }));
+    await tryIt('line removedAt a number', () => F.updateDoc(d('shop', 'y1'), { removedAt: 5 }));
+    await tryIt('line removedAt not a time', () => F.updateDoc(d('shop', 'y1'), { removedAt: 'soon' }));
+    await tryIt('line deleted for good', () => F.deleteDoc(d('shop', 'y4')));
+    return out;
+  }, hid);
+  const D = 'permission-denied';
+  assert.deepEqual(removedRules, {
+    'item removed': 'ok', 'item removed by field': 'ok', 'item restored': 'ok', 'item removed by field again': 'ok', 'a use on a removed item': 'ok',
+    'removedBy 40 characters': 'ok', 'removedBy 41 characters': D, 'removedBy a number': D, 'removedBy null': D,
+    'removedAt a number': D, 'removedAt null': D, 'removedAt not a time': D, 'removedAt 41 characters': D, 'removedAt a boolean': D, 'removedAt a map': D,
+    'item deleted for good': 'ok',
+    'line created': 'ok', 'line with an item': 'ok', 'line without optional fields (an old phone)': 'ok', 'line whole again (an old phone)': 'ok',
+    'tick by field': 'ok', 'rename by field': 'ok', 'remove by field': 'ok', 'restore by field': 'ok', 'name 80 characters': 'ok', 'name 81 characters': D,
+    'name a number': D, 'no name': D, 'done a string': D, 'no done': D, 'an unknown field': D, 'an unknown field by update': D, 'the old `text` field': D,
+    'an id that is not the document’s': D, 'itemId a number': D, 'by 201 characters': D, 'name too long by update': D, 'done a string by update': D,
+    'line removedBy 41 characters': D, 'line removedAt a number': D, 'line removedAt not a time': D, 'line deleted for good': 'ok',
+  }, 'removed and shopping line rules');
+  const outsiderRemoved = await stranger.evaluate(async hid => {
+    const F = await import('https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js');
+    const db = F.getFirestore(), d = (...p) => F.doc(db, 'households', hid, ...p), out = [];
+    const t = async fn => { try { await fn(); out.push('wrote'); } catch (e) { out.push(e.code); } };
+    await t(() => F.updateDoc(d('items', 'x1'), { removedAt: '2026-10-16T01:02:03.000Z', removedBy: 'Evil' }));
+    await t(() => F.updateDoc(d('items', 'x1'), { removedAt: F.deleteField() }));
+    await t(() => F.setDoc(d('shop', 'z1'), { id: 'z1', name: 'x', done: false }));
+    await t(() => F.updateDoc(d('shop', 'y1'), { done: true }));
+    await t(() => F.updateDoc(d('shop', 'y1'), { removedAt: '2026-10-16T01:02:03.000Z', removedBy: 'Evil' }));
+    await t(() => F.deleteDoc(d('shop', 'y1')));
+    await t(() => F.deleteDoc(d('items', 'x1')));
+    return out;
+  }, hid);
+  assert.deepEqual(outsiderRemoved, Array(7).fill(D), 'outsider and removed things: ' + outsiderRemoved.join(', '));
+  assert.ok(await rawAt('items/x1') && await rawAt('shop/y1'), 'the outsider deleted nothing');
+
   // ---- merging two pantries for one email (owner: "merge duplicate emails into 1 pantry") ----
   const KINDS5 = ['items', 'events', 'shop', 'photos'];
   const seedPantry = async (id, owner, members, tag, { items = 2, extra = {} } = {}) => {
@@ -530,7 +743,7 @@ try {
       await admin.put(`households/${id}/photos/${tag}i${i}`, { id: `${tag}i${i}`, data: 'data:image/jpeg;base64,BBBB', updatedAt: 'x' });
     }
     await admin.put(`households/${id}/events/${tag}e1`, { id: `${tag}e1`, itemId: `${tag}i0`, type: 'add', at: '2026-10-16T00:00:00.000Z' });
-    await admin.put(`households/${id}/shop/${tag}s1`, { id: `${tag}s1`, text: `${tag} milk` });
+    await admin.put(`households/${id}/shop/${tag}s1`, { id: `${tag}s1`, name: `${tag} milk`, done: false });
     await admin.put(`households/${id}/settings/places`, { id: 'places', list: tag === 'A' ? ['Fridge', 'Garage'] : ['Fridge', 'Cellar'], updatedAt: 'x' });
     await admin.put(`households/${id}/settings/people`, { id: 'people', names: Object.fromEntries(members.map(m => [m, tag + ':' + m.split('@')[0]])), updatedAt: 'x' });
   };

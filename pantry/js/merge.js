@@ -3,6 +3,7 @@
 // other: who may do it, which members and settings result. cloud.js does the copying. Plain Node, so tests run it.
 
 import { PLACES_ID, isPlacesDoc, mergePlaces, placesDoc } from './places.js';
+import { keepLive } from './logic.js';
 import { PEOPLE_ID, isPeopleDoc, namesOf, keepMembers, peopleDoc, MAX_PEOPLE } from './people.js';
 
 export const MAX_MEMBERS = 20;   // the rules allow at most 20 members
@@ -40,4 +41,7 @@ export function mergeSettings(keepDocs = [], otherDocs = [], members = []) {
   }
   return out;
 }
+// What copying one pantry into another carries (16 Oct 2026, soft deletes): everything, with the Recently removed markers
+// as they are, except items and shopping lines removed more than 30 days ago, and those items' history and photos.
+export const carryOver = (lists, now = Date.now()) => keepLive(lists, now);
 export { MAX_PEOPLE };

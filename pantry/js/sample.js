@@ -9,7 +9,8 @@ export const DEMO_NAMES = { 'mum@example.com': 'Mum', 'dad@example.com': 'Dad' }
 export const demoBy = daysAgo => (daysAgo <= 3 ? 'Dad' : 'Mum');
 
 // by: who the history is signed with, a name or a function of how many days ago (the demo's family).
-export function sampleData(by = 'Sample') {
+// `removed`: also two items already in Recently removed (the demo shows that screen; the Settings button leaves them out).
+export function sampleData(by = 'Sample', { removed = false } = {}) {
   const t = ymd();
   const now = Date.now();
   const ago = d => new Date(now - d * 86400000).toISOString();
@@ -46,5 +47,10 @@ export function sampleData(by = 'Sample') {
     [{ qty: 1, expiry: addDays(t, 12) }], [['add', 20, 2], ['use', 14], ['add', 3]]);
   add({ name: 'Frozen dumplings', brand: 'CJ Bibigo', size: '1 kg', category: 'Frozen', location: 'Level 1 freezer' },
     [{ qty: 2, expiry: addDays(t, 120) }], [['add', 40, 3], ['use', 20]]);
+  if (removed) {
+    add({ name: 'Chilli sauce', brand: 'Maggi', size: '305 g', category: 'Sauces & condiments', location: 'Kitchen cabinet', removedAt: ago(27), removedBy: 'Dad' },
+      [{ qty: 1, expiry: addDays(t, 200) }], [['add', 60]]);
+    add({ name: 'Spring onions', brand: '', size: '1 bunch', category: 'Fresh produce', location: 'Fridge', removedAt: ago(2), removedBy: 'Mum' }, [], [['add', 9]]);
+  }
   return { items, events };
 }

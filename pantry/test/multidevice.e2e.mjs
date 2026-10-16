@@ -8,7 +8,15 @@
 //     was offline. (The screen shows max(0, that): stock never below 0.)
 //   - all three phones show what the server has (quantities and names); a name is one of the names someone saved;
 //   - the history (events) on the server is exactly the lines created and not undone;
-//   - no change was refused and left in "Needs attention".
+//   - no change was refused and left in "Needs attention";
+//   - deletes are markers (removedAt): Rice is only ever deleted, Milk deleted and restored (a phone restores only what it sees
+//     removed, as the button does), Eggs never; at the end a deleted item nobody restored is still removed on the server and on
+//     every phone (nothing brings it back: not a use, an add, an undo or an edit that landed on it, online or not), Eggs is
+//     never hidden, and the stock still adds up for hidden items too;
+//   - five shopping lines: ticks are fields, each line ticked by one phone only (so the last tick it made is the final state),
+//     lines 0-1 only removed, 2-3 removed and restored, 4 never removed: the final done of every line is that last tick,
+//     whatever else happened to it (a tick and a remove never undo each other), a removed line nobody restored stays removed,
+//     and every phone shows what the server has.
 // Run by pantry/test/run-sync.sh; one seed: SEED=7 node test/multidevice.e2e.mjs (inside the emulators), more: SEEDS=1,2,3.
 import assert from 'node:assert/strict';
 import { serve } from './serve.mjs';
@@ -61,7 +69,8 @@ async function person(email) {
 const net = async (p, on) => { try { await p.evaluate(async ([on, u]) => { const F = await import(u); const db = F.getFirestore(); await (on ? F.enableNetwork(db) : F.disableNetwork(db)); }, [on, FSJS]); } catch (e) { console.error('network switch failed on', p.who, on, e.message); throw e; } };
 const drain = async p => { try { await p.evaluate(async u => { const F = await import(u); await F.waitForPendingWrites(F.getFirestore()); }, FSJS); } catch (e) { console.error('drain failed on', p.who, e.message); throw e; } };
 const act = (p, name, ...args) => p.evaluate(([n, a]) => window.__pantry.act[n](...a), [name, args]);
-const local = (p, id) => p.evaluate(id => { const it = window.__pantry.S.items.get(id); return it && { name: it.name, batches: it.batches.map(b => [b.id, b.qty]) }; }, id);
+const local = (p, id) => p.evaluate(id => { const it = window.__pantry.S.items.get(id); return it && { name: it.name, removed: !!it.removedAt, batches: it.batches.map(b => [b.id, b.qty]) }; }, id);
+const localLine = (p, id) => p.evaluate(id => { const m = window.__pantry.S.shop.get(id); return m && { done: !!m.done, removed: !!m.removedAt }; }, id);
 
 let seedNow = null;
 try {
@@ -97,6 +106,12 @@ try {
     // with a stale copy converting it can overwrite another's change: a window that closes for each item once, and that the
     // test doesn't try to hit)
     { const res = await act(phones[0], 'use', ids[2], 'e1'); start[ids[2]].e1 -= 1; await drain(phones[0]); for (const p of phones) await p.waitForFunction(id => !window.__pantry.S.items.get(id)._arr, ids[2]); events0 = res.event.id; }
+    // five shopping lines (line k is ticked only by phone k % 3)
+    const lineIds = [0, 1, 2, 3, 4].map(k => `${tag}-l${k}`);
+    for (const [k, lid] of lineIds.entries()) await admin.put(`households/${hid}/shop/${lid}`, { id: lid, name: 'Line ' + k, done: false, itemId: null, at: '2026-10-16T00:00:00.000Z', by: 'Mum' });
+    for (const p of phones) for (const lid of lineIds) await p.waitForFunction(id => window.__pantry.S.shop.has(id), lid);
+    const lineDone = Object.fromEntries(lineIds.map(l => [l, false]));
+    const removedIssued = new Set(), restoredIssued = new Set();
     const expected = Object.fromEntries(ids.map(id => [id, { ...start[id] }]));
     const names = Object.fromEntries(ids.map(id => [id, new Set([Object.keys(start).length && null])]));
     for (const id of ids) names[id] = new Set();
@@ -105,14 +120,14 @@ try {
     const history = {};
     let nowStep = 0, nowWho = 0, nowKind = '';
     const tally = (id, ops) => { for (const [path, d] of Object.entries(ops?.inc || {})) { const b = path.split('.')[1]; expected[id][b] = (expected[id][b] || 0) + d; (history[`${id}/${b}`] ||= []).push(`step ${nowStep} phone ${nowWho} ${nowKind} ${d > 0 ? '+' : ''}${d}`); } };
-    const counts = { use: 0, add: 0, open: 0, rename: 0, undo: 0, toggles: 0 };
+    const counts = { use: 0, add: 0, open: 0, rename: 0, undo: 0, delete: 0, restore: 0, tick: 0, 'remove line': 0, 'restore line': 0, toggles: 0 };
 
     for (let step = 0; step < STEPS; step++) {
       const i = Math.floor(R() * 3), p = phones[i], id = pick(ids);
       nowStep = step; nowWho = i;
       const r = R();
       if (process.env.MD_DEBUG) console.log('STEP', step, 'phone', i, 'id', id.split('-')[1], 'r', r.toFixed(2), 'offline', offline.join());
-      if (r < 0.14 && !process.env.NOTOGGLE) {
+      if (r < 0.10 && !process.env.NOTOGGLE) {
         // (a phone that comes back online sends everything it has before it may drop offline again: toggling the SDK's
         // network switch faster than its write stream can settle trips an internal assertion in Firestore 10.14.1 that
         // real phones, whose connectivity the SDK watches itself, don't hit)
@@ -123,23 +138,39 @@ try {
         if (!offline[i]) await drain(p);
         offline[i] = !offline[i]; await net(p, !offline[i]); if (!offline[i]) await drain(p); counts.toggles++;
       }
-      else if (r < 0.46) {
+      else if (r < 0.32) {
         const mine = (await local(p, id)).batches.filter(([, q]) => q > 0);
         if (!mine.length) continue;
         nowKind = 'use'; const res = await act(p, 'use', id, pick(mine)[0]);
         if (res) { tally(id, res.ops); events.add(res.event.id); counts.use++; }
-      } else if (r < 0.62) {
+      } else if (r < 0.44) {
         nowKind = 'add'; const res = await act(p, 'add', id, 1 + Math.floor(R() * 3), '2027-0' + (1 + Math.floor(R() * 9)) + '-15', `a${step}`);
         if (res) { tally(id, res.ops); events.add(res.event.id); counts.add++; }
-      } else if (r < 0.72) {
+      } else if (r < 0.50) {
         nowKind = 'open'; const res = await act(p, 'open', id);
         if (res) { tally(id, res.ops); events.add(res.event.id); counts.open++; }
-      } else if (r < 0.84) {
+      } else if (r < 0.56) {
         const name = `${id.split('-')[1]}-${step}`;
         await act(p, 'set', id, 'name', name); names[id].add(name); counts.rename++;
-      } else {
+      } else if (r < 0.62) {
         nowKind = 'undo'; const res = await act(p, 'undo');
         if (res?.ops) { /* the opposite instructions */ for (const idd of ids) if (res.event.itemId === idd) tally(idd, res.ops); events.delete(res.event.id); counts.undo++; }
+      } else if (r < 0.68) {
+        // delete Rice or Milk (a marker: the item stays, hidden; later uses and adds still land on it)
+        const did = pick([ids[0], ids[1]]); await act(p, 'remove', did); removedIssued.add(did); counts.delete++;
+      } else if (r < 0.73) {
+        // restore Milk, from a phone that sees it removed (that is when the button is there)
+        if (!(await local(p, ids[1])).removed) continue;
+        await act(p, 'restore', ids[1]); restoredIssued.add(ids[1]); counts.restore++;
+      } else if (r < 0.84) {
+        // tick or untick a line: only by its own phone
+        const mine = lineIds.filter((_, k) => k % 3 === i); const lid = pick(mine);
+        lineDone[lid] = !lineDone[lid]; await act(p, 'tick', lid, lineDone[lid]); counts.tick++;
+      } else if (r < 0.92) {
+        const lid = pick(lineIds.slice(0, 4)); await act(p, 'removeLine', lid); removedIssued.add(lid); counts['remove line']++;
+      } else {
+        const lid = pick(lineIds.slice(2, 4)); if (!(await localLine(p, lid)).removed) continue;
+        await act(p, 'restoreLine', lid); restoredIssued.add(lid); counts['restore line']++;
       }
       await p.waitForTimeout(Math.floor(R() * 60));
     }
@@ -163,6 +194,24 @@ try {
           if (l.name !== raw.name) problem += `${id}: phone ${n} name ${l.name} vs server ${raw.name}; `;
         }
         if (names[id].size && !names[id].has(raw.name) && raw.name !== { [ids[0]]: 'Rice', [ids[1]]: 'Milk', [ids[2]]: 'Eggs' }[id]) problem += `${id}: name ${raw.name} was never saved; `;
+      }
+      // removing: a deleted item nobody restored is still removed everywhere; Eggs was never touched; phones agree with the server
+      const mustBeRemoved = x => removedIssued.has(x) && !restoredIssued.has(x);
+      for (const id of ids) {
+        const raw = await admin.get(`households/${hid}/items/${id}`);
+        const gone = typeof raw.removedAt === 'string';
+        if (id === ids[2] && gone) problem += `${id}: hidden but never deleted; `;
+        if (mustBeRemoved(id) && !gone) problem += `${id}: deleted, never restored, but the server shows it again; `;
+        if (!gone && ('removedBy' in raw)) problem += `${id}: removedBy left behind; `;
+        for (const [n, p] of phones.entries()) { const l = await local(p, id); if (l.removed !== gone) problem += `${id}: phone ${n} ${l.removed ? 'hides' : 'shows'} it but the server ${gone ? 'has it removed' : 'has it live'}; `; }
+      }
+      for (const [k, lid] of lineIds.entries()) {
+        const raw = await admin.get(`households/${hid}/shop/${lid}`);
+        const gone = typeof raw.removedAt === 'string';
+        if (raw.done !== lineDone[lid]) problem += `${lid}: done is ${raw.done} on the server, the last tick was ${lineDone[lid]}; `;
+        if (k === 4 && gone) problem += `${lid}: hidden but never removed; `;
+        if (mustBeRemoved(lid) && !gone) problem += `${lid}: removed, never restored, but it is back; `;
+        for (const [n, p] of phones.entries()) { const l = await localLine(p, lid); if (l.removed !== gone || l.done !== raw.done) problem += `${lid}: phone ${n} has done ${l.done}/removed ${l.removed}, the server ${raw.done}/${gone}; `; }
       }
       const onServer = new Set((await admin.list(`households/${hid}/events`)).map(e => e.id).filter(x => [...events].includes(x) || true));
       const mineOnServer = [...onServer].filter(x => x);

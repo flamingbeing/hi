@@ -198,6 +198,66 @@ export function spentBatches(item) {
   return list.length >= 40 ? list.filter(b => !(b.qty > 0)).map(b => `batches.${b.id}`) : [];
 }
 
+// ---- removing without losing: a marker, not a delete ---------------------------------------------------------------------
+//
+// Deleting an item or a shopping line (16 Oct 2026, PR-B of "pantry sync safety"; NOTES.md) sets two fields, `removedAt`
+// (an ISO time) and `removedBy` (a name), and leaves the document where it is. Every list, count, search and match skips
+// a removed one (isRemoved / live: the one place that says so). A change another phone sends meanwhile (a use, an edit, a
+// tick) lands on the hidden document and never brings it back; Settings → Recently removed puts it back (Restore clears
+// both fields) for REMOVED_DAYS days, after which any phone's sweep deletes it for good.
+
+export const REMOVED_DAYS = 30;
+export const SWEEP_MAX = 20;   // documents one phone purges in one day
+export const isRemoved = x => !!x && typeof x.removedAt === 'string' && x.removedAt !== '';
+// The documents (items, shopping lines) that are still there, as an array. Every list in the app comes through this.
+export const live = list => [...(list || [])].filter(x => !isRemoved(x));
+export const liveItems = live;
+// The instructions that remove a document, and that put it back (`by` fits the rules' 40 characters).
+export const removeOps = (by = '', at = new Date().toISOString()) => ({ set: { removedAt: at, removedBy: String(by || '').slice(0, 40) }, inc: {}, del: [] });
+export const restoreOps = () => ({ set: {}, inc: {}, del: ['removedAt', 'removedBy'] });
+const removedMs = x => (isRemoved(x) ? Date.parse(x.removedAt) : NaN);
+// Whole days left in Recently removed (30 on the day itself, 1 on the last day, 0 once it is due for the sweep).
+export function daysLeft(x, now = Date.now()) {
+  const t = removedMs(x);
+  if (Number.isNaN(t)) return isRemoved(x) ? REMOVED_DAYS : null;
+  return Math.max(0, Math.min(REMOVED_DAYS, Math.ceil((t + REMOVED_DAYS * DAY - new Date(now).getTime()) / DAY)));
+}
+export const daysLeftText = n => (n == null ? '' : n <= 0 ? 'Going soon' : n === 1 ? '1 day left' : `${n} days left`);
+// Removed, and still within its 30 days: what Recently removed lists, newest removal first.
+export const recentlyRemoved = (list, now = Date.now()) => [...(list || [])].filter(x => isRemoved(x) && daysLeft(x, now) > 0)
+  .sort((a, b) => (a.removedAt < b.removedAt ? 1 : a.removedAt > b.removedAt ? -1 : 0));
+// Removed more than 30 days ago: due to be deleted for good.
+export const expiredRemoval = (x, now = Date.now()) => isRemoved(x) && removedMs(x) + REMOVED_DAYS * DAY <= new Date(now).getTime();
+// A list without what is past its 30 days (copying, backups and merging don't carry those).
+export const dropExpired = (list, now = Date.now()) => (list || []).filter(x => !expiredRemoval(x, now));
+// History lines whose item is not removed (what Home's totals and "Since you last looked" count).
+export function liveEvents(events, items) {
+  const gone = new Set((items || []).filter(isRemoved).map(i => i.id));
+  return [...(events || [])].filter(e => !gone.has(e.itemId));
+}
+// What this phone's daily sweep deletes: items and shopping lines removed more than 30 days ago, oldest first, at most
+// `max` in all (so the cost of a day is bounded, however long nobody swept). { items: [docs], shop: [docs] }.
+export function sweepDue(items, shop, now = Date.now(), max = SWEEP_MAX) {
+  const due = [...(items || []).map(d => ({ k: 'items', d })), ...(shop || []).map(d => ({ k: 'shop', d }))]
+    .filter(x => expiredRemoval(x.d, now)).sort((a, b) => (a.d.removedAt < b.d.removedAt ? -1 : a.d.removedAt > b.d.removedAt ? 1 : a.d.id < b.d.id ? -1 : 1)).slice(0, max);
+  return { items: due.filter(x => x.k === 'items').map(x => x.d), shop: due.filter(x => x.k === 'shop').map(x => x.d) };
+}
+
+// Instructions on a plain document (a shopping line): the same set / inc / del as applyOps, without batches. Never
+// changes the one given.
+export function applyFieldOps(doc, ops = {}) {
+  const out = { ...doc };
+  const deep = (path, fn) => {
+    const ks = path.split('.'); let o = out;
+    for (const k of ks.slice(0, -1)) { o[k] = o[k] && typeof o[k] === 'object' ? { ...o[k] } : {}; o = o[k]; }
+    fn(o, ks[ks.length - 1]);
+  };
+  for (const [p, v] of Object.entries(ops.set || {})) deep(p, (o, k) => { o[k] = v; });
+  for (const [p, n] of Object.entries(ops.inc || {})) deep(p, (o, k) => { o[k] = (Number(o[k]) || 0) + n; });
+  for (const p of ops.del || []) deep(p, (o, k) => { delete o[k]; });
+  return out;
+}
+
 // ---- stock -------------------------------------------------------------------------------------------------
 
 const batchesOf = item => (Array.isArray(item.batches) ? item.batches : normalizeBatches(item.batches, item.id));
@@ -585,8 +645,19 @@ export function shareText(lines) {
 
 // ---- backups ---------------------------------------------------------------------------------------------------
 
+// Items and shopping lines removed (Recently removed) travel with their markers; those removed more than 30 days ago are
+// left out, with their history and photo.
+export function keepLive(data, now = Date.now()) {
+  const items = dropExpired(data.items, now), have = new Set(items.map(i => i.id)), gone = new Set((data.items || []).filter(i => !have.has(i.id)).map(i => i.id));
+  return {
+    ...data, items, shop: dropExpired(data.shop, now),
+    events: (data.events || []).filter(e => !gone.has(e.itemId)),
+    photos: (data.photos || []).filter(p => !gone.has(p.id)),
+  };
+}
 export function backup(data, at = new Date().toISOString()) {
-  return { app: 'pantry', v: 1, at, items: (data.items || []).map(plainItem), events: data.events || [], shop: data.shop || [], settings: data.settings || [], photos: data.photos || [] };
+  const d = keepLive(data, new Date(at).getTime() || Date.now());
+  return { app: 'pantry', v: 1, at, items: (d.items || []).map(plainItem), events: d.events || [], shop: d.shop || [], settings: d.settings || [], photos: d.photos || [] };
 }
 // Reads a backup file's text. Returns { items, events, shop, settings, photos } with only well-formed documents, or throws a plain
 // message when the file is not a pantry backup.
@@ -598,6 +669,7 @@ export function parseBackup(text) {
   const out = {};
   for (const k of ['items', 'events', 'shop', 'settings', 'photos']) out[k] = Array.isArray(j[k]) ? j[k].filter(ok) : [];
   out.items = out.items.map(plainItem);   // either shape of batches in, an array with ids out
+  { const k = keepLive(out); out.items = k.items; out.shop = k.shop; out.events = k.events; out.photos = k.photos; }   // removed more than 30 days ago: not brought back
   out.settings = out.settings.filter(isPlacesDoc);   // only the list of places (older backups have none)
   out.photos = out.photos.filter(p => typeof p.data === 'string' && p.data.startsWith('data:image/'));
   return out;
