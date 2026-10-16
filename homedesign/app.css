@@ -1,0 +1,435 @@
+/* Koh family home design system: the phone app kit (DESIGN-APP.md). Needs tokens.css first; app.js drives it.
+   For installable web apps on *.flamingbeing.com. No dependencies, no build step. Every class starts with ha-, so it
+   never clashes with an app's own CSS. Light only. Every component is shown working in app.html. */
+
+/* ---------- Kit-only tokens ---------- */
+html.ha{
+  --home-root:17;                       /* 1rem = 17px: every --home-t-* token stays at its named px size */
+  --ha-bar-h:44px; --ha-tab-h:50px;
+  --ha-safe-t:env(safe-area-inset-top,0px); --ha-safe-b:env(safe-area-inset-bottom,0px);
+  --ha-safe-l:env(safe-area-inset-left,0px); --ha-safe-r:env(safe-area-inset-right,0px);
+  --ha-blur:saturate(1.8) blur(20px);
+}
+
+/* ---------- Base for standalone apps ---------- */
+html.ha{font-size:106.25%;background:var(--home-bg);overscroll-behavior-y:contain;-webkit-text-size-adjust:100%;text-size-adjust:100%}
+/* iPhone: follow the phone's text size setting (Dynamic Type); 17px at the default size */
+@media (hover:none) and (pointer:coarse){@supports (font:-apple-system-body){html.ha{font:-apple-system-body}}}
+.ha-body{margin:0;min-height:100vh;min-height:100dvh;background:var(--home-bg);color:var(--home-ink);font-family:var(--home-font);
+  font-size:var(--home-t-body);line-height:var(--home-lh);-webkit-font-smoothing:antialiased;-webkit-tap-highlight-color:transparent;
+  touch-action:manipulation;overscroll-behavior-y:contain}
+.ha-body :focus-visible{outline:2px solid var(--home-focus);outline-offset:2px}
+:where(.ha-body) a{color:var(--home-accent);text-decoration:underline;text-decoration-color:var(--home-line-strong);text-underline-offset:3px}
+.ha-btn,.ha-row,.ha-tab,.ha-chip,.ha-seg,.ha-bar,.ha-tabbar,.ha-switch,.ha-stepper,.ha-bar-btn,.ha-noselect{
+  -webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
+.ha-body img{-webkit-user-drag:none}
+.ha-sr{position:absolute!important;width:1px;height:1px;margin:-1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.ha-skip{position:fixed;left:8px;top:calc(var(--ha-safe-t) + 8px);z-index:100;padding:12px 16px;border-radius:var(--home-r-md);
+  background:var(--home-accent);color:var(--home-on-accent)!important;text-decoration:none!important;transform:translateY(-200%)}
+.ha-skip:focus{transform:none}
+.ha-icon{display:inline-block;flex:none;width:24px;height:24px;fill:none;stroke:currentColor}
+
+/* ---------- Shell ---------- */
+/* main clips sideways overflow, so a long word or wide table never scrolls the whole screen sideways */
+.ha-main{display:block;max-width:680px;margin:0 auto;overflow-x:clip;
+  padding:0 calc(var(--home-gutter) + var(--ha-safe-r)) var(--home-s8) calc(var(--home-gutter) + var(--ha-safe-l))}
+.ha-has-tabbar .ha-main{padding-bottom:calc(var(--ha-tab-h) + var(--ha-safe-b) + var(--home-s8))}
+.ha-has-toolbar .ha-main{padding-bottom:calc(68px + var(--ha-safe-b) + var(--home-s6))}
+.ha-screen{display:block}
+
+/* top bar: transparent over the large title; once the title scrolls under it, it turns translucent and shows a
+   small centred title (app.js: haLargeTitle) */
+.ha-bar{position:sticky;top:0;z-index:20;padding:var(--ha-safe-t) calc(var(--home-s2) + var(--ha-safe-r)) 0 calc(var(--home-s2) + var(--ha-safe-l));
+  background:transparent;transition:background-color var(--home-d-fast) linear,box-shadow var(--home-d-fast) linear}
+.ha-bar-row{display:grid;grid-template-columns:minmax(44px,1fr) auto minmax(44px,1fr);align-items:center;min-height:var(--ha-bar-h);max-width:680px;margin:0 auto}
+.ha-bar-lead{justify-self:start;display:flex;align-items:center;min-width:0}
+.ha-bar-trail{justify-self:end;display:flex;align-items:center;gap:var(--home-s1)}
+.ha-bar-title{margin:0;max-width:40vw;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;text-align:center;
+  font-size:var(--home-t-body);font-weight:600;line-height:1.3;letter-spacing:-.01em;
+  opacity:0;transform:translateY(4px);transition:opacity var(--home-d-fast) linear,transform var(--home-d-fast) var(--home-ease)}
+.ha-bar.is-collapsed,.ha-bar--solid{background:var(--home-bar);box-shadow:0 .5px 0 var(--home-line);-webkit-backdrop-filter:var(--ha-blur);backdrop-filter:var(--ha-blur)}
+.ha-bar.is-collapsed .ha-bar-title,.ha-bar--solid .ha-bar-title{opacity:1;transform:none}
+/* until then the small title is hidden outright, not only faded (screen readers, axe) */
+.ha-bar:not(.is-collapsed):not(.ha-bar--solid) .ha-bar-title{visibility:hidden;
+  transition:opacity var(--home-d-fast) linear,transform var(--home-d-fast) var(--home-ease),visibility 0s linear var(--home-d-fast)}
+.ha-bar--instant,.ha-bar--instant .ha-bar-title{transition:none!important}
+@supports not ((backdrop-filter:blur(1px)) or (-webkit-backdrop-filter:blur(1px))){.ha-bar.is-collapsed,.ha-bar--solid{background:var(--home-surface)}}
+.ha-bar-btn{display:inline-flex;align-items:center;justify-content:center;gap:2px;min-width:44px;min-height:44px;padding:0 var(--home-s2);
+  border:0;border-radius:var(--home-r-md);background:none;color:var(--home-accent);font-size:var(--home-t-body);font-weight:400;
+  text-decoration:none!important;white-space:nowrap;cursor:pointer;transition:opacity var(--home-d-press) linear}
+.ha-bar-btn:active{opacity:.4}
+.ha-bar-btn .ha-icon{width:24px;height:24px}
+.ha-back{max-width:44vw;padding-left:0;justify-content:flex-start}
+.ha-back .ha-icon{width:28px;height:28px;margin-right:-2px}
+.ha-back span{overflow:hidden;text-overflow:ellipsis}
+.ha-large-title{margin:var(--home-s1) 0 var(--home-s4);padding:0 var(--home-s1);font-size:var(--home-t-large);font-weight:700;line-height:1.18;
+  letter-spacing:-.022em;text-wrap:balance;overflow-wrap:anywhere}
+.ha-large-sub{margin:calc(-1 * var(--home-s3)) 0 var(--home-s5);padding:0 var(--home-s1);color:var(--home-muted);font-size:var(--home-t-small);line-height:1.45}
+
+/* bottom tab bar: 3 to 5 tabs; the centre one may be the primary action (.ha-tab--action). A left rail from 1024px. */
+.ha-tabbar{position:fixed;z-index:30;left:0;right:0;bottom:0;display:flex;justify-content:center;
+  padding:0 var(--ha-safe-r) var(--ha-safe-b) var(--ha-safe-l);background:var(--home-bar);box-shadow:0 -.5px 0 var(--home-line);
+  -webkit-backdrop-filter:var(--ha-blur);backdrop-filter:var(--ha-blur)}
+@supports not ((backdrop-filter:blur(1px)) or (-webkit-backdrop-filter:blur(1px))){.ha-tabbar{background:var(--home-surface)}}
+.ha-tabbar-inner{display:grid;grid-auto-flow:column;grid-auto-columns:1fr;width:100%;max-width:560px}
+.ha-tab{position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;min-width:0;min-height:var(--ha-tab-h);padding:4px 2px 3px;
+  border:0;background:none;color:var(--home-muted);font-size:var(--home-t-label);font-weight:500;line-height:1.15;text-decoration:none!important;cursor:pointer}
+.ha-tab-label{max-width:100%;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+.ha-tab-icon{position:relative;display:grid;place-items:center;width:52px;height:28px;border-radius:var(--home-r-full);transition:background-color var(--home-d-fast) var(--home-ease)}
+.ha-tab-icon .ha-icon{width:24px;height:24px}
+/* the current tab: accent label, 600, and a soft pill behind the icon (shape and colour, never colour alone) */
+.ha-tab[aria-current="page"]{color:var(--home-accent);font-weight:600}
+.ha-tab[aria-current="page"] .ha-tab-icon{background:var(--home-accent-soft)}
+.ha-tab:active .ha-tab-icon{background:var(--home-pressed-bg)}
+.ha-tab:focus-visible{outline-offset:-3px;border-radius:var(--home-r-md)}
+.ha-tab-badge{position:absolute;top:-3px;left:calc(50% + 6px);min-width:18px;height:18px;padding:0 5px;border-radius:var(--home-r-full);
+  background:var(--home-bad);color:#fff;font-size:var(--home-t-label);font-weight:600;line-height:18px;text-align:center;font-variant-numeric:tabular-nums}
+/* the primary centre action: a round accent button, the one bold thing on the bar */
+.ha-tab--action{color:var(--home-ink-2)}
+.ha-tab--action .ha-tab-icon{width:44px;height:44px;margin-top:-6px;border-radius:50%;background:var(--home-accent);color:var(--home-on-accent);
+  box-shadow:0 2px 8px rgb(58 99 144 / .28);transition:transform var(--home-d-fast) var(--home-ease),background-color var(--home-d-fast) linear}
+.ha-tab--action .ha-tab-icon .ha-icon{width:26px;height:26px}
+.ha-tab--action:active .ha-tab-icon{background:var(--home-accent-press);transform:scale(.94)}
+.ha-tab--action .ha-tab-label{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+
+/* bottom toolbar for a task (instead of the tab bar): Cancel, Save */
+.ha-toolbar{position:fixed;z-index:30;left:0;right:0;bottom:0;padding:var(--home-s2) calc(var(--home-gutter) + var(--ha-safe-r)) calc(var(--home-s2) + var(--ha-safe-b)) calc(var(--home-gutter) + var(--ha-safe-l));
+  background:var(--home-bar);box-shadow:0 -.5px 0 var(--home-line);-webkit-backdrop-filter:var(--ha-blur);backdrop-filter:var(--ha-blur)}
+.ha-toolbar-inner{display:flex;gap:var(--home-s2);max-width:680px;margin:0 auto}
+.ha-toolbar-inner>*{flex:1}
+
+/* ---------- Text ---------- */
+.ha-h2{margin:var(--home-s6) 0 var(--home-s2);padding:0 var(--home-s1);font-size:var(--home-t-title2);font-weight:700;line-height:1.25;letter-spacing:-.015em;text-wrap:balance}
+.ha-text{margin:0 0 var(--home-s3);max-width:68ch;line-height:var(--home-lh-read)}
+.ha-muted{color:var(--home-muted)}
+.ha-small{font-size:var(--home-t-small);line-height:1.45}
+.ha-num{font-variant-numeric:tabular-nums}
+.ha-panel{margin:var(--home-s3) 0;padding:var(--home-s3) var(--home-s4);border-radius:var(--home-r-md);background:var(--home-fill);font-size:var(--home-t-small);line-height:1.5}
+
+/* ---------- Grouped inset lists ---------- */
+.ha-section{margin:0 0 var(--home-s6)}
+.ha-section-header{display:flex;align-items:baseline;justify-content:space-between;gap:var(--home-s3);margin:0;padding:0 var(--home-s4) 6px;
+  color:var(--home-muted);font-size:var(--home-t-label);font-weight:600;line-height:1.4;letter-spacing:.05em;text-transform:uppercase}
+.ha-section-header a,.ha-section-header button{padding:0;border:0;background:none;color:var(--home-accent);font:inherit;text-transform:none;letter-spacing:0;font-size:var(--home-t-small);font-weight:500;text-decoration:none;cursor:pointer;min-height:24px}
+.ha-section-footer{margin:0;padding:6px var(--home-s4) 0;color:var(--home-muted);font-size:var(--home-t-small);line-height:1.45}
+.ha-list{margin:0;padding:0;list-style:none;background:var(--home-surface);border-radius:var(--home-r-lg);overflow:clip}
+.ha-list>li{margin:0}
+.ha-row{position:relative;display:flex;flex-wrap:wrap;align-items:center;gap:var(--home-s3);width:100%;min-height:50px;padding:10px var(--home-s4);
+  border:0;background:transparent;color:var(--home-ink);font-size:var(--home-t-body);line-height:1.35;text-align:left;text-decoration:none!important;
+  transition:background-color var(--home-d-fast) linear}
+a.ha-row,button.ha-row,label.ha-row{cursor:pointer}
+a.ha-row:active,button.ha-row:active,label.ha-row:active,.ha-row.is-pressed{background:var(--home-pressed);transition-duration:0ms}
+.ha-row:focus-visible{outline-offset:-3px;border-radius:var(--home-r-lg)}
+/* hairline between rows, inset to the text (past the thumbnail) */
+.ha-list>li+li>.ha-row::before,.ha-list>.ha-row+.ha-row::before{content:"";position:absolute;top:0;right:0;left:var(--ha-sep,var(--home-s4));height:1px;background:var(--home-line)}
+.ha-row:has(.ha-row-icon){--ha-sep:58px}
+.ha-row:has(.ha-row-thumb){--ha-sep:72px}
+@media (min-resolution:2dppx){.ha-list>li+li>.ha-row::before,.ha-list>.ha-row+.ha-row::before{transform:scaleY(.5);transform-origin:top}}
+.ha-row-icon{flex:none;display:grid;place-items:center;width:30px;height:30px;border-radius:var(--home-r-sm);background:var(--home-accent-soft);color:var(--home-accent)}
+.ha-row-icon .ha-icon{width:19px;height:19px}
+.ha-row-icon--grey{background:var(--home-fill);color:var(--home-ink-2)}
+.ha-row-icon--bad{background:var(--home-bad-bg);color:var(--home-bad)}
+.ha-row-thumb{flex:none;display:grid;place-items:center;width:44px;height:44px;border-radius:var(--home-r-sm);background:var(--home-fill);color:var(--home-muted);overflow:hidden;object-fit:cover}
+.ha-row-thumb .ha-icon{width:22px;height:22px}
+.ha-row-body{flex:1 1 5em;min-width:0;display:flex;flex-direction:column;gap:1px}
+.ha-row-title{font-size:var(--home-t-body);line-height:1.35;overflow-wrap:anywhere}
+.ha-row-sub{color:var(--home-muted);font-size:var(--home-t-small);line-height:1.4;overflow-wrap:anywhere}
+.ha-row-sub--clamp{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.ha-row-trail{flex:none;display:flex;align-items:center;gap:var(--home-s2);margin-left:auto}
+/* at large text sizes the trailing value wraps under the title (body needs 5em) instead of squeezing it */
+.ha-row-value{flex:none;margin-left:auto;color:var(--home-muted);font-size:var(--home-t-body);font-variant-numeric:tabular-nums;white-space:nowrap}
+.ha-row-chevron{flex:none;width:18px;height:18px;margin-right:-4px;color:var(--home-line-strong)}
+.ha-row--action .ha-row-title{color:var(--home-accent)}
+.ha-row--danger .ha-row-title{color:var(--home-bad)}
+.ha-row--center{justify-content:center;text-align:center}
+.ha-row--center .ha-row-body{align-items:center}
+.ha-row input[type=checkbox]:not(.ha-switch),.ha-row input[type=radio]{flex:none;width:22px;height:22px;margin:0;accent-color:var(--home-accent)}
+/* a done item: struck through and muted, with the tick as the shape cue */
+.ha-row.is-done .ha-row-title{color:var(--home-muted);text-decoration:line-through;text-decoration-color:var(--home-line-strong)}
+
+/* ---------- Cards ---------- */
+.ha-card{display:block;margin:0 0 var(--home-s4);padding:var(--home-s4);border-radius:var(--home-r-lg);background:var(--home-surface);color:var(--home-ink);text-decoration:none!important}
+a.ha-card,button.ha-card{width:100%;border:0;text-align:left;cursor:pointer;transition:transform var(--home-d-fast) var(--home-ease),background-color var(--home-d-fast) linear}
+a.ha-card:active,button.ha-card:active{background:var(--home-pressed);transform:scale(.985);transition-duration:var(--home-d-press)}
+.ha-card-kicker{margin:0 0 2px;color:var(--home-muted);font-size:var(--home-t-label);font-weight:600;letter-spacing:.05em;text-transform:uppercase}
+.ha-card-title{margin:0 0 var(--home-s1);font-size:var(--home-t-title2);font-weight:700;line-height:1.25;letter-spacing:-.012em}
+.ha-card-text{margin:0;color:var(--home-muted);font-size:var(--home-t-small);line-height:1.5}
+.ha-card-actions{display:flex;gap:var(--home-s2);margin-top:var(--home-s4)}
+.ha-card-actions>*{flex:1}
+.ha-stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,5.5em),1fr));gap:var(--home-s2);margin:0 0 var(--home-s4)}
+.ha-stat{padding:var(--home-s3) var(--home-s4);border-radius:var(--home-r-lg);background:var(--home-surface)}
+.ha-stat-value{display:block;font-size:var(--home-t-title1);font-weight:700;line-height:1.15;letter-spacing:-.02em;font-variant-numeric:tabular-nums}
+.ha-stat-label{display:block;overflow-wrap:anywhere;color:var(--home-muted);font-size:var(--home-t-small);line-height:1.35}
+
+/* ---------- Buttons ---------- */
+.ha-btn{display:inline-flex;align-items:center;justify-content:center;gap:var(--home-s2);min-height:50px;padding:var(--home-s2) var(--home-s5);
+  border:0;border-radius:var(--home-r-md);background:var(--home-accent-soft);color:var(--home-accent);
+  font-size:var(--home-t-body);font-weight:600;line-height:1.2;text-align:center;text-decoration:none!important;cursor:pointer;
+  transition:transform var(--home-d-fast) var(--home-ease),background-color var(--home-d-fast) linear,opacity var(--home-d-fast) linear}
+.ha-btn:active,.ha-btn.is-pressed{transform:scale(.97);transition-duration:var(--home-d-press)}
+.ha-btn .ha-icon{width:20px;height:20px}
+.ha-btn--primary{background:var(--home-accent);color:var(--home-on-accent)}
+.ha-btn--primary:active,.ha-btn--primary.is-pressed{background:var(--home-accent-press)}
+.ha-btn--secondary:active,.ha-btn--secondary.is-pressed,.ha-btn:not([class*="ha-btn--"]):active{background:var(--home-accent-soft-press)}
+.ha-btn--outline{background:var(--home-surface);color:var(--home-ink);box-shadow:inset 0 0 0 1px var(--home-control)}
+.ha-btn--outline:active{background:var(--home-pressed)}
+.ha-btn--plain{background:transparent;padding-inline:var(--home-s3)}
+.ha-btn--plain:active,.ha-btn--plain.is-pressed{background:var(--home-pressed-bg)}
+.ha-btn--danger{background:var(--home-bad-bg);color:var(--home-bad)}
+.ha-btn--quiet{background:transparent;color:var(--home-muted)}
+.ha-btn--quiet:active{background:var(--home-pressed)}
+.ha-btn--danger:active,.ha-btn--danger.is-pressed{background:var(--home-bad-press)}
+.ha-btn--block{display:flex;width:100%}
+.ha-btn--compact{min-height:44px;padding-inline:var(--home-s4);font-size:var(--home-t-small)}
+/* small: 36px drawn, an invisible margin keeps 44px to tap (space rows 8px apart) */
+.ha-btn--small{position:relative;min-height:36px;padding:0 var(--home-s3);border-radius:var(--home-r-full);font-size:var(--home-t-small)}
+.ha-btn--small::after{content:"";position:absolute;inset:-4px 0}
+.ha-btn--icon{width:44px;min-width:44px;min-height:44px;padding:0;border-radius:50%}
+.ha-btn[disabled],.ha-btn[aria-disabled="true"]{opacity:.45;cursor:default;transform:none}
+.ha-btn-row{display:flex;gap:var(--home-s2);margin:var(--home-s3) 0}
+.ha-btn-row>*{flex:1;min-width:0}
+.ha-btn-stack{display:grid;gap:var(--home-s2);margin:var(--home-s3) 0}
+
+/* ---------- Segmented control (radios: arrow keys and screen readers for free) ---------- */
+.ha-segmented{display:flex;min-width:0;margin:var(--home-s3) 0;padding:2px;border:0;border-radius:10px;background:var(--home-fill)}
+.ha-segmented legend{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+.ha-seg{position:relative;flex:1 1 0;min-width:0;display:flex;cursor:pointer}
+.ha-seg input{position:absolute;inset:0;width:100%;height:100%;margin:0;opacity:0;cursor:pointer}
+.ha-seg span{position:relative;z-index:0;display:flex;align-items:center;justify-content:center;width:100%;min-height:40px;padding:0 var(--home-s2);
+  color:var(--home-ink-2);font-size:var(--home-t-small);font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ha-seg span::before{content:"";position:absolute;inset:0;z-index:-1;border-radius:8px;transition:background-color var(--home-d-fast) linear,box-shadow var(--home-d-fast) linear,transform var(--home-d-fast) var(--home-ease)}
+.ha-seg input:checked+span{color:var(--home-ink);font-weight:600}
+.ha-seg input:checked+span::before{background:var(--home-surface);box-shadow:var(--home-shadow-thumb)}
+.ha-seg input:checked:active+span::before{transform:scale(.96)}
+.ha-seg input:focus-visible+span::before{outline:2px solid var(--home-focus);outline-offset:0}
+/* the segmented track is 44px with its padding, so each segment is still a 44px target */
+.ha-segmented{min-height:44px}
+
+/* ---------- Switch ---------- */
+.ha-switch{-webkit-appearance:none;appearance:none;position:relative;flex:none;width:51px;height:31px;margin:0;border-radius:var(--home-r-full);
+  background:var(--home-fill-strong);box-shadow:inset 0 0 0 1px var(--home-control);cursor:pointer;
+  transition:background-color var(--home-d-med) var(--home-ease),box-shadow var(--home-d-med) linear}
+.ha-switch::before{content:"";position:absolute;top:2px;left:2px;width:27px;height:27px;border-radius:50%;background:#fff;
+  box-shadow:0 2px 4px rgb(29 29 31 / .2),0 0 0 .5px rgb(29 29 31 / .06);transition:transform var(--home-d-med) var(--home-ease-ios),width var(--home-d-fast) var(--home-ease)}
+.ha-switch:checked{background:var(--home-accent);box-shadow:none}
+.ha-switch:checked::before{transform:translateX(20px)}
+.ha-switch:active::before{width:32px}
+.ha-switch:checked:active::before{transform:translateX(15px)}
+.ha-switch:disabled{opacity:.45;cursor:default}
+
+/* ---------- Chips (filters and quick picks; one row that scrolls sideways) ---------- */
+.ha-chips{display:flex;gap:var(--home-s2);margin:var(--home-s2) calc(-1 * var(--home-gutter)) var(--home-s3);padding:0 var(--home-gutter);
+  overflow-x:auto;overscroll-behavior-x:contain;scroll-snap-type:x proximity;scroll-padding-inline:var(--home-gutter);scrollbar-width:none}
+.ha-chips::-webkit-scrollbar{display:none}
+.ha-chips--wrap{flex-wrap:wrap;margin-inline:0;padding-inline:0;overflow:visible}
+.ha-chip{position:relative;z-index:0;flex:none;display:inline-flex;align-items:center;gap:6px;min-height:44px;padding:0 14px;scroll-snap-align:start;
+  border:0;background:none;color:var(--home-ink);font-size:var(--home-t-small);font-weight:500;white-space:nowrap;cursor:pointer}
+.ha-chip::before{content:"";position:absolute;inset:5px 0;z-index:-1;border-radius:var(--home-r-full);background:var(--home-surface);box-shadow:inset 0 0 0 1px var(--home-control);
+  transition:background-color var(--home-d-fast) linear,transform var(--home-d-fast) var(--home-ease)}
+.ha-chip:active::before{background:var(--home-pressed);transform:scale(.96)}
+.ha-chip[aria-pressed="true"]{color:var(--home-accent);font-weight:600}
+.ha-chip[aria-pressed="true"]::before{background:var(--home-accent-soft);box-shadow:inset 0 0 0 1.5px var(--home-accent)}
+/* the tick is the shape cue for "on" */
+.ha-chip[aria-pressed="true"]::after{content:"";order:-1;width:10px;height:5px;margin:-3px 1px 0 0;border:solid currentColor;border-width:0 0 2px 2px;transform:rotate(-45deg)}
+.ha-chip:focus-visible{outline:none}
+.ha-chip:focus-visible::before{outline:2px solid var(--home-focus);outline-offset:1px}
+.ha-chip-count{color:var(--home-muted);font-weight:500;font-variant-numeric:tabular-nums}
+
+/* ---------- Badges and pills ---------- */
+.ha-badge{display:inline-flex;align-items:center;gap:5px;min-height:24px;padding:0 8px;border-radius:var(--home-r-xs);
+  background:var(--home-fill);color:var(--home-ink-2);font-size:var(--home-t-label);font-weight:600;line-height:1;white-space:nowrap}
+.ha-badge--accent{background:var(--home-accent-soft);color:var(--home-accent)}
+.ha-badge--ok{background:var(--home-ok-bg);color:var(--home-ok)}
+.ha-badge--warn{background:var(--home-warn-bg);color:var(--home-warn)}
+.ha-badge--bad{background:var(--home-bad-bg);color:var(--home-bad)}
+/* status badges carry a shape as well as a word: ok a tick, warn a clock-like ring, bad a filled dot */
+.ha-badge--ok::before{content:"";width:8px;height:4px;margin:-3px 1px 0 0;border:solid currentColor;border-width:0 0 1.75px 1.75px;transform:rotate(-45deg)}
+.ha-badge--warn::before{content:"";width:7px;height:7px;border-radius:50%;box-shadow:inset 0 0 0 1.75px currentColor}
+.ha-badge--bad::before{content:"";width:7px;height:7px;border-radius:50%;background:currentColor}
+.ha-pill{display:inline-flex;align-items:center;gap:6px;min-height:30px;padding:0 12px;border-radius:var(--home-r-full);background:var(--home-fill);
+  color:var(--home-ink);font-size:var(--home-t-small);font-weight:600;font-variant-numeric:tabular-nums}
+
+/* ---------- Search field ---------- */
+.ha-search{position:relative;display:flex;align-items:center;margin:0 0 var(--home-s3)}
+.ha-search>.ha-icon{position:absolute;left:10px;width:20px;height:20px;color:var(--home-muted);pointer-events:none}
+.ha-search input{display:block;width:100%;min-height:44px;padding:0 var(--home-s3) 0 38px;border:0;border-radius:var(--home-r-md);background:var(--home-fill);
+  color:var(--home-ink);font-size:max(16px,var(--home-t-body));-webkit-appearance:none;appearance:none}
+.ha-search input::placeholder{color:var(--home-placeholder);opacity:1}
+.ha-search input::-webkit-search-cancel-button{-webkit-appearance:none}
+.ha-search input:focus-visible{outline:2px solid var(--home-focus);outline-offset:0}
+.ha-search-clear{position:absolute;right:0;display:grid;place-items:center;width:44px;height:44px;border:0;background:none;color:var(--home-muted);cursor:pointer}
+.ha-search-clear .ha-icon{width:18px;height:18px}
+.ha-search:has(input:placeholder-shown) .ha-search-clear{display:none}
+
+/* ---------- Fields: text, select, date ---------- */
+.ha-field{display:block;margin:0 0 var(--home-s4)}
+.ha-field-label{display:block;margin:0 0 6px;padding:0 var(--home-s1);color:var(--home-ink-2);font-size:var(--home-t-small);font-weight:500}
+.ha-input,.ha-select{display:block;width:100%;min-height:50px;padding:12px 14px;border:0;border-radius:var(--home-r-md);background:var(--home-surface);
+  box-shadow:inset 0 0 0 1px var(--home-control);color:var(--home-ink);font-size:max(16px,var(--home-t-body));line-height:1.35;-webkit-appearance:none;appearance:none}
+.ha-input::placeholder{color:var(--home-placeholder);opacity:1}
+.ha-input:focus-visible,.ha-select:focus-visible{outline:none;box-shadow:inset 0 0 0 2px var(--home-focus)}
+.ha-input[aria-invalid="true"]{box-shadow:inset 0 0 0 2px var(--home-bad)}
+textarea.ha-input{min-height:110px;resize:vertical}
+input[type=date].ha-input{min-width:0;text-align:left}
+input[type=date].ha-input::-webkit-date-and-time-value{text-align:left}
+.ha-select{padding-right:40px;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23636368' stroke-width='1.75' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m7 10 5 5 5-5'/%3E%3C/svg%3E");
+  background-repeat:no-repeat;background-position:right 12px center;background-size:20px}
+.ha-field-hint{margin:6px 0 0;padding:0 var(--home-s1);color:var(--home-muted);font-size:var(--home-t-small)}
+.ha-field-error{display:flex;align-items:center;gap:6px;margin:6px 0 0;padding:0 var(--home-s1);color:var(--home-bad);font-size:var(--home-t-small)}
+.ha-field-error .ha-icon{width:18px;height:18px}
+/* inputs inside a grouped row (label left, value right), as in iOS Settings */
+.ha-row .ha-input--inline{width:auto;min-height:44px;max-width:55%;padding:0;background:none;box-shadow:none;text-align:right;color:var(--home-ink-2)}
+.ha-row .ha-input--inline:focus-visible{outline:2px solid var(--home-focus);outline-offset:2px;border-radius:4px}
+
+/* ---------- Stepper ---------- */
+.ha-stepper{flex:none;display:inline-flex;align-items:center;border-radius:var(--home-r-full);background:var(--home-fill)}
+.ha-stepper button{display:grid;place-items:center;width:44px;height:44px;border:0;border-radius:50%;background:none;color:var(--home-accent);cursor:pointer;transition:background-color var(--home-d-press) linear}
+.ha-stepper button:active{background:var(--home-pressed-bg)}
+.ha-stepper button[aria-disabled="true"]{color:var(--home-muted);opacity:.55;cursor:default}
+.ha-stepper button .ha-icon{width:20px;height:20px}
+.ha-stepper output{min-width:2.2em;text-align:center;font-weight:600;font-variant-numeric:tabular-nums}
+
+/* ---------- Progress ---------- */
+.ha-progress{display:block;width:100%;height:6px;margin:0;border:0;border-radius:var(--home-r-full);background:var(--home-fill);color:var(--home-accent);overflow:hidden;-webkit-appearance:none;appearance:none}
+.ha-progress::-webkit-progress-bar{background:var(--home-fill);border-radius:var(--home-r-full)}
+.ha-progress::-webkit-progress-value{background:var(--home-accent);border-radius:var(--home-r-full);transition:width var(--home-d-med) var(--home-ease)}
+.ha-progress::-moz-progress-bar{background:var(--home-accent);border-radius:var(--home-r-full)}
+.ha-progress--ok::-webkit-progress-value{background:var(--home-ok)}
+.ha-progress--ok::-moz-progress-bar{background:var(--home-ok)}
+.ha-progress-label{display:flex;justify-content:space-between;gap:var(--home-s3);margin:0 0 6px;font-size:var(--home-t-small);color:var(--home-muted)}
+
+/* ---------- Simple charts: horizontal bars and columns (always with the numbers as text) ---------- */
+.ha-chart{display:grid;gap:var(--home-s3);margin:0;padding:0;list-style:none}
+.ha-chart-row{display:grid;grid-template-columns:minmax(0,7.5em) minmax(0,1fr) auto;align-items:center;gap:var(--home-s3);font-size:var(--home-t-small)}
+.ha-chart-label{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--home-ink-2)}
+.ha-chart-track{height:10px;border-radius:var(--home-r-full);background:var(--home-fill);overflow:hidden}
+.ha-chart-fill{display:block;width:var(--v,0%);height:100%;border-radius:inherit;background:var(--home-accent);transform-origin:left;animation:ha-grow 600ms var(--home-ease-out) both}
+.ha-chart-fill--muted{background:var(--home-control)}
+.ha-chart-value{min-width:2ch;text-align:right;font-weight:600;font-variant-numeric:tabular-nums}
+.ha-cols{display:grid;grid-auto-flow:column;grid-auto-columns:1fr;align-items:end;gap:var(--home-s2);height:140px;margin:0;padding:0;list-style:none}
+.ha-col{display:flex;flex-direction:column;align-items:center;justify-content:flex-end;gap:6px;height:100%;min-width:0;font-size:var(--home-t-label);color:var(--home-muted)}
+.ha-col-bar{display:block;width:100%;max-width:28px;height:var(--v,0%);min-height:3px;border-radius:6px 6px 3px 3px;background:var(--home-accent-soft-press);transform-origin:bottom;animation:ha-rise 600ms var(--home-ease-out) both}
+.ha-col.is-current .ha-col-bar{background:var(--home-accent)}
+.ha-col.is-current{color:var(--home-ink);font-weight:600}
+.ha-col-value{font-variant-numeric:tabular-nums;color:var(--home-ink-2)}
+@keyframes ha-grow{from{transform:scaleX(0)}}
+@keyframes ha-rise{from{transform:scaleY(0)}}
+
+/* ---------- Bottom sheet (<dialog>, opened by haSheet) ---------- */
+.ha-sheet{position:fixed;inset:auto 0 0 0;width:100%;max-width:640px;max-height:92dvh;margin:0 auto;padding:0;border:0;
+  border-radius:var(--home-r-xl) var(--home-r-xl) 0 0;background:var(--home-surface);color:var(--home-ink);box-shadow:var(--home-shadow-float);
+  display:flex;flex-direction:column;overflow:hidden;transform:translateY(100%);
+  transition:transform var(--home-d-sheet) var(--home-ease-ios),overlay var(--home-d-sheet) allow-discrete,display var(--home-d-sheet) allow-discrete}
+.ha-sheet:not([open]){display:none}
+.ha-sheet[open]{transform:none}
+@starting-style{.ha-sheet[open]{transform:translateY(100%)}}
+.ha-sheet::backdrop{background:var(--home-backdrop);opacity:0;transition:opacity var(--home-d-sheet) linear,overlay var(--home-d-sheet) allow-discrete,display var(--home-d-sheet) allow-discrete}
+.ha-sheet[open]::backdrop{opacity:1}
+@starting-style{.ha-sheet[open]::backdrop{opacity:0}}
+.ha-sheet.is-dragging{transition:none}
+.ha-sheet--medium{height:60dvh}
+.ha-sheet--large{height:92dvh}
+.ha-sheet--grey,.ha-sheet--grey .ha-sheet-foot{background:var(--home-bg)}
+.ha-sheet-grabber{flex:none;display:block;width:36px;height:5px;margin:6px auto 0;border-radius:var(--home-r-full);background:#c7c7cc}
+.ha-sheet-head{flex:none;display:grid;grid-template-columns:minmax(72px,1fr) auto minmax(72px,1fr);align-items:center;min-height:52px;padding:0 var(--home-s2);touch-action:none}
+.ha-sheet-head>:first-child{justify-self:start}
+.ha-sheet-head>:last-child{justify-self:end}
+.ha-sheet-title{grid-column:2;margin:0;font-size:var(--home-t-body);font-weight:600;text-align:center}
+.ha-sheet-title:focus{outline:none}
+.ha-sheet-body{flex:1;overflow-y:auto;overscroll-behavior:contain;padding:var(--home-s2) var(--home-gutter) var(--home-s5)}
+.ha-sheet-foot{flex:none;padding:var(--home-s3) var(--home-gutter) calc(var(--home-s3) + var(--ha-safe-b));background:var(--home-surface);box-shadow:0 -.5px 0 var(--home-line)}
+.ha-sheet-foot .ha-btn-row{margin:0}
+@media (min-width:768px){
+  .ha-sheet{inset:50% 0 auto 0;border-radius:var(--home-r-xl);max-height:80dvh;transform:translateY(-50%);opacity:1;
+    transition:opacity var(--home-d-med) var(--home-ease),transform var(--home-d-med) var(--home-ease),overlay var(--home-d-med) allow-discrete,display var(--home-d-med) allow-discrete}
+  .ha-sheet[open]{transform:translateY(-50%)}
+  @starting-style{.ha-sheet[open]{transform:translateY(-48%) scale(.97);opacity:0}}
+  .ha-sheet--medium,.ha-sheet--large{height:auto}
+  .ha-sheet-grabber{display:none}
+}
+
+/* ---------- Toast (haToast) ---------- */
+.ha-toast{position:fixed;z-index:60;left:50%;bottom:calc(var(--home-s4) + var(--ha-safe-b));display:flex;align-items:center;gap:var(--home-s2);
+  width:max-content;max-width:min(560px,calc(100vw - 2 * var(--home-gutter)));min-height:48px;padding:4px 4px 4px var(--home-s4);border-radius:var(--home-r-md);
+  background:var(--home-toast);color:var(--home-on-toast);box-shadow:var(--home-shadow-float);font-size:var(--home-t-small);line-height:1.35;
+  opacity:0;transform:translate(-50%,calc(100% + 24px));pointer-events:none;
+  transition:opacity var(--home-d-fast) linear,transform var(--home-d-med) var(--home-ease-in)}
+.ha-has-tabbar .ha-toast{bottom:calc(var(--ha-tab-h) + var(--ha-safe-b) + var(--home-s3))}
+.ha-has-toolbar .ha-toast{bottom:calc(68px + var(--ha-safe-b) + var(--home-s3))}
+.ha-toast.is-visible{opacity:1;transform:translate(-50%,0);pointer-events:auto;transition:opacity var(--home-d-fast) linear,transform var(--home-d-sheet) var(--home-ease-out)}
+.ha-toast-text{flex:1;padding:8px 0}
+.ha-toast-action{flex:none;min-height:44px;padding:0 14px;border:0;border-radius:var(--home-r-sm);background:transparent;color:var(--home-toast-action);font-weight:600;cursor:pointer}
+.ha-toast-action:active{background:rgb(255 255 255 / .12)}
+.ha-toast-action:focus-visible{outline-color:var(--home-on-toast)}
+.ha-toast:not(:has(.ha-toast-action)){padding-right:var(--home-s4)}
+
+/* ---------- Empty state ---------- */
+.ha-empty{display:flex;flex-direction:column;align-items:center;gap:var(--home-s2);padding:var(--home-s10) var(--home-s6);text-align:center}
+.ha-empty-icon{display:grid;place-items:center;width:64px;height:64px;margin-bottom:var(--home-s2);border-radius:50%;background:var(--home-fill);color:var(--home-muted)}
+.ha-empty-icon .ha-icon{width:30px;height:30px}
+.ha-empty-title{margin:0;font-size:var(--home-t-title2);font-weight:700;line-height:1.25;letter-spacing:-.01em}
+.ha-empty-text{margin:0 0 var(--home-s3);max-width:30ch;color:var(--home-muted);font-size:var(--home-t-small);line-height:1.5}
+
+/* ---------- Skeleton (no spinners) ---------- */
+.ha-skeleton{display:block;height:14px;border-radius:var(--home-r-xs);
+  background:linear-gradient(90deg,var(--home-fill) 0 40%,#f4f4f7 50%,var(--home-fill) 60% 100%) 0 0/300% 100%;animation:ha-shimmer 1.4s linear infinite}
+.ha-skeleton--line{width:70%}
+.ha-skeleton--short{width:40%;margin-top:6px}
+.ha-skeleton--thumb{flex:none;width:44px;height:44px;border-radius:var(--home-r-sm)}
+@keyframes ha-shimmer{from{background-position:100% 0}to{background-position:0 0}}
+@media (prefers-reduced-motion:reduce){.ha-skeleton{animation:none;background:var(--home-fill)}}
+
+/* ---------- Version lines (haVersion): the end of every settings screen ---------- */
+.ha-version{margin:var(--home-s8) 0 0;padding:0 var(--home-s4);color:var(--home-muted);font-size:var(--home-t-small);line-height:1.45;text-align:center}
+.ha-version-text{margin:0;font-variant-numeric:tabular-nums}
+.ha-version-btn{display:inline-flex;align-items:center;min-height:44px;padding:0 var(--home-s2);border:0;background:none;color:var(--home-accent);font:inherit;
+  text-decoration:underline;text-decoration-color:var(--home-line-strong);text-underline-offset:3px;cursor:pointer}
+.ha-version-btn[disabled]{color:var(--home-muted);cursor:default}
+.ha-version-msg{margin:0}
+.ha-version-msg:empty{display:none}
+
+/* ---------- Screen transitions (haGo, View Transitions API) ---------- */
+@media (prefers-reduced-motion:no-preference){
+  html[data-ha-nav="push"]::view-transition-old(root){animation:ha-push-out var(--home-d-push) var(--home-ease-ios) both}
+  html[data-ha-nav="push"]::view-transition-new(root){animation:ha-push-in var(--home-d-push) var(--home-ease-ios) both}
+  html[data-ha-nav="pop"]::view-transition-old(root){animation:ha-pop-out var(--home-d-push) var(--home-ease-ios) both}
+  html[data-ha-nav="pop"]::view-transition-new(root){animation:ha-pop-in var(--home-d-push) var(--home-ease-ios) both}
+  html[data-ha-nav="tab"]::view-transition-old(root),html[data-ha-nav="tab"]::view-transition-new(root){animation-duration:var(--home-d-fast)}
+  html[data-ha-nav="push"] .ha-tabbar,html[data-ha-nav="pop"] .ha-tabbar{view-transition-name:ha-tabbar}
+}
+@keyframes ha-push-in{from{transform:translateX(100%)}}
+@keyframes ha-push-out{to{transform:translateX(-30%);opacity:.7}}
+@keyframes ha-pop-in{from{transform:translateX(-30%);opacity:.7}}
+@keyframes ha-pop-out{to{transform:translateX(100%)}}
+
+/* ---------- Hover: mouse only, never sticky on touch ---------- */
+@media (hover:hover) and (pointer:fine){
+  a.ha-row:hover,button.ha-row:hover,label.ha-row:hover{background:var(--home-surface-2)}
+  .ha-btn--primary:hover{background:var(--home-accent-press)}
+  .ha-btn:not([class*="ha-btn--"]):hover,.ha-btn--secondary:hover{background:var(--home-accent-soft-press)}
+  .ha-btn--outline:hover,.ha-btn--quiet:hover{background:var(--home-pressed)}
+  .ha-btn--plain:hover,.ha-bar-btn:hover{background:var(--home-pressed-bg)}
+  .ha-tab:not([aria-current="page"]):not(.ha-tab--action):hover .ha-tab-icon{background:var(--home-pressed-bg)}
+  .ha-chip:hover::before{background:var(--home-pressed)}
+  a.ha-card:hover,button.ha-card:hover{background:var(--home-surface-2)}
+}
+
+/* ---------- Larger screens ---------- */
+@media (min-width:768px){
+  .ha-large-title{margin-top:var(--home-s4)}
+}
+@media (min-width:1024px){
+  .ha-has-tabbar{--ha-rail:96px}
+  body.ha-has-tabbar{padding-left:var(--ha-rail)}
+  .ha-has-tabbar .ha-main{padding-bottom:var(--home-s8)}
+  .ha-tabbar{top:0;right:auto;width:var(--ha-rail);align-items:flex-start;padding:calc(var(--ha-safe-t) + var(--home-s6)) 0 var(--ha-safe-b) var(--ha-safe-l);box-shadow:.5px 0 0 var(--home-line)}
+  .ha-tabbar-inner{grid-auto-flow:row;grid-auto-rows:auto;gap:var(--home-s3);max-width:none}
+  .ha-tab{min-height:60px}
+  .ha-tab--action{order:-1;margin-bottom:var(--home-s3)}
+  .ha-tab--action .ha-tab-icon{margin-top:0}
+  .ha-has-tabbar .ha-toast{bottom:calc(var(--home-s6) + var(--ha-safe-b));left:calc(50% + var(--ha-rail) / 2)}
+}
+@media print{.ha-tabbar,.ha-toolbar,.ha-bar,.ha-toast{display:none}}
+
+/* the hidden attribute always wins over a kit component's display */
+[class^="ha-"][hidden],[class*=" ha-"][hidden]{display:none!important}
