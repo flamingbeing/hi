@@ -14,7 +14,7 @@ Lasting decisions and how to test. What's going on now: [STATUS.md](STATUS.md). 
   list suggests anything out, at or below its "on the list when down to", or due to run out within a week.
 - **Photos** are shrunk to about 480px JPEG data URLs inside the item (fits Firestore's 1 MB document limit; no
   Storage bucket to pay for or secure).
-- **Shops:** FairPrice and Sheng Siong have no public product API and block cross-site requests, so the app has its own
+- **Shops:** items link to FairPrice, Sheng Siong, Cold Storage and Shopee search (`SHOPS` in `js/logic.js`; Cold Storage and Shopee added 16 Oct 2026 at the owner's request). FairPrice and Sheng Siong have no public product API and block cross-site requests, so the app has its own
   list of common Singapore goods (`js/catalogue.js`) and links to each shop's search. Barcodes go to Open Food Facts
   (open, CORS, patchy for Singapore; an unknown barcode is remembered once the item is named). iPhone has no built-in
   barcode reader, so a ZXing WebAssembly polyfill loads from jsDelivr on the first scan (then works offline).

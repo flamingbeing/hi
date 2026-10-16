@@ -81,6 +81,9 @@ assert.equal(L.score('soy milk', 'Light soy sauce'), 0);
 assert.ok(L.score('kikk', 'Kikkoman soy') > 0);
 assert.equal(L.fairpriceUrl('Kaya & butter'), 'https://www.fairprice.com.sg/search?query=Kaya%20%26%20butter');
 assert.equal(L.shengSiongUrl('milo'), 'https://shengsiong.com.sg/search/milo');
+assert.equal(L.coldStorageUrl('kaya toast'), 'https://coldstorage.com.sg/search?q=kaya%20toast');
+assert.equal(L.shopeeUrl('milo'), 'https://shopee.sg/search?keyword=milo');
+assert.deepEqual(L.SHOPS.map(s => s.name), ['FairPrice', 'Sheng Siong', 'Cold Storage', 'Shopee']);
 
 // CSV quotes commas
 assert.match(L.toCsv([{ id: '1', name: 'Eggs, large', brand: 'Pasar', batches: [{ id: 'b', qty: 2, expiry: '2026-10-20' }] }], T), /"Eggs, large",Pasar,,,,2,2026-10-20,4 days left,/);

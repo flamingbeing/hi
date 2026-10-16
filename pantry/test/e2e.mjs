@@ -134,6 +134,10 @@ try {
     ok(await page.locator('#h-stock .ha-num').textContent() === '1', 'Used 1 takes one out');
     await toast(page).locator('.ha-toast-action').click(); await settle(page);
     ok(await page.locator('#h-stock .ha-num').textContent() === '2', 'Undo puts it back');
+    // Buy online: one search link per shop, opening in a new tab
+    const shops = await page.$$eval('section[aria-labelledby="h-online"] a.ha-row', as => as.map(a => [a.querySelector('.ha-row-title').textContent, a.href, a.target]));
+    ok(shops.map(x => x[0]).join('|') === 'Search FairPrice|Search Sheng Siong|Search Cold Storage|Search Shopee', 'four shop links');
+    ok(shops.every(x => x[2] === '_blank') && /^https:\/\/shopee\.sg\/search\?keyword=Kikkoman/.test(shops[3][1]) && /^https:\/\/coldstorage\.com\.sg\/search\?q=/.test(shops[2][1]), 'shop links search for the item');
     await axe(page, 'item');
     await shot(page, '03-item', true);
 
