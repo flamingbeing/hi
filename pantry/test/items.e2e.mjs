@@ -11,6 +11,8 @@
 //     above the finger, the target lit, a label saying where it lands, Escape cancels, its own place is ignored, auto-scroll at the
 //     edges), My order (reorder in a category: one number on one item; the first reorder numbers the category), and the keyboard and
 //     screen-reader ways (arrow keys on the grip, its sheet with Move up, Move down and Move to…);
+//   - Bulk edit (#/bulk): filters, Select all matching, every field Unchanged, Review (N items will change, skips, warnings, before and
+//     after), Save one batch with one Undo, conversions that keep the stock, dates shifted or set, the shopping list, delete;
 //   - axe on every state added here.
 // Needs Playwright (PLAYWRIGHT_PATH) and axe-core (AXE_PATH, or node_modules/axe-core found from the repo or cwd).
 const { chromium } = await import(process.env.PLAYWRIGHT_PATH || '/opt/node22/lib/node_modules/playwright/index.mjs');
@@ -609,6 +611,127 @@ try {
     ok(parseFloat(tr) <= 0.001, 'the ghost has no animation: ' + tr);
     await touch('touchEnd'); await settle(page);
     eq((await itemNamed(page, 'Kaya')).location, 'Basement store');
+    await ctx.close();
+    ok(errors.length === 0, 'no errors: ' + errors.join(' | '));
+  }
+
+  // ---------- Bulk edit: pick, choose (every field Unchanged), Review, Save one batch, one Undo ----------
+  {
+    const { ctx, page, errors } = await open(BASE + '?demo#/items', { height: 3200 });   // (the whole screen on view: the fixed tab bar never sits over a row, which axe's target-size check would count)
+    const ymdPlus = n => { const d = new Date(); d.setDate(d.getDate() + n); return d.toLocaleDateString('sv-SE'); };
+    const bulkCount = () => page.locator('#pa-bcount').textContent();
+    const itemOf = name => page.evaluate(n => { const it = [...window.__pantry.S.items.values()].find(i => i.name === n); return it && { location: it.location, category: it.category, measure: it.measure || null, level: it.level || null, removed: !!it.removedAt, exp: it.batches.map(b => b.expiry), qty: it.batches.map(b => b.qty) }; }, name);
+    const openBulk = async () => { await page.goto(BASE + '?demo#/items'); await page.locator('.ha-large-title').waitFor(); await settle(page); await page.click('[data-act="bulk-open"]'); await settle(page); };
+    await openBulk();
+    eq(hash(page), '#/bulk'); ok(await page.locator('.ha-back').isVisible(), 'a back button to Items');
+    eq(await bulkCount(), 'None selected');
+    ok(await page.locator('#pa-bulk-list input.pa-bsel').count() === 13, 'a checkbox row for every item');
+    for (const id of ['place', 'category', 'mode', 'expiry', 'list', 'bin']) eq(await page.locator(`#pa-bk-${id}`).inputValue(), '', `${id} starts Unchanged`);
+    eq(await page.locator('#pa-bk-place option:checked').textContent(), 'Unchanged');
+    // filters: search, a place chip, a category; Select all matching is the whole result
+    await page.fill('#pa-bq', 'sauce'); await settle(page);
+    eq(await page.locator('#pa-bulk-list .pa-item').count(), 3, 'search narrows the list');
+    await page.click('[data-act="bk-all"]'); eq(await bulkCount(), '3 selected');
+    await page.fill('#pa-bq', ''); await settle(page);
+    eq(await bulkCount(), '3 selected', 'the selection is kept when the list changes');
+    await page.fill('#pa-bq', 'zzz'); await settle(page);
+    eq(await bulkCount(), '3 selected (3 not shown)'); await page.fill('#pa-bq', ''); await settle(page);
+    await page.click('[data-act="bk-none"]'); eq(await bulkCount(), 'None selected');
+    await page.click('[data-act="bk-place"][data-v="Fridge"]'); await settle(page);
+    eq(await page.locator('#pa-bulk-list .pa-item').count(), 4);
+    await page.selectOption('#pa-bk-cat', 'Dairy & eggs'); await settle(page);
+    eq(await page.locator('#pa-bulk-list .pa-item').count(), 2, 'place and category together');
+    await page.click('[data-act="bk-all"]'); eq(await bulkCount(), '2 selected');
+    await page.selectOption('#pa-bk-cat', ''); await page.click('[data-act="bk-place"][data-v=""]'); await settle(page);
+    await page.click('[data-act="bk-none"]');
+    // Review needs items and a choice
+    await page.click('[data-act="bk-review"]'); ok(/Select some items first/.test(await toast(page).textContent()));
+    await page.locator('#pa-bulk-list li', { hasText: 'Kaya' }).locator('.pa-item').tap();
+    await page.locator('#pa-bulk-list li', { hasText: 'Fresh milk' }).locator('.pa-item').tap();
+    await page.locator('#pa-bulk-list li', { hasText: 'Eggs (10)' }).locator('.pa-item').tap();
+    eq(await bulkCount(), '3 selected');
+    await page.click('[data-act="bk-review"]'); ok(/Choose what to change first/.test(await toast(page).textContent()), 'nothing chosen yet');
+    await page.selectOption('#pa-bk-place', 'set');
+    await page.click('[data-act="bk-review"]'); ok(/Choose the place/.test(await toast(page).textContent()), 'an incomplete choice says what is missing');
+    await page.selectOption('#pa-bk-place-to', 'Basement store');
+    await page.selectOption('#pa-bk-category', 'set'); await page.selectOption('#pa-bk-category-to', 'Other');
+    await shot(page, 'p07-bulk');
+    await axe(page, 'Bulk edit');
+    await page.click('[data-act="bk-review"]'); await settle(page);
+    eq(await page.locator('.ha-large-sub').textContent(), '3 items will change');
+    eq(await page.locator('.ha-list').first().locator('.ha-row-title').allTextContents(), ['Place: move to Basement store', 'Category: change to Other']);
+    ok(await page.locator('.pa-warn', { hasText: 'replaces what these items have now' }).count() === 1, 'warns it replaces');
+    eq(await page.locator('section[aria-labelledby="h-bk-samples"] li').count(), 3, 'up to three before and after');
+    ok(/Fridge/.test(await page.locator('section[aria-labelledby="h-bk-samples"] li').first().textContent()) && /Basement store/.test(await page.locator('section[aria-labelledby="h-bk-samples"] li').first().textContent()), 'before then after');
+    eq(await page.evaluate(() => document.activeElement.id), 'pa-bulk-h', 'focus moves to the heading of the step');
+    await shot(page, 'p08-bulk-review');
+    await axe(page, 'Bulk edit: Review');
+    // Back keeps the choices
+    await page.click('[data-act="bk-back"]'); await settle(page);
+    eq(await page.locator('#pa-bk-place-to').inputValue(), 'Basement store', 'Back keeps what was chosen'); eq(await bulkCount(), '3 selected');
+    await page.click('[data-act="bk-review"]'); await settle(page);
+    // Save: ONE batch, ONE toast, back on Items
+    await page.click('[data-act="bk-save"]'); await settle(page);
+    eq(hash(page), '#/items'); ok(/3 items changed/.test(await toast(page).textContent()), await toast(page).textContent());
+    for (const n of ['Kaya', 'Fresh milk', 'Eggs (10)']) { const o = await itemOf(n); eq([o.location, o.category], ['Basement store', 'Other'], n); }
+    // someone moved Fresh milk since: Undo leaves it and says so
+    await page.evaluate(() => { const it = [...window.__pantry.S.items.values()].find(i => i.name === 'Fresh milk'); window.__pantry.S.items.set(it.id, { ...it, location: 'Freezer' }); });
+    await page.locator('.ha-toast-action').click(); await settle(page);
+    eq([(await itemOf('Kaya')).location, (await itemOf('Kaya')).category], ['Fridge', 'Breakfast & spreads'], 'Undo put Kaya back');
+    eq((await itemOf('Fresh milk')).location, 'Freezer', 'the one changed since is left');
+    ok(/1 changed since, left as it is/.test(await toast(page).textContent()), await toast(page).textContent());
+
+    // best-before: shift by days; items with no stock are skipped and counted
+    await openBulk();
+    await page.click('[data-act="bk-all"]');
+    await page.selectOption('#pa-bk-expiry', 'shift'); await page.fill('#pa-bk-days', '10');
+    const milkBefore = (await itemOf('Fresh milk')).exp[0];
+    await page.click('[data-act="bk-review"]'); await settle(page);
+    ok(/skipped for best-before: nothing in stock/.test(await page.locator('.ha-panel').allTextContents().then(a => a.join('|'))), 'items with nothing in stock are skipped, and it says so');
+    ok(!(await page.locator('.pa-warn').count()), 'shifting a date replaces nothing: no warning');
+    await page.click('[data-act="bk-save"]'); await settle(page);
+    eq((await itemOf('Fresh milk')).exp[0], ymdPlus(13), 'ten days later (milk was 3 days out)');
+    await page.locator('.ha-toast-action').click(); await settle(page);
+    eq((await itemOf('Fresh milk')).exp[0], milkBefore, 'Undo');
+    // a set date, and tracking mode with its warning, together
+    await openBulk();
+    await page.locator('#pa-bulk-list li', { hasText: 'Sardines' }).locator('.pa-item').tap();
+    await page.selectOption('#pa-bk-mode', 'level');
+    await page.selectOption('#pa-bk-expiry', 'set'); await page.fill('#pa-bk-date', '2027-05-05');
+    await page.click('[data-act="bk-review"]'); await settle(page);
+    ok(/1 item will stop counting/.test(await page.locator('.pa-warn').first().textContent()), 'converting to Plenty, low, out warns that counts are hidden');
+    ok(/kept as Plenty, Low, Out, so no dates/.test(await page.locator('.ha-panel').allTextContents().then(a => a.join('|'))), 'and its date is skipped');
+    await page.click('[data-act="bk-save"]'); await settle(page);
+    let sd = await itemOf('Sardines in tomato sauce'); eq([sd.measure, sd.level, sd.qty], ['level', 'plenty', [4]], 'converted; the stock is kept, hidden');
+    await page.locator('.ha-toast-action').click(); await settle(page);
+    sd = await itemOf('Sardines in tomato sauce'); eq([sd.measure, sd.level, sd.qty], [null, null, [4]], 'Undo is exact');
+    // shopping list, and what was already there
+    await openBulk();
+    await page.locator('#pa-bulk-list li', { hasText: 'Kaya' }).locator('.pa-item').tap(); await page.locator('#pa-bulk-list li', { hasText: 'Eggs (10)' }).locator('.pa-item').tap();
+    await page.selectOption('#pa-bk-list', 'add');
+    const lines0 = await page.evaluate(() => [...window.__pantry.S.shop.values()].filter(m => !m.removedAt).length);
+    await page.click('[data-act="bk-review"]'); await settle(page); await page.click('[data-act="bk-save"]'); await settle(page);
+    eq(await page.evaluate(() => [...window.__pantry.S.shop.values()].filter(m => !m.removedAt).length), lines0 + 2);
+    await page.locator('.ha-toast-action').click(); await settle(page);
+    eq(await page.evaluate(() => [...window.__pantry.S.shop.values()].filter(m => !m.removedAt).length), lines0, 'Undo takes the lines off');
+    // delete
+    await openBulk();
+    await page.locator('#pa-bulk-list li', { hasText: 'Milo' }).locator('.pa-item').tap();
+    await page.selectOption('#pa-bk-bin', 'del'); ok(/Delete is done on its own/.test(await page.locator('#pa-bulk-changes').textContent()));
+    await page.click('[data-act="bk-review"]'); await settle(page);
+    eq(await page.locator('.ha-large-sub').textContent(), '1 item will be deleted'); eq(await page.locator('[data-act="bk-save"]').textContent(), 'Delete 1 item');
+    await page.click('[data-act="bk-save"]'); await settle(page);
+    eq((await itemOf('Milo powder')).removed, true);
+    await page.locator('.ha-toast-action').click(); await settle(page);
+    eq((await itemOf('Milo powder')).removed, false, 'Undo restores it');
+    // from the selection bar: the ticked items come along
+    await page.goto(BASE + '?demo#/items'); await page.locator('.ha-large-title').waitFor(); await settle(page);
+    await page.click('#pa-sel-toggle'); await settle(page);
+    await page.locator('#pa-items-list li', { hasText: 'Kaya' }).locator('.pa-item').tap(); await page.locator('#pa-items-list li', { hasText: 'Fresh milk' }).locator('.pa-item').tap();
+    await page.click('[data-act="bulk-open"]'); await settle(page);
+    eq(hash(page), '#/bulk'); eq(await bulkCount(), '2 selected', 'the selection came with it');
+    await page.goBack(); await settle(page);
+    ok(hash(page) === '#/items' && !(await selecting(page)), 'Back from Bulk edit lands on Items: ' + hash(page));
     await ctx.close();
     ok(errors.length === 0, 'no errors: ' + errors.join(' | '));
   }

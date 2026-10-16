@@ -11,6 +11,7 @@ import * as MG from './merge.js';
 import * as SY from './sync.js';
 import * as SEL from './select.js';
 import * as O from './order.js';
+import * as BI from './bulk-items.js';
 import { startDrag } from './drag.js';
 import { openLocal, openMemory, prefs, KINDS, PHOTOS } from './store.js';
 import { sampleData, demoBy, DEMO_FAMILY, DEMO_ME, DEMO_NAMES } from './sample.js';
@@ -33,6 +34,7 @@ const S = {
   backend: null, local: null, mode: DEMO ? 'demo' : 'local', cloud: null, user: null, household: null, pantries: [], lookupFailed: false, lost: null, creating: false, pending: null, localCount: 0,
   q: '', place: '', sort: prefs.get('sort', 'expiry'),
   sel: SEL.newSel(),   // Items: the items selected (by id), while selecting (select.js)
+  bulk: null,   // the Bulk edit screen's state while it is open (filters, ticked items, the chosen changes, the step)
   dragging: false, gripQuiet: 0,   // a drag by the grip is going on (redraws wait); the click that follows a drag isn't a tap
   folded: new Set(prefs.get('folded', []) || []),   // place headings folded shut on Items (Group by place); per phone
   draft: null, dirty: false, pendingRender: false, syncError: false,
@@ -415,7 +417,7 @@ const restock = (it, { qty = 1, expiry = null } = {}) => (L.isStaple(it) ? L.set
 const subOf = it => [it.brand, it.size].filter(Boolean).map(esc).join(' · ');
 const gripIcon = () => `<svg class="pa-grip-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle cx="9" cy="6" r="1.7"/><circle cx="15" cy="6" r="1.7"/><circle cx="9" cy="12" r="1.7"/><circle cx="15" cy="12" r="1.7"/><circle cx="9" cy="18" r="1.7"/><circle cx="15" cy="18" r="1.7"/></svg>`;
 // `grip`: the Items list: a real button after the row, 44 px, that drags the item (or, with a tap, opens its Move sheet).
-function itemRow(it, { sub, trail, select = false, grip = false } = {}) {
+function itemRow(it, { sub, trail, select = false, grip = false, sel = null, attr = 'sel' } = {}) {
   const q = L.totalQty(it), staple = L.isStaple(it);
   const s = sub ?? [staple ? LEVEL_WORD[L.levelOf(it)] : q ? `${q} left` : 'None left', esc(it.location || '')].filter(Boolean).join(' · ');
   const t = trail ?? (staple ? '' : badge(L.nextUseBy(it)));
@@ -424,8 +426,8 @@ function itemRow(it, { sub, trail, select = false, grip = false } = {}) {
     ${t ? `<span class="ha-row-trail">${t}</span>` : ''}`;
   // selecting: the row is a label around a real checkbox (the whole row is the target; no link to open)
   if (select) {
-    const on = SEL.isSel(S.sel, it.id);
-    return `<li data-id="${esc(it.id)}"${grip ? ' class="pa-li"' : ''}><label class="ha-row pa-item pa-item--sel${on ? ' is-selected' : ''}"><input type="checkbox" class="pa-sel" id="pa-sel-${esc(it.id)}" data-sel="${esc(it.id)}"${on ? ' checked' : ''}>${body}</label>${grip ? gripBtn(it) : ''}</li>`;
+    const on = SEL.isSel(sel || S.sel, it.id);
+    return `<li data-id="${esc(it.id)}"${grip ? ' class="pa-li"' : ''}><label class="ha-row pa-item pa-item--sel${on ? ' is-selected' : ''}"><input type="checkbox" class="pa-${attr}" id="pa-${attr}-${esc(it.id)}" data-${attr}="${esc(it.id)}"${on ? ' checked' : ''}>${body}</label>${grip ? gripBtn(it) : ''}</li>`;
   }
   return `<li data-id="${esc(it.id)}"${grip ? ' class="pa-li"' : ''}><a class="ha-row pa-item" href="#/item/${esc(it.id)}" draggable="false">${body}${grip ? '' : chevron()}</a>${grip ? gripBtn(it) : ''}</li>`;
 }
@@ -835,17 +837,25 @@ function finishBulk() { SEL.endSel(S.sel); if (history.state?.paSelect) history.
 
 // Take back a batch (`sent`: what patchMany returned): each item gets the inverse of what was done to it, only if nobody has
 // changed those fields since (logic.js invertOps). `liveOnly`: an item removed since counts as changed (not for undoing a delete).
-function undoBatch(sent, { liveOnly = true } = {}) {
+function undoBatch(sent, { liveOnly = true, lines = [] } = {}) {
   const back = [];
-  let changed = 0;
+  let changed = 0, undone = 0;
+  // shopping lines a bulk edit added: one another phone has ticked or removed since is left as it is
+  const mine = lines.filter(m => { const now = S.shop.get(m.id); return now && !L.isRemoved(now) && !now.done; });
+  if (mine.length) patchLines(mine.map(m => ({ id: m.id, ops: L.removeOps(who()) })));
+  changed += lines.length - mine.length; undone += mine.length;
   for (const x of sent) {
     const now = S.items.get(x.id);
     const inv = now && (!liveOnly || !L.isRemoved(now)) ? L.invertOps(x.ops, x.before, now) : null;
-    if (inv && !L.opsEmpty(inv)) back.push({ id: x.id, ops: inv }); else changed++;
+    if (inv && !L.opsEmpty(inv)) back.push({ id: x.id, ops: inv });
+    // changed since: nothing could be put back, or only some of what was done (another phone changed one of the fields)
+    const want = Object.keys(x.ops.set || {}).filter(k => k !== 'updatedAt' && k !== 'updatedBy').length + (x.ops.del || []).length + Object.keys(x.ops.inc || {}).length;
+    const got = inv ? Object.keys(inv.set || {}).length + (inv.del || []).length + Object.keys(inv.inc || {}).length : 0;
+    if (got < want) changed++;
   }
   if (back.length) patchMany(back);
   redraw();
-  const msg = `${back.length ? 'Undone' : 'Nothing to undo'}${changed ? `: ${changed} changed since, left as ${changed === 1 ? 'it is' : 'they are'}` : ''}`;
+  const msg = `${back.length || undone ? 'Undone' : 'Nothing to undo'}${changed ? `: ${changed} changed since, left as ${changed === 1 ? 'it is' : 'they are'}` : ''}`;
   haToast(msg); haAnnounce(msg);
 }
 // The move itself: one batch, nothing for an item that is already there. { place, sent, same }.
@@ -1020,6 +1030,133 @@ function selAction(act) {
   if (act === 'sel-move') return openMoveTo(list);
   if (act === 'sel-list') return bulkToList(list);
   if (act === 'sel-delete') return bulkDelete(list);
+}
+
+// ---- Bulk edit (#/bulk; bulk-items.js): pick items, choose what to change (every field starts Unchanged), Review, Save ONE batch -----
+
+const bulkState = () => (S.bulk ||= { q: '', place: '', cat: '', sel: SEL.newSel(), ch: BI.none(), step: 'edit', plan: null });
+function openBulk(ids = []) {
+  S.bulk = null; const b = bulkState();
+  SEL.startSel(b.sel); SEL.setMany(b.sel, ids, true);
+  haGo('#/bulk');
+}
+// What the filters let through (the same search and place chips as Items, plus a category), by name.
+function bulkFiltered() {
+  const b = bulkState();
+  return items().filter(i => (!b.place || i.location === b.place) && (!b.cat || (i.category || 'Other') === b.cat) && (!b.q || L.score(b.q, `${i.name} ${i.brand} ${i.category} ${i.barcode || ''}`)))
+    .sort((a, c) => a.name.localeCompare(c.name));
+}
+const bulkChosen = () => SEL.chosen(bulkState().sel, items());
+function bulkList() {
+  const b = bulkState(), list = bulkFiltered();
+  SEL.pruneSel(b.sel, items().map(i => i.id));
+  if (!list.length) return `<div class="ha-empty"><span class="ha-empty-icon">${icon('search')}</span><p class="ha-empty-title">Nothing found</p><p class="ha-empty-text">No items match. Try another word, place or category.</p></div>`;
+  return `<ul class="ha-list">${list.map(i => itemRow(i, { select: true, sel: b.sel, attr: 'bsel' })).join('')}</ul>`;
+}
+function bulkChanges() {
+  const ch = bulkState().ch, { listed, unlisted } = placeChoices();
+  const sel = (id, label, value, opts, extra = '') => `<div class="pa-bk-field"><label class="ha-field"><span class="ha-field-label">${label}</span><select class="ha-select" id="pa-bk-${id}" data-bk="${id}">${opts.map(([v, t]) => `<option value="${esc(v)}"${v === value ? ' selected' : ''}>${esc(t)}</option>`).join('')}</select></label>${extra}</div>`;
+  const placeOpts = [['', 'Choose a place…'], ...[...listed, ...unlisted].map(p => [p, p])];
+  const catOpts = [['', 'Choose a category…'], ...CATEGORIES.map(c => [c, c])];
+  const x = ch.expiry;
+  return `${sel('place', 'Place', ch.place ? 'set' : '', [['', 'Unchanged'], ['set', 'Move to…']],
+      ch.place ? `<label class="ha-field"><span class="ha-field-label">Move to</span><select class="ha-select" id="pa-bk-place-to" data-bk="place-to">${placeOpts.map(([v, t]) => `<option value="${esc(v)}"${v === ch.place.to ? ' selected' : ''}>${esc(t)}</option>`).join('')}</select></label>` : '')}
+    ${sel('category', 'Category', ch.category ? 'set' : '', [['', 'Unchanged'], ['set', 'Change to…']],
+      ch.category ? `<label class="ha-field"><span class="ha-field-label">Change to</span><select class="ha-select" id="pa-bk-category-to" data-bk="category-to">${catOpts.map(([v, t]) => `<option value="${esc(v)}"${v === ch.category.to ? ' selected' : ''}>${esc(t)}</option>`).join('')}</select></label>` : '')}
+    ${sel('mode', 'Kept track of', ch.mode || '', [['', 'Unchanged'], ['count', 'Counting'], ['level', 'Plenty, low, out']])}
+    ${sel('expiry', 'Best-before', x ? x.kind : '', [['', 'Unchanged'], ['shift', 'Move every date by…'], ['set', 'Set one date…']],
+      x?.kind === 'shift' ? `<div class="pa-bk-shift"><label class="ha-field"><span class="ha-field-label">Days</span><input class="ha-input" id="pa-bk-days" data-bk="days" type="number" inputmode="numeric" min="1" max="3650" value="${esc(x.days ?? '')}"></label>
+          <label class="ha-field"><span class="ha-field-label">Which way</span><select class="ha-select" id="pa-bk-dir" data-bk="dir"><option value="later"${x.dir !== 'earlier' ? ' selected' : ''}>Later</option><option value="earlier"${x.dir === 'earlier' ? ' selected' : ''}>Earlier</option></select></label></div>`
+      : x?.kind === 'set' ? `<label class="ha-field"><span class="ha-field-label">Date</span><input class="ha-input" id="pa-bk-date" data-bk="date" type="date" value="${esc(x.date || '')}"></label>` : '')}
+    ${sel('list', 'Shopping list', ch.list ? 'add' : '', [['', 'Unchanged'], ['add', 'Add to the shopping list']])}
+    ${sel('bin', 'Delete', ch.bin ? 'del' : '', [['', 'Unchanged'], ['del', 'Delete these items']], ch.bin ? '<p class="ha-field-hint">Delete is done on its own: any other change you chose is ignored. The items stay in Recently removed for 30 days.</p>' : '')}`;
+}
+function viewBulk() {
+  const b = bulkState();
+  if (b.step === 'review' && b.plan) return viewBulkReview();
+  const all = items();
+  const cats = CATEGORIES.filter(c => all.some(i => (i.category || 'Other') === c));
+  const { listed, unlisted } = placeChoices();
+  const places = [...listed, ...unlisted].filter(l => all.some(i => i.location === l));
+  const chip = (v, label, n) => `<button type="button" class="ha-chip" aria-pressed="${b.place === v}" data-act="bk-place" data-v="${esc(v)}">${esc(label)} <span class="ha-chip-count">${n}</span></button>`;
+  return `<h1 class="ha-large-title">Bulk edit</h1>
+    <p class="ha-large-sub">Pick items, choose what to change, then check it. Nothing is saved until you say so.</p>
+    ${section('Which items', `<div class="ha-search" role="search">${icon('search')}
+        <input type="search" id="pa-bq" placeholder="Search the pantry" aria-label="Search the pantry" autocomplete="off" value="${esc(b.q)}">
+        <button type="button" class="ha-search-clear" data-act="bk-q-clear" aria-label="Clear search">${icon('close')}</button></div>
+      <div class="ha-chips" role="group" aria-label="Where it’s kept">${chip('', 'All', all.length)}${places.map(p => chip(p, p, all.filter(i => i.location === p).length)).join('')}</div>
+      <label class="ha-field pa-bk-cat"><span class="ha-field-label">Category</span><select class="ha-select" id="pa-bk-cat" data-bk="cat"><option value="">All categories</option>${cats.map(c => `<option value="${esc(c)}"${b.cat === c ? ' selected' : ''}>${esc(c)}</option>`).join('')}</select></label>
+      <div class="pa-bk-bar"><span class="pa-selcount" id="pa-bcount" role="status" aria-live="polite"></span>
+        <span class="pa-selbar-links"><button type="button" class="ha-btn ha-btn--plain ha-btn--compact" data-act="bk-all">Select all matching</button><button type="button" class="ha-btn ha-btn--plain ha-btn--compact" data-act="bk-none">Select none</button></span></div>
+      <div id="pa-bulk-list">${bulkList()}</div>`, { id: 'bk-items' })}
+    ${section('What to change', `<div class="ha-card pa-bk-changes" id="pa-bulk-changes">${bulkChanges()}</div>
+      <button type="button" class="ha-btn ha-btn--primary ha-btn--block" data-act="bk-review">Review changes</button>`, { id: 'bk-change', footer: 'Every field stays as it is until you choose. Names are changed one item at a time, on the item.' })}`;
+}
+function updateBulkUI() {
+  const b = S.bulk; if (!b) return;
+  const shown = new Set(bulkFiltered().map(i => i.id)), n = b.sel.ids.size, hidden = [...b.sel.ids].filter(id => !shown.has(id)).length;
+  const c = $('#pa-bcount'); if (c) { const t = SEL.selText(n, hidden); if (c.textContent !== t) c.textContent = t; }
+  for (const i of document.querySelectorAll('input.pa-bsel')) { const on = SEL.isSel(b.sel, i.dataset.bsel); if (i.checked !== on) i.checked = on; i.closest('.pa-item')?.classList.toggle('is-selected', on); }
+}
+function drawBulkList() { const el = $('#pa-bulk-list'); if (!el) return; const k = el.contains(document.activeElement) ? document.activeElement.id : ''; el.innerHTML = bulkList(); if (k) document.getElementById(k)?.focus({ preventScroll: true }); updateBulkUI(); }
+// The choice made in a field of the Change section. `structure`: the set of inputs changed (redraw that block).
+function bulkField(name, v) {
+  const b = bulkState(), ch = b.ch;
+  let structure = true;
+  if (name === 'place') ch.place = v ? { to: ch.place?.to || '' } : null;
+  else if (name === 'place-to') { ch.place.to = v; structure = false; }
+  else if (name === 'category') ch.category = v ? { to: ch.category?.to || '' } : null;
+  else if (name === 'category-to') { ch.category.to = v; structure = false; }
+  else if (name === 'mode') ch.mode = v || null;
+  else if (name === 'expiry') ch.expiry = v === 'shift' ? { kind: 'shift', days: ch.expiry?.days || 7, dir: ch.expiry?.dir || 'later' } : v === 'set' ? { kind: 'set', date: ch.expiry?.date || '' } : null;
+  else if (name === 'days') { ch.expiry.days = v; structure = false; }
+  else if (name === 'dir') { ch.expiry.dir = v; structure = false; }
+  else if (name === 'date') { ch.expiry.date = v; structure = false; }
+  else if (name === 'list') ch.list = v === 'add';
+  else if (name === 'bin') ch.bin = v === 'del';
+  if (structure) { const el = $('#pa-bulk-changes'), id = document.activeElement?.id; if (el) { el.innerHTML = bulkChanges(); if (id) document.getElementById(id)?.focus({ preventScroll: true }); } }
+}
+// Review: what will change, in numbers, with up to three before and after.
+function bulkReview() {
+  const b = bulkState(), ch = b.ch, list = bulkChosen();
+  if (!list.length) return haToast('Select some items first');
+  if (BI.isEmpty(ch)) return haToast('Choose what to change first');
+  const gap = BI.missing(ch); if (gap) return haToast(gap);
+  const p = BI.plan(list, ch, { onList, by: who() });
+  if (!p.changing) return haToast(p.unchanged ? 'None of them would change: they are already as chosen' : 'None of them would change');
+  b.plan = p; b.step = 'review';
+  redraw();
+  window.scrollTo(0, 0);
+}
+function viewBulkReview() {
+  const b = bulkState(), ch = b.ch, p = b.plan;
+  const lines = BI.changeLines(ch, p), notes = BI.reviewNotes(p, ch);
+  const big = p.changing >= BI.BIG && BI.overwrites(ch);
+  const samples = p.pairs.slice(0, 3).map(x => `<li><div class="ha-row"><span class="ha-row-body"><span class="ha-row-sub">${esc(BI.summary(x.before))}</span><span class="ha-row-title pa-break">→ ${esc(BI.summary(x.after))}</span></span></div></li>`).join('')
+    || p.addToList.slice(0, 3).map(i => `<li><div class="ha-row"><span class="ha-row-body"><span class="ha-row-title pa-break">${esc(i.name)} → on the shopping list</span></span></div></li>`).join('');
+  return `<h1 class="ha-large-title" id="pa-bulk-h" tabindex="-1">Review changes</h1>
+    <p class="ha-large-sub">${esc(BI.headline(p))}${p.total > p.changing ? ` (of ${p.total} picked)` : ''}</p>
+    <ul class="ha-list">${lines.map(t => `<li><div class="ha-row"><span class="ha-row-body"><span class="ha-row-title pa-break">${esc(t)}</span></span></div></li>`).join('')}</ul>
+    ${notes.map(n => `<p class="ha-panel ${n.kind === 'warn' ? 'pa-warn' : ''}" role="note">${n.kind === 'warn' ? icon('alert') : ''}<span>${esc(n.text)}</span></p>`).join('')}
+    ${section(p.pairs.length > 3 ? 'For example' : 'Before and after', `<ul class="ha-list">${samples}</ul>`, { id: 'bk-samples' })}
+    <div class="ha-btn-stack"><button type="button" class="ha-btn ${p.deleting ? 'ha-btn--danger' : 'ha-btn--primary'} ha-btn--block" data-act="bk-save">${p.deleting ? `Delete ${plural(p.changing, 'item')}` : big ? `Change ${plural(p.changing, 'item')}` : 'Save'}</button>
+      <button type="button" class="ha-btn ha-btn--plain ha-btn--block" data-act="bk-back">Back</button></div>`;
+}
+// Save: ONE batch for the items, one for the shopping lines, ONE toast with Undo for both.
+function bulkSave() {
+  const b = bulkState(), p = b.plan, ch = b.ch;
+  if (!p) return;
+  const pairs = p.pairs.filter(x => itemById(x.id));   // (not what another phone deleted meanwhile)
+  const sent = pairs.length ? patchMany(pairs.map(x => ({ id: x.id, ops: x.ops }))) : [];
+  const fresh = ch.bin ? [] : p.addToList.filter(it => itemById(it.id) && !onList(it.id));
+  const at = new Date().toISOString(), by = who().slice(0, 100);
+  const lines = fresh.length ? saveMany('shop', fresh.map(it => ({ id: L.uid(), name: [it.brand, it.name].filter(Boolean).join(' ').slice(0, LINE_MAX), itemId: it.id, done: false, at, by }))) : [];
+  const n = new Set([...sent.map(x => x.id), ...fresh.map(i => i.id)]).size;
+  S.bulk = null;
+  haBack(S.originTab);
+  redraw();
+  const msg = ch.bin ? `${plural(n, 'item')} deleted` : `${plural(n, 'item')} changed`;
+  haToast(msg, { action: 'Undo', onAction: () => undoBatch(sent, { liveOnly: !ch.bin, lines }) }); haAnnounce(msg);
 }
 
 // ---- Item -------------------------------------------------------------------------------------------------------
@@ -2300,7 +2437,8 @@ function draw(r, { keep = false } = {}) {
       return;
     }
   }
-  if (!['home', 'items', 'item', 'add', 'edit', 'shop', 'settings', 'guide', 'places', 'removed'].includes(name)) name = 'home';
+  if (!['home', 'items', 'item', 'add', 'edit', 'shop', 'settings', 'guide', 'places', 'removed', 'bulk'].includes(name)) name = 'home';
+  if (name !== 'bulk') S.bulk = null;   // (leaving Bulk edit drops what was chosen there)
   if (name !== 'items' && S.sel.on) SEL.endSel(S.sel);   // (a sheet-like history entry: the new screen replaced it)
   if (TOP[name]) { S.originTab = name === 'home' ? '#/' : '#/' + name; S.backLabel = TOP[name]; }
 
@@ -2311,7 +2449,8 @@ function draw(r, { keep = false } = {}) {
 
   let title = TOP[name] || '';
   if (name === 'home') { main.innerHTML = viewHome(); setBar({ title, trail: iconBtn('mic', 'Say or type what you bought', 'quick') + iconBtn('barcode', 'Scan a barcode', 'scan-home') }); }
-  else if (name === 'items') { main.innerHTML = viewItems(); setBar({ title, trail: S.sel.on ? '' : `<button type="button" class="ha-bar-btn" id="pa-sel-toggle" data-act="sel-on">Select</button>` }); }
+  else if (name === 'items') { main.innerHTML = viewItems(); setBar({ title, trail: `<button type="button" class="ha-bar-btn" data-act="bulk-open" data-sel="${S.sel.on ? 'with' : ''}">Bulk edit</button>${S.sel.on ? '' : `<button type="button" class="ha-bar-btn" id="pa-sel-toggle" data-act="sel-on">Select</button>`}` }); }
+  else if (name === 'bulk') { title = 'Bulk edit'; main.innerHTML = viewBulk(); updateBulkUI(); setBar({ title, lead: backBtn(S.backLabel) }); if (S.bulk?.step === 'review') $('#pa-bulk-h')?.focus({ preventScroll: true }); }
   else if (name === 'item') {
     title = it.name;
     main.innerHTML = viewItem(it);
@@ -2410,6 +2549,14 @@ async function onClick(e) {
       return;
     }
     case 'grip': if (Date.now() < S.gripQuiet) return; return openGrip(b.dataset.id);
+    case 'bulk-open': return openBulk(b.dataset.sel === 'with' ? [...S.sel.ids] : []);
+    case 'bk-place': { bulkState().place = b.dataset.v; for (const c of document.querySelectorAll('[data-act="bk-place"]')) c.setAttribute('aria-pressed', String(c === b)); return drawBulkList(); }
+    case 'bk-q-clear': { bulkState().q = ''; const q = $('#pa-bq'); q.value = ''; drawBulkList(); return q.focus(); }
+    case 'bk-all': { const n = SEL.selectAll(bulkState().sel, bulkFiltered().map(i => i.id)); updateBulkUI(); return haAnnounce(`All ${n} matching selected`); }
+    case 'bk-none': { SEL.selectNone(bulkState().sel); updateBulkUI(); return haAnnounce('None selected'); }
+    case 'bk-review': return bulkReview();
+    case 'bk-back': { bulkState().step = 'edit'; redraw(); return window.scrollTo(0, 0); }
+    case 'bk-save': return bulkSave();
     case 'sel-on': return enterSelect('');
     case 'sel-done': return exitSelect();
     case 'sel-all': { const n = SEL.selectAll(S.sel, filteredItems().map(i => i.id)); selChanged(); return haAnnounce(`All ${n} selected`); }
@@ -2599,6 +2746,11 @@ async function onChange(e) {
     return redraw();
   }
   if (t.name === 'pa-within') { S.sort = t.value; prefs.set('sort', t.value); prefs.set('within', t.value); return redraw(); }
+  if (t.dataset.bsel !== undefined) { const b = bulkState(); if (t.checked) b.sel.ids.add(t.dataset.bsel); else b.sel.ids.delete(t.dataset.bsel); return updateBulkUI(); }
+  if (t.dataset.bk !== undefined) {
+    if (t.dataset.bk === 'cat') { bulkState().cat = t.value; return drawBulkList(); }
+    return bulkField(t.dataset.bk, t.value);
+  }
   if (t.dataset.sel !== undefined) { if (t.checked) S.sel.ids.add(t.dataset.sel); else S.sel.ids.delete(t.dataset.sel); return selChanged(); }
   if (t.id === 'pa-name') { prefs.set('name', t.value.trim()); return haToast('Saved'); }
   if (t.dataset.shop) {
@@ -2631,6 +2783,8 @@ async function onChange(e) {
 }
 function onInput(e) {
   if (e.target.id === 'pa-q') { S.q = e.target.value; drawItemsList(); }
+  if (e.target.id === 'pa-bq') { bulkState().q = e.target.value; drawBulkList(); }
+  if (e.target.dataset?.bk === 'days') bulkField('days', e.target.value);
   if (e.target.id === 'pa-find') showSugg();
 }
 async function onSubmit(e) {
@@ -3057,7 +3211,7 @@ async function start() {
   });
   document.addEventListener('keydown', e => {
     if (e.key === 'Escape' && S.sel.on && !haSheetOpen()) { e.preventDefault(); exitSelect(); }
-    else if (e.key === 'Enter' && e.target.matches?.('input.pa-sel')) { e.preventDefault(); e.target.click(); }
+    else if (e.key === 'Enter' && e.target.matches?.('input.pa-sel, input.pa-bsel')) { e.preventDefault(); e.target.click(); }
     else if ((e.key === 'ArrowUp' || e.key === 'ArrowDown') && e.target.matches?.('.pa-grip') && sortMode() === 'myorder' && !e.altKey && !e.metaKey && !e.ctrlKey) {
       // on a grip in My order, the arrow keys move the item one step (and say where it went)
       e.preventDefault();
@@ -3075,7 +3229,7 @@ async function start() {
   addEventListener('offline', redraw);
   R = haRouter({
     render: r => draw(r),
-    tabOf: r => ['item', 'edit', 'add', 'guide', 'places', 'removed'].includes(r.parts[0]) ? S.originTab : r.hash,
+    tabOf: r => ['item', 'edit', 'add', 'guide', 'places', 'removed', 'bulk'].includes(r.parts[0]) ? S.originTab : r.hash,
   });
   // family sharing, only when a Firebase project is set up (config.js) or in the emulator tests
   if (!DEMO && (firebaseConfig || EMULATOR)) {
@@ -3122,6 +3276,7 @@ const testActions = {
   // the Items list (this PR): move items to a place in one batch, put one after another in My order, and tidy a category's numbers
   bulkMove: (ids, place) => moveItems(ids.map(itemById).filter(Boolean), place).sent.length,
   reorder: (id, afterId = null) => { const r = commitOrder(id, afterId); return r ? { sets: r.plan.sets, renumbered: r.plan.renumbered } : null; },
+  bulkPlan: (ids, ch) => BI.plan(ids.map(itemById).filter(Boolean), ch, { onList, by: who() }).changing,
   renumber: category => { const g = items().filter(x => catOf(x) === category); const sets = O.renumber(O.sortByOrder(g)); patchMany(sets.map(x => ({ id: x.id, ops: { set: { order: x.order }, inc: {}, del: [] } })), { stamp: false }); return sets.length; },
 };
 

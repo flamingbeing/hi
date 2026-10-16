@@ -212,3 +212,14 @@ label.ha-row:focus-within:has(.pa-file){outline:2px solid var(--home-focus);outl
 .ha-chip.pa-drop{outline-offset:2px}
 body.pa-dragging{cursor:grabbing;-webkit-user-select:none;user-select:none}
 body.pa-dragging *{cursor:grabbing!important}
+
+/* Bulk edit */
+.pa-bk-cat{margin:var(--home-s3) 0}
+.pa-bk-bar{display:flex;align-items:center;justify-content:space-between;gap:var(--home-s2);flex-wrap:wrap;margin:0 0 var(--home-s4)}
+.pa-bk-bar .pa-selbar-links{margin-right:calc(-1 * var(--home-s3))}
+.pa-bk-changes{padding:var(--home-s2) var(--home-s4) var(--home-s4)}
+.pa-bk-field{margin:var(--home-s3) 0 0}
+.pa-bk-field .ha-field{margin:0 0 var(--home-s2)}
+.pa-bk-shift{display:grid;grid-template-columns:1fr 1fr;gap:var(--home-s2)}
+.pa-warn{display:flex;gap:var(--home-s2);align-items:flex-start;background:var(--home-warn-bg);color:var(--home-warn)}
+.pa-warn .ha-icon{flex:none;width:20px;height:20px}

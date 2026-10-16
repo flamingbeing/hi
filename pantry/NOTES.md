@@ -528,6 +528,29 @@ Lasting decisions and how to test. What's going on now: [STATUS.md](STATUS.md). 
     pointer capture and `touchmove` prevention are the standard way, but a real iPhone needs a try. Two phones putting different items into
     the same gap can write the same number; the tie-break keeps their order the same everywhere. Chips scrolled out of sight can't be
     dropped on. A drag with several ticked items only moves them to a place (reordering several at once isn't offered).
+- **16 Oct 2026, Bulk edit (commit 4 of the combined PR; the shape of the logbook's `bulkDialog` / `bulk-change.js`, written for the
+  pantry's fields, nothing copied):** a screen, `#/bulk`, reached from the Bulk edit button above Items (or from the same button while
+  selecting, which brings the ticked items along). Checkbox rows with the Items search and place chips plus a category, **Select all
+  matching** (the whole filtered result; ticked items the filter hides are counted, not forgotten) and Select none. Every field starts
+  **Unchanged**; you choose which to change: Place (Move to…), Category, Kept track of (Counting, or Plenty, low, out), Best-before
+  (move every date by N days later or earlier, or set one date), Add to the shopping list, Delete. Names stay one at a time. **Review
+  changes** says "N items will change" (the headline counts items, not fields), lists each choice, up to three before and after,
+  what was skipped and why, and warns when it replaces something; **Save** applies ONE batch (`patchMany`) plus one `putMany` for new
+  shopping lines, with ONE toast Undo for both ("N changed since, left as they are", counting an item when ANY of its fields had
+  been changed since, even if the rest was put back). `js/bulk-items.js` is the pure part (`test/bulk-items.test.mjs`: every choice as
+  ops, skips, warnings, and Undo round trips through `invertOps` for batches of moves, categories, conversions, date changes and
+  deletes).
+  - **Tracking mode.** Counting → Plenty, low, out sets `measure: 'level'` and `level` from the stock (nothing: Out; at or below its
+    "on the list when down to" number: Low; else Plenty). The batches are NOT deleted: they stay, hidden, so switching back brings the
+    counts and dates back and Undo is exact; Review warns "N items will stop counting: their numbers and dates are kept, hidden".
+    Level → Counting removes `measure` and `level`; an item with no stock counted then shows None left (warned). An item converted to
+    Plenty, low, out has no dates, so a best-before choice is skipped for it ("kept as Plenty, Low, Out"). Nothing here is lossy, so
+    there is no "lossy" warning beyond those two.
+  - **Best-before** works on batches with something left (`fefo`): a shift moves each dated one (undated ones are left); a set date
+    goes on all of them. Items with no stock, no dates to shift or kept as Plenty, low, out are skipped and counted in Review.
+  - **Delete is applied alone** (every other choice is ignored for it) and is the same removal marker as everywhere (Recently removed).
+  - The screen's rows read `items()` only (the live-only door): `removed.test.mjs` still guards every list and was extended for the
+    few lookups by id that name an item in a toast or a label.
 
 ## How to test
 
@@ -542,13 +565,14 @@ node pantry/test/merge.test.mjs        # merging duplicate pantries: members, wh
 node pantry/test/scan.test.mjs         # the barcode look-up chain with a stubbed fetch (plain node)
 node pantry/test/photo.test.mjs        # thumbnail and photo sizes, stepping down to fit the limits (plain node)
 node pantry/test/ops.test.mjs          # both shapes of batches, changes as instructions and their inverse, the chip text (plain node)
+node pantry/test/bulk-items.test.mjs   # Bulk edit's rules: each choice as ops, skips, warnings, Undo round trips (plain node)
 node pantry/test/order.test.mjs        # My order: midpoints, append, prepend, collisions, renumbering, tie-breaks, 200 random sequences (plain node)
 node pantry/test/select.test.mjs       # selecting: the selection state and the press and hold with a fake pointer (plain node)
 node pantry/test/syncnow.test.mjs      # Sync now: each waiting change in words, last heard, what it says (plain node)
 node pantry/test/removed.test.mjs      # removed markers, Restore, days left, the sweep's choice, backups and merging, every list skips removed (plain node)
 node pantry/test/config.test.mjs       # set-config, sign-in choice, plain-word errors, sw.js rules
 node pantry/test/e2e.mjs               # phone browser test with axe; SHOTS=<dir> saves screenshots
-node pantry/test/items.e2e.mjs         # the Items list with real touch (CDP): selecting, press and hold, the actions and their Undo, group by place, grip drags, My order, axe
+node pantry/test/items.e2e.mjs         # the Items list with real touch (CDP): selecting, press and hold, the actions and their Undo, group by place, grip drags, My order, Bulk edit, axe
 pantry/test/run-sync.sh                # two phones and the stock rules (sync.e2e.mjs), the randomised three-phone run (multidevice.e2e.mjs), sign-in by email link and password (signin.e2e.mjs), family sharing, the rules (photo size caps, places and names too) and moving old-style photos in the
                                        # local emulators (demo-pantry, fake accounts)
 node tools/check.mjs && node tools/stamp-versions.mjs --check
