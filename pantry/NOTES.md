@@ -439,6 +439,7 @@ node pantry/test/scan.test.mjs         # the barcode look-up chain with a stubbe
 node pantry/test/photo.test.mjs        # thumbnail and photo sizes, stepping down to fit the limits (plain node)
 node pantry/test/ops.test.mjs          # both shapes of batches, changes as instructions and their inverse, the chip text (plain node)
 node pantry/test/removed.test.mjs      # removed markers, Restore, days left, the sweep's choice, backups and merging, every list skips removed (plain node)
+node pantry/test/live-guards.test.mjs  # the live-service harness's safety guards (plain node; the harness itself: pantry/test/LIVE-TEST.md)
 node pantry/test/config.test.mjs       # set-config, sign-in choice, plain-word errors, sw.js rules
 node pantry/test/e2e.mjs               # phone browser test with axe; SHOTS=<dir> saves screenshots
 pantry/test/run-sync.sh                # two phones and the stock rules (sync.e2e.mjs), the randomised three-phone run (multidevice.e2e.mjs), sign-in by email link and password (signin.e2e.mjs), family sharing, the rules (photo size caps, places and names too) and moving old-style photos in the
@@ -448,4 +449,7 @@ node tools/check.mjs && node tools/stamp-versions.mjs --check
 
 `e2e.mjs` needs Playwright (`PLAYWRIGHT_PATH`) and axe-core (`AXE_PATH`, or `npm install --no-save axe-core`);
 `run-sync.sh` needs Java 21 and fetches `firebase-tools` with npx. The "Pantry checks" workflow runs all of them on PRs
-touching `pantry/`, `homedesign/` or `__/`. Never point a test at the live Firebase project.
+touching `pantry/`, `homedesign/` or `__/`. Never point a test at the live Firebase project, with one exception: the
+live-service harness (`pantry/test/live-multidevice.mjs`, runbook `pantry/test/LIVE-TEST.md`) that firetop runs against a
+throwaway `robust-test-` household with three throwaway accounts; sessions only run it with `--dry` (`pantry/test/run-live-dry.sh`,
+local emulators).
