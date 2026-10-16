@@ -115,3 +115,17 @@ label.ha-row:focus-within:has(.pa-file){outline:2px solid var(--home-focus);outl
 /* Since you last looked, and the WhatsApp line under Use soon */
 .pa-since-ok{margin-left:calc(-1 * var(--home-s3))}
 .pa-share-line{margin:calc(-1 * var(--home-s3)) 0 var(--home-s6)}
+/* the shopping list: aisles, Buy again, the mic, Put away */
+.pa-aisle{margin:var(--home-s4) 0 var(--home-s2);padding:0 var(--home-s4);color:var(--home-muted);font-size:var(--home-t-small);font-weight:600}
+.pa-aisle:first-child{margin-top:0}
+.pa-again .ha-chip .ha-icon{width:16px;height:16px;margin-right:2px}
+.pa-addline .pa-mic{flex:none;width:44px;height:44px;min-height:44px}
+.pa-putaway-btn{margin:var(--home-s3) 0 0}
+.pa-going{margin:0 0 var(--home-s2)}
+.pa-going-foot{margin:0 0 var(--home-s6)}
+.pa-pa-intro{margin:0 0 var(--home-s3);color:var(--home-ink-2)}
+.pa-pa{padding-bottom:var(--home-s3)}
+.pa-pa-fields{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,8.5em),1fr));gap:0 var(--home-s3);padding:0 var(--home-s4)}
+.pa-pa-fields .ha-field{margin:0}
+.pa-pa>.ha-field-hint{padding:0 var(--home-s4)}
+.pa-pa-qty .ha-input{max-width:6em}

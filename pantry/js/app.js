@@ -1015,37 +1015,180 @@ function shopLists() {
   const listed = new Set(manual.filter(m => m.itemId && !m.done).map(m => m.itemId));
   return { manual, suggested: buy.filter(b => !listed.has(b.item.id)) };
 }
+// The aisle a shopping line belongs to: its pantry item's category, else the catalogue's best match for its name.
+const aisleCache = new Map();
+function aisleOf(m) {
+  const it = m.itemId && S.items.get(m.itemId);
+  if (it?.category) return it.category;
+  if (!aisleCache.has(m.name)) aisleCache.set(m.name, catMatch(m.name)?.category || 'Other');
+  return aisleCache.get(m.name);
+}
+// The catalogue product a typed name most likely is (or null).
+function catMatch(name) {
+  let best = null;
+  for (const c of CATALOGUE) { const sc = L.score(name, `${c.name} ${c.brand}`); if (sc && (!best || sc > best.sc)) best = { sc, c }; }
+  return best?.c || null;
+}
+// "Buy again": things the family has bought before (two or more), not on the list or suggested already, most bought first.
+function buyAgain(suggested) {
+  const n = new Map();
+  for (const e of S.events.values()) if (e.type === 'add') n.set(e.itemId, (n.get(e.itemId) || 0) + (Number(e.qty) || 1));
+  const skip = new Set(suggested.map(b => b.item.id));
+  return items().filter(it => (n.get(it.id) || 0) >= 2 && !it.noRestock && !skip.has(it.id) && !onList(it.id))
+    .sort((a, b) => n.get(b.id) - n.get(a.id) || a.name.localeCompare(b.name)).slice(0, 8);
+}
+const canSpeak = () => !!(window.SpeechRecognition || window.webkitSpeechRecognition);
 function viewShop() {
   const { manual, suggested } = shopLists();
-  const left = manual.filter(m => !m.done).length, done = manual.length - left;
+  const todo = manual.filter(m => !m.done), done = manual.filter(m => m.done);
   let h = `<h1 class="ha-large-title">Shopping</h1>
     <form class="pa-addline" id="pa-shop-add"><label class="ha-sr" for="pa-shop-text">Add something to buy</label>
       <input class="ha-input" id="pa-shop-text" placeholder="Add something to buy" autocomplete="off" enterkeyhint="done">
+      ${canSpeak() ? `<button type="button" class="ha-btn ha-btn--secondary ha-btn--icon pa-mic" id="pa-shop-mic" data-act="shop-mic" aria-pressed="false" aria-label="Say what to buy">${icon('mic')}</button>` : ''}
       <button class="ha-btn ha-btn--compact" type="submit">Add</button></form>`;
+  const again = buyAgain(suggested);
+  if (again.length) {
+    h += section('Buy again', `<div class="ha-chips ha-chips--wrap pa-again" role="group" aria-labelledby="h-again">${again.map(it =>
+      `<button type="button" class="ha-chip" data-act="to-list" data-id="${esc(it.id)}" aria-label="Add ${esc(it.name)} to the list">${icon('plus')}${esc(it.name)}</button>`).join('')}</div>`, { id: 'again' });
+  }
   const line = m => `<li><label class="ha-row${m.done ? ' is-done' : ''}">
       <input type="checkbox" data-shop="${esc(m.id)}"${m.done ? ' checked' : ''}>
       <span class="ha-row-body"><span class="ha-row-title">${esc(m.name)}</span>${m.by ? `<span class="ha-row-sub">Added by ${esc(nameOf(m.by))}</span>` : ''}</span>
       <button type="button" class="ha-btn ha-btn--quiet ha-btn--icon" data-act="shop-del" data-id="${esc(m.id)}" aria-label="Remove ${esc(m.name)}">${icon('trash')}</button></label></li>`;
-  h += section('To buy', manual.length ? `<ul class="ha-list" id="pa-shop">${manual.map(line).join('')}</ul>`
-    : `<ul class="ha-list" id="pa-shop"><li><div class="ha-row"><span class="ha-row-body"><span class="ha-row-sub">Nothing on the list yet.</span></span></div></li></ul>`,
-  { id: 'shop', action: done ? `<button type="button" data-act="shop-clear">Clear ticked</button>` : (left ? `<span class="ha-num">${left}</span>` : ''),
-    footer: manual.length || suggested.length ? 'Tick things off as you buy them. A pantry item asks how many you bought and the date.'
+  // the lines to buy, by aisle (the catalogue's category order), so the shop is walked once
+  const groups = new Map();
+  for (const m of todo) { const a = aisleOf(m); if (!groups.has(a)) groups.set(a, []); groups.get(a).push(m); }
+  const order = [...groups.keys()].sort((a, b) => CATEGORIES.indexOf(a) - CATEGORIES.indexOf(b));
+  const body = todo.length
+    ? order.map((a, i) => `<h3 class="pa-aisle" id="pa-aisle-${i}">${esc(a)}</h3><ul class="ha-list" aria-labelledby="pa-aisle-${i}">${groups.get(a).map(line).join('')}</ul>`).join('')
+    : `<ul class="ha-list"><li><div class="ha-row"><span class="ha-row-body"><span class="ha-row-sub">${done.length ? 'Everything is in the trolley.' : 'Nothing on the list yet.'}</span></span></div></li></ul>`;
+  h += section('To buy', `<div id="pa-shop">${body}</div>`, {
+    id: 'shop', count: todo.length || '',
+    footer: manual.length || suggested.length ? 'Grouped by aisle. Tick things off as they go in the trolley, then Put away.'
       : 'Pantry items come here by themselves when none are left, when they’re down to their “on the list when down to” number, or when they’ll run out within a week at your usual pace. Type anything else above.' });
+  if (done.length) {
+    h += section('In the trolley', `<ul class="ha-list" id="pa-shop-done">${done.map(line).join('')}</ul>
+      <div class="ha-btn-stack pa-putaway-btn"><button type="button" class="ha-btn ha-btn--primary ha-btn--block" data-act="put-away">${icon('box')}Put away ${esc(plural(done.length, 'thing'))}</button></div>`,
+    { id: 'trolley', action: `<button type="button" data-act="shop-clear">Clear ticked</button>`, footer: 'Home again? Put away adds them to the pantry, each with its place and date, in one go.' });
+  }
   h += section('Suggested from the pantry', suggested.length
     ? `<ul class="ha-list">${suggested.map(b => `<li><div class="ha-row">${thumb(b.item)}<span class="ha-row-body"><span class="ha-row-title">${esc(b.item.name)}</span><span class="ha-row-sub">${esc(L.whyText(b, today()))}</span></span>
         <span class="ha-row-trail"><button type="button" class="ha-btn ha-btn--small" data-act="to-list" data-id="${esc(b.item.id)}" aria-label="Add ${esc(b.item.name)} to the list">Add</button></span></div></li>`).join('')}</ul>`
     : '', { id: 'suggested', footer: suggested.length ? 'Out of stock, running low, or due to run out within a week at your usual pace.' : 'Nothing is running low.' });
+  if (todo.length || suggested.length) {
+    h += `<p class="pa-share-line pa-going"><a class="ha-btn ha-btn--secondary ha-btn--block" id="pa-wa-going" href="${esc(L.waLink(goingText()))}" target="_blank" rel="noopener">${icon('share')}Going shopping now<span class="ha-sr"> (opens WhatsApp)</span></a></p>
+      <p class="ha-section-footer pa-going-foot">Tells the family on WhatsApp, with the list, so they can add anything before you’re back.</p>`;
+  }
   return h;
 }
+const goingText = () => `Going shopping now. Anything to add?\n\n${L.shareText(shareLines())}`;
 function shareLines() {
   const { manual, suggested } = shopLists();
   return [...manual.filter(m => !m.done).map(m => m.name), ...suggested.map(b => [b.item.brand, b.item.name].filter(Boolean).join(' '))];
 }
-function addToList(it) {
-  if (onList(it.id)) { haToast('Already on the shopping list'); return; }
+function addToList(it, { quiet = false } = {}) {
+  if (onList(it.id)) { if (!quiet) haToast('Already on the shopping list'); return null; }
   const m = save('shop', { id: L.uid(), name: [it.brand, it.name].filter(Boolean).join(' '), itemId: it.id, done: false, at: new Date().toISOString(), by: who() });
+  if (quiet) return m;
   redraw();
   haToast(`${it.name} is on the shopping list`, { action: 'Undo', onAction: () => { remove('shop', m.id); redraw(); } });
+  return m;
+}
+// A line typed or said: linked to the pantry item of that name, if there is one.
+function addLine(v) {
+  const mine = items().find(i => L.norm(i.name) === L.norm(v) || L.norm(`${i.brand} ${i.name}`) === L.norm(v));
+  if (mine && onList(mine.id)) return null;
+  return save('shop', { id: L.uid(), name: v, itemId: mine?.id || null, done: false, at: new Date().toISOString(), by: who() });
+}
+// The mic on the shopping list: say "milk, eggs and bread"; each becomes a line when the speaking stops.
+let shopMic = null;
+async function listenShop(btn) {
+  if (shopMic) { shopMic.stop(); return; }
+  const Q = await import('./quick.js');
+  const inp = $('#pa-shop-text');
+  let heard = '';
+  const done = err => {
+    shopMic = null;
+    const b = $('#pa-shop-mic'); b?.classList.remove('is-on'); b?.setAttribute('aria-pressed', 'false');
+    if (err && err !== 'no-speech' && err !== 'aborted') haToast(/not-allowed|service/.test(err) ? 'The microphone is blocked. Allow it in the browser’s settings, or type instead.' : 'Didn’t catch that. Try again or type.');
+    const added = Q.splitItems(heard).map(p => addLine(p.replace(/^(buy|get|need|we need|some)\s+/i, ''))).filter(Boolean);
+    if (inp) inp.value = '';
+    redraw();
+    if (added.length) haToast(`Added ${plural(added.length, 'thing')} to the list`, { action: 'Undo', onAction: () => { for (const m of added) remove('shop', m.id); redraw(); haAnnounce('Undone'); } });
+  };
+  btn.classList.add('is-on'); btn.setAttribute('aria-pressed', 'true');
+  try {
+    shopMic = Q.listen({ onText: t => { heard = t; if (inp) inp.value = t; }, onEnd: done });
+  } catch { shopMic = null; btn.classList.remove('is-on'); btn.setAttribute('aria-pressed', 'false'); haToast('Speech isn’t available here. Type instead.'); }
+}
+
+// ---- Put away: everything ticked on the shopping list goes into the pantry in one sheet -----------------------------
+
+function openPutAway() {
+  const lines = [...S.shop.values()].filter(m => m.done).sort((a, b) => (a.at < b.at ? -1 : 1));
+  if (!lines.length) return;
+  // each line: its pantry item, or a new one (from the catalogue's best match for the name)
+  const rows = lines.map(m => {
+    const it = m.itemId && S.items.get(m.itemId);
+    const c = it ? null : catMatch(m.name);
+    const base = it || { name: m.name, brand: '', category: c?.category || 'Other', location: c?.location || defaultPlace() };
+    return { m, it, c, g: it?.measure === 'level' ? null : guessFor(base), place: base.location || defaultPlace() };
+  });
+  const row = (r, i) => {
+    const staple = r.it?.measure === 'level';
+    return `<li class="pa-pa"><label class="ha-row"><input type="checkbox" data-pa="${i}" checked>
+        <span class="ha-row-body"><span class="ha-row-title" id="pa-pa-t${i}">${esc(r.it ? r.it.name : r.m.name)}</span><span class="ha-row-sub">${r.it ? staple ? 'Back to plenty' : 'Adds to the one at home' : r.c ? `New item · ${esc(r.c.category)}` : 'New item'}</span></span></label>
+      <div class="pa-pa-fields">
+        <label class="ha-field"><span class="ha-field-label">Kept in</span><select class="ha-select" name="place" data-i="${i}">${placeOptions(r.place)}</select></label>
+        ${staple ? '' : `<label class="ha-field"><span class="ha-field-label">Best before</span><input class="ha-input" type="date" name="expiry" data-i="${i}" value="${esc(r.g?.date || '')}"></label>
+        <label class="ha-field pa-pa-qty"><span class="ha-field-label">How many</span><input class="ha-input" type="number" inputmode="numeric" min="1" max="99" name="qty" data-i="${i}" value="1"></label>`}
+      </div>${r.g ? `<p class="ha-field-hint">${esc(r.g.label)}: a guess. Change it to the date on the pack.</p>` : ''}</li>`;
+  };
+  const s = haSheet({
+    title: 'Put away', closeLabel: 'Cancel', grey: true, detent: 'large',
+    body: `<p class="ha-text pa-pa-intro">Check where each goes and its date, then save them all at once. Untick anything that isn’t for the pantry.</p>
+      <ul class="ha-list pa-pa-list">${rows.map(row).join('')}</ul>`,
+    footer: `<button type="button" class="ha-btn ha-btn--primary ha-btn--block" id="pa-pa-go">Put away ${esc(plural(rows.length, 'thing'))}</button>`,
+    onClose: afterSheet,
+  });
+  const go = $('#pa-pa-go', s.el);
+  const picked = () => [...s.el.querySelectorAll('[data-pa]:checked')].map(c => Number(c.dataset.pa));
+  s.el.addEventListener('change', e => {
+    if (!e.target.dataset.pa) return;
+    const n = picked().length;
+    go.disabled = !n; go.textContent = n ? `Put away ${plural(n, 'thing')}` : 'Put away';
+  });
+  go.addEventListener('click', async () => {
+    const val = (name, i) => s.el.querySelector(`[name="${name}"][data-i="${i}"]`)?.value || '';
+    const undo = { items: [], created: [], events: [], lines: [] };
+    for (const i of picked()) {
+      const r = rows[i], place = val('place', i), qty = Math.max(1, Math.min(99, parseInt(val('qty', i), 10) || 1));
+      let it = r.it && S.items.get(r.it.id);
+      if (it) undo.items.push(it);
+      else {
+        const c = r.c;
+        it = { id: L.uid(), batches: [], createdAt: new Date().toISOString(), createdBy: who(), name: c?.name || r.m.name, brand: c?.brand || '', size: c?.size || '',
+          category: c?.category || 'Other', location: place, openDays: c?.openDays ?? null, lowAt: 0, barcode: '' };
+        undo.created.push(it.id);
+      }
+      it = { ...it, location: place || it.location };
+      const res = it.measure === 'level' ? L.setLevel(it, { level: 'plenty', by: who() }) : L.addStock(it, { qty, expiry: val('expiry', i) || null, by: who() });
+      save('items', res.item);
+      if (res.event) undo.events.push(save('events', res.event).id);
+      undo.lines.push(r.m); remove('shop', r.m.id);
+    }
+    await haCloseSheet(s.el);
+    redraw();
+    const n = undo.lines.length;
+    haToast(`Put away ${plural(n, 'thing')}`, { action: 'Undo', onAction: () => {
+      for (const it of undo.items) save('items', it);
+      for (const id of undo.created) remove('items', id);
+      for (const id of undo.events) remove('events', id);
+      for (const m of undo.lines) save('shop', m);
+      redraw(); haAnnounce('Undone');
+    } });
+  });
+  return s;
 }
 
 // ---- Places (Settings → Places, #/places) -------------------------------------------------------------------------
@@ -1504,6 +1647,8 @@ async function onClick(e) {
       remove('shop', m.id); redraw();
       return haToast(`${m.name} removed`, { action: 'Undo', onAction: () => { save('shop', m); redraw(); } });
     }
+    case 'shop-mic': return listenShop(b);
+    case 'put-away': return openPutAway();
     case 'shop-clear': {
       const gone = [...S.shop.values()].filter(m => m.done);
       for (const m of gone) remove('shop', m.id);
@@ -1592,9 +1737,7 @@ async function onChange(e) {
   if (t.id === 'pa-name') { prefs.set('name', t.value.trim()); return haToast('Saved'); }
   if (t.dataset.shop) {
     const m = S.shop.get(t.dataset.shop); if (!m) return;
-    save('shop', { ...m, done: t.checked });
-    const item = t.checked && m.itemId && S.items.get(m.itemId);
-    if (item) { S.pendingRender = true; openBought(item, { shopId: m.id }); return; }
+    save('shop', { ...m, done: t.checked, ...(t.checked ? { doneBy: who() } : {}) });
     return redraw();
   }
   if (t.id === 'pa-photo-file' && t.files[0]) {
@@ -1629,8 +1772,8 @@ async function onSubmit(e) {
     e.preventDefault();
     const inp = $('#pa-shop-text'), v = inp.value.trim();
     if (!v) return inp.focus();
-    const mine = items().find(i => L.norm(i.name) === L.norm(v) || L.norm(`${i.brand} ${i.name}`) === L.norm(v));
-    save('shop', { id: L.uid(), name: v, itemId: mine?.id || null, done: false, at: new Date().toISOString(), by: who() });
+    if (!addLine(v)) { haToast(`${v} is already on the list`); return; }
+    inp.value = '';
     redraw();
     $('#pa-shop-text')?.focus();
     return;
