@@ -9,6 +9,10 @@ import * as P from './places.js';
 import * as PP from './people.js';
 import * as MG from './merge.js';
 import * as SY from './sync.js';
+import * as SEL from './select.js';
+import * as O from './order.js';
+import * as BI from './bulk-items.js';
+import { startDrag } from './drag.js';
 import { openLocal, openMemory, prefs, KINDS, PHOTOS } from './store.js';
 import { sampleData, demoBy, DEMO_FAMILY, DEMO_ME, DEMO_NAMES } from './sample.js';
 import { openWelcome, viewGuide, welcomed, markWelcomed, installed } from './guide.js';
@@ -27,11 +31,16 @@ const WELCOME = params.has('welcome');   // show the welcome even in the demo, o
 
 const S = {
   items: new Map(), events: new Map(), shop: new Map(), places: new Map(), settings: new Map(), pics: new Map(),
-  backend: null, local: null, mode: DEMO ? 'demo' : 'local', cloud: null, user: null, household: null, pantries: [], lookupFailed: false, creating: false, pending: null, localCount: 0,
+  backend: null, local: null, mode: DEMO ? 'demo' : 'local', cloud: null, user: null, household: null, pantries: [], lookupFailed: false, lost: null, creating: false, pending: null, localCount: 0,
   q: '', place: '', sort: prefs.get('sort', 'expiry'),
+  sel: SEL.newSel(),   // Items: the items selected (by id), while selecting (select.js)
+  bulk: null,   // the Bulk edit screen's state while it is open (filters, ticked items, the chosen changes, the step)
+  dragging: false, gripQuiet: 0,   // a drag by the grip is going on (redraws wait); the click that follows a drag isn't a tap
+  folded: new Set(prefs.get('folded', []) || []),   // place headings folded shut on Items (Group by place); per phone
   draft: null, dirty: false, pendingRender: false, syncError: false,
   refused: prefs.get('refused', []) || [],   // changes the family pantry refused, kept here until retried or discarded (sync.js)
-  sync: { pending: 0, cache: false, since: 0 },   // changes this phone made that the server hasn't confirmed yet
+  sync: { pending: 0, cache: false, since: 0, list: [], heard: 0, lastServerAt: 0, relistens: 0, cycles: 0 },   // changes this phone made that the server hasn't confirmed yet (list: each in words' records), and when the family last answered
+  syncNow: { busy: false, result: null },   // Settings → Saving to the family → Sync now
   lastUndo: null,
   removedNotes: prefs.get('removedNotes', {}) || {},   // items another phone removed that this phone had changes on: id -> removedAt (until Recently removed is opened)
   since: null,   // when this phone last looked (Since you last looked), an ISO time
@@ -107,11 +116,12 @@ function patchItem(id, ops, { stamp = true } = {}) {
   return sent;
 }
 // The same for many items (moving every item from one place to another): one write to the family pantry.
-function patchMany(list) {
+function patchMany(list, { stamp = true } = {}) {
   const at = new Date().toISOString(), by = who(), sent = [];
+  if (stamp) touchMany(list.map(x => x.id));
   for (const { id, ops } of list) {
     const before = S.items.get(id); if (!before) continue;
-    const full = L.mergeOps(ops, { set: { updatedAt: at, updatedBy: by } });
+    const full = stamp ? L.mergeOps(ops, { set: { updatedAt: at, updatedBy: by } }) : ops;
     S.items.set(id, L.applyOps(before, full));
     sent.push({ id, ops: full, before });
   }
@@ -163,6 +173,14 @@ const touched = () => prefs.get('touched', {}) || {};
 function touch(id) {
   if (S.mode !== 'cloud') return;
   const t = { ...touched(), [id]: new Date().toISOString() }, keys = Object.keys(t);
+  if (keys.length > 200) for (const k of keys.sort((a, b) => (t[a] < t[b] ? -1 : 1)).slice(0, keys.length - 200)) delete t[k];
+  prefs.set('touched', t);
+}
+function touchMany(ids) {
+  if (S.mode !== 'cloud' || !ids.length) return;
+  const at = new Date().toISOString(), t = { ...touched() };
+  for (const id of ids) t[id] = at;
+  const keys = Object.keys(t);
   if (keys.length > 200) for (const k of keys.sort((a, b) => (t[a] < t[b] ? -1 : 1)).slice(0, keys.length - 200)) delete t[k];
   prefs.set('touched', t);
 }
@@ -397,14 +415,23 @@ const LEVEL_WORD = { plenty: 'Plenty', low: 'Low', out: 'Out' };
 // A stock change that means "bought more": a count gets a batch; a staple goes back to Plenty.
 const restock = (it, { qty = 1, expiry = null } = {}) => (L.isStaple(it) ? L.setLevel(it, { level: 'plenty', by: who() }) : L.addStock(it, { qty, expiry, by: who() }));
 const subOf = it => [it.brand, it.size].filter(Boolean).map(esc).join(' · ');
-function itemRow(it, { sub, trail } = {}) {
+const gripIcon = () => `<svg class="pa-grip-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle cx="9" cy="6" r="1.7"/><circle cx="15" cy="6" r="1.7"/><circle cx="9" cy="12" r="1.7"/><circle cx="15" cy="12" r="1.7"/><circle cx="9" cy="18" r="1.7"/><circle cx="15" cy="18" r="1.7"/></svg>`;
+// `grip`: the Items list: a real button after the row, 44 px, that drags the item (or, with a tap, opens its Move sheet).
+function itemRow(it, { sub, trail, select = false, grip = false, sel = null, attr = 'sel' } = {}) {
   const q = L.totalQty(it), staple = L.isStaple(it);
   const s = sub ?? [staple ? LEVEL_WORD[L.levelOf(it)] : q ? `${q} left` : 'None left', esc(it.location || '')].filter(Boolean).join(' · ');
   const t = trail ?? (staple ? '' : badge(L.nextUseBy(it)));
-  return `<li><a class="ha-row pa-item" href="#/item/${esc(it.id)}">${thumb(it)}
+  const body = `${thumb(it)}
     <span class="ha-row-body"><span class="ha-row-title">${esc(it.name)}</span>${s ? `<span class="ha-row-sub">${s}</span>` : ''}</span>
-    ${t ? `<span class="ha-row-trail">${t}</span>` : ''}${chevron()}</a></li>`;
+    ${t ? `<span class="ha-row-trail">${t}</span>` : ''}`;
+  // selecting: the row is a label around a real checkbox (the whole row is the target; no link to open)
+  if (select) {
+    const on = SEL.isSel(sel || S.sel, it.id);
+    return `<li data-id="${esc(it.id)}"${grip ? ' class="pa-li"' : ''}><label class="ha-row pa-item pa-item--sel${on ? ' is-selected' : ''}"><input type="checkbox" class="pa-${attr}" id="pa-${attr}-${esc(it.id)}" data-${attr}="${esc(it.id)}"${on ? ' checked' : ''}>${body}</label>${grip ? gripBtn(it) : ''}</li>`;
+  }
+  return `<li data-id="${esc(it.id)}"${grip ? ' class="pa-li"' : ''}><a class="ha-row pa-item" href="#/item/${esc(it.id)}" draggable="false">${body}${grip ? '' : chevron()}</a>${grip ? gripBtn(it) : ''}</li>`;
 }
+const gripBtn = it => `<button type="button" class="pa-grip" id="pa-grip-${esc(it.id)}" data-act="grip" data-id="${esc(it.id)}" aria-label="Reorder or move ${esc(it.name)}">${gripIcon()}</button>`;
 function section(title, body, { count = '', action = '', footer = '', id = '' } = {}) {
   const hid = 'h-' + (id || title.toLowerCase().replace(/[^a-z]+/g, '-'));
   return `<section class="ha-section" aria-labelledby="${hid}"><h2 class="ha-section-header" id="${hid}"><span>${esc(title)}</span>${action || (count !== '' ? `<span class="ha-num">${count}</span>` : '')}</h2>${body}${footer ? `<p class="ha-section-footer">${footer}</p>` : ''}</section>`;
@@ -468,6 +495,7 @@ function statusLine() {
 function viewHome() {
   const all = items();
   let h = `<h1 class="ha-large-title">Pantry</h1><p class="ha-large-sub">${esc(statusLine())}</p>${syncChip()}`;
+  h += viewLost();
   if (S.syncError) h += `<div class="ha-panel pa-alert" role="status">${icon('alert')}<span>Some changes didn’t reach the family pantry. ${esc(S.syncError)}</span></div>`;
   if (S.mode === 'cloud' && S.pantries.length > 1) h += `<a class="ha-panel pa-alert" href="#/settings">${icon('alert')}<span>You’re in more than one family pantry. Merge them in Settings.</span></a>`;
   h += viewLanded();
@@ -515,6 +543,15 @@ function viewHome() {
     <li><div class="ha-row"><span class="ha-row-icon ha-row-icon--bad">${icon('trash')}</span><span class="ha-row-body"><span class="ha-row-title">Thrown away</span>${m.expired ? `<span class="ha-row-sub">${m.expired} past ${m.expired === 1 ? 'its' : 'their'} date</span>` : ''}</span><span class="ha-row-value">${m.wasted}</span></div></li>
   </ul>`, { id: 'month' });
   return h;
+}
+
+// The family pantry this phone was showing is gone (deleted or merged away, or this account was taken out of it): say so plainly,
+// with Try again (asks the server which pantry this account is in now).
+function viewLost() {
+  if (!S.lost) return '';
+  return `<div class="ha-panel pa-alert pa-lost" id="pa-lost" role="status">${icon('alert')}<span><strong>Your pantry changed.</strong> The family pantry you were using is gone, or this account isn’t in it any more.
+    ${S.lost.failed ? 'There’s no signal to check right now.' : 'This phone is showing its own pantry for now.'}
+    <button type="button" class="ha-btn ha-btn--small" data-act="hh-check">Try again</button></span></div>`;
 }
 
 // This phone's change landed on an item another phone had removed: it is kept, hidden, and Recently removed has it.
@@ -646,40 +683,480 @@ function openStarter() {
 
 // ---- Items ------------------------------------------------------------------------------------------------------
 
+// How the list is sorted. 'category', 'place' and 'myorder' put the items under headings (My order: under their category, in the order
+// the family set by dragging, order.js); the others are one flat list.
+// My order is a way of ordering WITHIN each category (the owner: "per category only"), so it is a second choice that appears under
+// Category rather than a fifth segment: five labels don't fit one row at 320 to 390 px.
+const SORTS = [['expiry', 'Use by'], ['name', 'Name'], ['category', 'Category'], ['place', 'Place']];
+const sortMode = () => (S.sort === 'myorder' || SORTS.some(([v]) => v === S.sort) ? S.sort : 'expiry');
+const topSort = () => (sortMode() === 'myorder' ? 'category' : sortMode());   // the segment that is on
 function viewItems() {
   const all = items();
   const { listed, unlisted } = placeChoices();
   const places = [...listed, ...unlisted].filter(l => all.some(i => i.location === l));
   if (S.place && !places.includes(S.place)) S.place = '';
-  const chip = (v, label, n) => `<button type="button" class="ha-chip" aria-pressed="${S.place === v}" data-act="place" data-v="${esc(v)}">${esc(label)} <span class="ha-chip-count">${n}</span></button>`;
-  const seg = (v, label) => `<label class="ha-seg"><input type="radio" name="pa-sort" value="${v}"${S.sort === v ? ' checked' : ''}><span>${label}</span></label>`;
+  const chip = (v, label, n) => `<button type="button" class="ha-chip" aria-pressed="${S.place === v}" data-act="place" data-v="${esc(v)}"${v ? ` data-place="${esc(v)}"` : ''}>${esc(label)} <span class="ha-chip-count">${n}</span></button>`;
+  const seg = (v, label) => `<label class="ha-seg"><input type="radio" name="pa-sort" id="pa-sort-${v}" value="${v}"${topSort() === v ? ' checked' : ''}><span>${label}</span></label>`;
+  const within = (v, label) => `<label class="ha-seg"><input type="radio" name="pa-within" id="pa-within-${v}" value="${v}"${sortMode() === v ? ' checked' : ''}><span>${label}</span></label>`;
   return `<h1 class="ha-large-title">Items</h1>
     <div class="ha-search" role="search">${icon('search')}
       <input type="search" id="pa-q" placeholder="Search the pantry" aria-label="Search the pantry" autocomplete="off" value="${esc(S.q)}">
       <button type="button" class="ha-search-clear" data-act="q-clear" aria-label="Clear search">${icon('close')}</button></div>
     <div class="ha-chips" role="group" aria-label="Where it’s kept">${chip('', 'All', all.length)}${places.map(p => chip(p, p, all.filter(i => i.location === p).length)).join('')}</div>
-    <fieldset class="ha-segmented"><legend>Sort by</legend>${seg('expiry', 'Use by')}${seg('name', 'Name')}${seg('category', 'Category')}</fieldset>
+    <fieldset class="ha-segmented"><legend>Sort by</legend>${SORTS.map(([v, l]) => seg(v, l)).join('')}</fieldset>
+    ${topSort() === 'category' ? `<fieldset class="ha-segmented pa-within"><legend>Order within each category</legend>${within('category', 'By name')}${within('myorder', 'My order')}</fieldset>` : ''}
     <div id="pa-items-list">${itemsList()}</div>`;
 }
+// What the search and the place chips let through (the whole result: Select all means this, not just the rows drawn).
+function filteredItems() {
+  return items().filter(i => (!S.place || i.location === S.place) && (!S.q || L.score(S.q, `${i.name} ${i.brand} ${i.category} ${i.barcode || ''}`)));
+}
+const byUseBy = (a, b) => { const x = L.nextUseBy(a) || '9999', y = L.nextUseBy(b) || '9999'; return x < y ? -1 : x > y ? 1 : a.name.localeCompare(b.name); };
+function sortedItems(list) {
+  const l = [...list];
+  if (sortMode() === 'category') l.sort((a, b) => CATEGORIES.indexOf(a.category) - CATEGORIES.indexOf(b.category) || a.name.localeCompare(b.name));
+  else if (sortMode() === 'myorder') l.sort((a, b) => CATEGORIES.indexOf(a.category) - CATEGORIES.indexOf(b.category) || O.compareOrder(a, b));
+  else if (sortMode() === 'name') l.sort((a, b) => a.name.localeCompare(b.name));
+  else l.sort(byUseBy);   // by use-by date (and, grouped by place, within each place)
+  return l;
+}
+// The headings, as [{ key, title, items, place? , fold? }], or null for a flat list. Place headings follow the household's
+// order of places (then any place items still use that isn't in it, then "No place").
+function itemGroups(list) {
+  const mode = sortMode();
+  if (mode === 'category' || mode === 'myorder') {
+    const groups = new Map();
+    for (const it of list) { const c = it.category || 'Other'; if (!groups.has(c)) groups.set(c, []); groups.get(c).push(it); }
+    return [...groups].map(([c, l], i) => ({ key: 'cat:' + c, hid: 'h-cat-' + i, title: c, cat: c, items: l }));
+  }
+  if (mode === 'place') {
+    const { listed, unlisted } = placeChoices();
+    const by = new Map();
+    for (const it of list) { const k = it.location || ''; if (!by.has(k)) by.set(k, []); by.get(k).push(it); }
+    const order = [...listed, ...unlisted, ''].filter(k => by.has(k));
+    return [...new Set([...order, ...by.keys()])].map((k, i) => ({ key: 'place:' + k, hid: 'h-place-' + i, title: k || 'No place', place: k, fold: true, items: by.get(k) }));
+  }
+  return null;
+}
+function groupSection(g) {
+  const folded = g.fold && S.folded.has(g.key), n = g.items.length;
+  const sel = S.sel.on ? `<button type="button" class="pa-selthese" data-act="sel-group" data-g="${esc(g.key)}">${esc(selTheseText(g))}</button>` : '';
+  const title = g.fold
+    ? `<button type="button" class="pa-fold" data-act="fold" data-g="${esc(g.key)}" id="pa-fold-${esc(g.hid)}" aria-expanded="${!folded}" aria-controls="pa-list-${esc(g.hid)}">${icon('chevron-right', { cls: 'pa-fold-icon' })}<span class="pa-fold-name">${esc(g.title)}</span></button>`
+    : `<span>${esc(g.title)}</span>`;
+  return `<section class="ha-section pa-group" ${g.place ? `data-place="${esc(g.place)}" ` : ''}${g.cat !== undefined ? `data-cat="${esc(g.cat)}" ` : ''}aria-labelledby="${esc(g.hid)}"><h2 class="ha-section-header pa-grouphead" id="${esc(g.hid)}">${title}<span class="ha-num">${n}</span>${sel}</h2>${
+    folded ? '' : `<ul class="ha-list" id="pa-list-${esc(g.hid)}">${g.items.map(it => itemRow(it, { select: S.sel.on, grip: true })).join('')}</ul>`}</section>`;
+}
+const selTheseText = g => (SEL.groupState(S.sel, g.items.map(i => i.id)) === 'all' ? `Unselect these ${g.items.length}` : `Select these ${g.items.length}`);
 function itemsList() {
   const all = items();
-  const list = all.filter(i => (!S.place || i.location === S.place) && (!S.q || L.score(S.q, `${i.name} ${i.brand} ${i.category} ${i.barcode || ''}`)));
-  const by = it => L.nextUseBy(it) || '9999';
-  if (S.sort === 'expiry') list.sort((a, b) => by(a) < by(b) ? -1 : by(a) > by(b) ? 1 : a.name.localeCompare(b.name));
-  else if (S.sort === 'category') list.sort((a, b) => CATEGORIES.indexOf(a.category) - CATEGORIES.indexOf(b.category) || a.name.localeCompare(b.name));
-  else list.sort((a, b) => a.name.localeCompare(b.name));
+  SEL.pruneSel(S.sel, all.map(i => i.id));   // what another phone deleted drops out of the selection
+  const list = sortedItems(filteredItems());
   if (!list.length) {
     return all.length
       ? `<div class="ha-empty"><span class="ha-empty-icon">${icon('search')}</span><p class="ha-empty-title">Nothing found</p><p class="ha-empty-text">No items match. Try another word or place.</p></div>`
       : `<div class="ha-card ha-empty"><span class="ha-empty-icon">${icon('box')}</span><p class="ha-empty-title">No items yet</p><p class="ha-empty-text">Add what’s at home to start.</p><button type="button" class="ha-btn ha-btn--primary" data-act="go-add">Add an item</button></div>`;
   }
-  if (S.sort !== 'category') return section(plural(list.length, 'item'), `<ul class="ha-list">${list.map(i => itemRow(i)).join('')}</ul>`, { id: 'items' });
-  const groups = new Map();
-  for (const it of list) { const c = it.category || 'Other'; if (!groups.has(c)) groups.set(c, []); groups.get(c).push(it); }
-  return [...groups].map(([c, l], i) => section(c, `<ul class="ha-list">${l.map(it => itemRow(it)).join('')}</ul>`, { count: l.length, id: 'cat-' + i })).join('');
+  const groups = itemGroups(list);
+  if (!groups) return section(plural(list.length, 'item'), `<ul class="ha-list">${list.map(i => itemRow(i, { select: S.sel.on, grip: true })).join('')}</ul>`, { id: 'items' });
+  return groups.map(groupSection).join('');
 }
 function drawItemsList() {
-  const el = $('#pa-items-list'); if (el) el.innerHTML = itemsList();
+  const el = $('#pa-items-list'); if (!el) return;
+  const keep = el.contains(document.activeElement) ? document.activeElement.id : '';
+  el.innerHTML = itemsList();
+  if (keep) document.getElementById(keep)?.focus({ preventScroll: true });
+  updateSelUI();
+}
+
+// ---- selecting items (select.js): a Select button, a press and hold, rows with checkboxes, a bar above the tab bar -----------------
+
+// Start selecting, with `id` already ticked (a press and hold) or nothing (the Select button). The selection is a history entry
+// (like a sheet), so Back, the iPhone swipe and Escape leave it.
+function enterSelect(id = '') {
+  if (S.sel.on || screen() !== 'items') return;
+  SEL.startSel(S.sel, id);
+  history.pushState({ ...(history.state || {}), haSheet: 'pa-select', paSelect: true }, '', location.href);
+  redraw();
+  haAnnounce(`Selecting. ${S.sel.ids.size} selected. Tap items to select them.`);
+  (id && document.getElementById('pa-sel-' + id) || $('.pa-sel'))?.focus({ preventScroll: true });
+}
+function exitSelect({ pop = true } = {}) {
+  if (!S.sel.on) return;
+  SEL.endSel(S.sel);
+  if (pop && history.state?.paSelect) history.back();
+  redraw();
+}
+// The selected items that still exist, in the list's order.
+const selectedItems = () => SEL.chosen(S.sel, items());
+function selBarHTML() {
+  const btn = (act, label, cls = '') => `<button type="button" class="ha-btn ha-btn--compact ${cls}" data-act="${act}">${label}</button>`;
+  return `<div class="pa-selbar-inner"><div class="pa-selbar-row"><span class="pa-selcount" id="pa-selcount" role="status" aria-live="polite"></span>
+      <span class="pa-selbar-links"><button type="button" class="ha-btn ha-btn--plain ha-btn--compact" data-act="sel-all">Select all</button><button type="button" class="ha-btn ha-btn--plain ha-btn--compact" data-act="sel-none">Select none</button><button type="button" class="ha-btn ha-btn--plain ha-btn--compact" data-act="sel-done">Done</button></span></div>
+    <div class="pa-selbar-acts" role="group" aria-label="What to do with the selected items">${btn('sel-move', 'Move to…', 'ha-btn--secondary')}${btn('sel-list', 'Shopping list', 'ha-btn--secondary')}${btn('sel-delete', 'Delete', 'ha-btn--danger')}</div></div>`;
+}
+// The bar exists only while selecting on Items. Its buttons keep their place while the numbers change (updateSelUI).
+function drawSelBar() {
+  const on = S.sel.on && screen() === 'items';
+  document.body.classList.toggle('pa-selecting', on);
+  let el = $('#pa-selbar');
+  if (!on) { el?.remove(); return; }
+  if (!el) {
+    el = document.createElement('div'); el.id = 'pa-selbar'; el.className = 'pa-selbar';
+    el.setAttribute('role', 'region'); el.setAttribute('aria-label', 'Selected items');
+    el.innerHTML = selBarHTML();
+    document.body.append(el);
+  }
+  updateSelUI();
+}
+// After any change to the selection: the count (how many are hidden by the filter), the checkboxes, the headings' buttons and the
+// actions (off with nothing selected). Never replaces a button, so focus stays where it is.
+function updateSelUI() {
+  if (!S.sel.on) return;
+  const shown = new Set(filteredItems().map(i => i.id)), n = S.sel.ids.size;
+  const hidden = [...S.sel.ids].filter(id => !shown.has(id)).length;
+  const c = $('#pa-selcount'); if (c) { const t = SEL.selText(n, hidden); if (c.textContent !== t) c.textContent = t; }
+  for (const b of document.querySelectorAll('#pa-selbar [data-act="sel-move"], #pa-selbar [data-act="sel-list"], #pa-selbar [data-act="sel-delete"]')) b.setAttribute('aria-disabled', String(n === 0));
+  for (const i of document.querySelectorAll('input.pa-sel')) {
+    const on = SEL.isSel(S.sel, i.dataset.sel);
+    if (i.checked !== on) i.checked = on;
+    i.closest('.pa-item')?.classList.toggle('is-selected', on);
+  }
+  const groups = itemGroups(sortedItems(filteredItems())) || [];
+  for (const b of document.querySelectorAll('[data-act="sel-group"]')) {
+    const g = groups.find(x => x.key === b.dataset.g); if (g) b.textContent = selTheseText(g);
+  }
+}
+// A change to the selection from a checkbox or a button.
+function selChanged() { updateSelUI(); }
+// An action is done: stop selecting (the items have moved or gone), redraw.
+function finishBulk() { SEL.endSel(S.sel); if (history.state?.paSelect) history.back(); redraw(); }
+
+// ---- the three actions on the selection: each ONE batch of changes and ONE toast with Undo that only touches what nobody has
+// changed since ("2 changed since, left as they are").
+
+// Take back a batch (`sent`: what patchMany returned): each item gets the inverse of what was done to it, only if nobody has
+// changed those fields since (logic.js invertOps). `liveOnly`: an item removed since counts as changed (not for undoing a delete).
+function undoBatch(sent, { liveOnly = true, lines = [] } = {}) {
+  const back = [];
+  let changed = 0, undone = 0;
+  // shopping lines a bulk edit added: one another phone has ticked or removed since is left as it is
+  const mine = lines.filter(m => { const now = S.shop.get(m.id); return now && !L.isRemoved(now) && !now.done; });
+  if (mine.length) patchLines(mine.map(m => ({ id: m.id, ops: L.removeOps(who()) })));
+  changed += lines.length - mine.length; undone += mine.length;
+  for (const x of sent) {
+    const now = S.items.get(x.id);
+    const inv = now && (!liveOnly || !L.isRemoved(now)) ? L.invertOps(x.ops, x.before, now) : null;
+    if (inv && !L.opsEmpty(inv)) back.push({ id: x.id, ops: inv });
+    // changed since: nothing could be put back, or only some of what was done (another phone changed one of the fields)
+    const want = Object.keys(x.ops.set || {}).filter(k => k !== 'updatedAt' && k !== 'updatedBy').length + (x.ops.del || []).length + Object.keys(x.ops.inc || {}).length;
+    const got = inv ? Object.keys(inv.set || {}).length + (inv.del || []).length + Object.keys(inv.inc || {}).length : 0;
+    if (got < want) changed++;
+  }
+  if (back.length) patchMany(back);
+  redraw();
+  const msg = `${back.length || undone ? 'Undone' : 'Nothing to undo'}${changed ? `: ${changed} changed since, left as ${changed === 1 ? 'it is' : 'they are'}` : ''}`;
+  haToast(msg); haAnnounce(msg);
+}
+// The move itself: one batch, nothing for an item that is already there. { place, sent, same }.
+function moveItems(list, to) {
+  const place = P.cleanPlace(to), todo = list.filter(it => it.location !== place);
+  const sent = todo.length ? patchMany(todo.map(it => ({ id: it.id, ops: { set: { location: place }, inc: {}, del: [] } }))) : [];
+  return { place, sent, same: list.length - todo.length };
+}
+function bulkMove(list, to) {
+  finishBulk();
+  const { place, sent, same } = moveItems(list, to);
+  if (!sent.length) { haToast(`Already in ${place}`); return; }
+  redraw();
+  const msg = sent.length === 1 && !same ? `${S.items.get(sent[0].id)?.name || 'Item'} moved to ${place}` : `${plural(sent.length, 'item')} moved to ${place}${same ? ` (${same} already there)` : ''}`;
+  haToast(msg, { action: 'Undo', onAction: () => undoBatch(sent) }); haAnnounce(msg);
+}
+function bulkToList(list) {
+  const fresh = list.filter(it => !onList(it.id)), already = list.length - fresh.length;
+  finishBulk();
+  if (!fresh.length) { haToast(list.length === 1 ? 'Already on the shopping list' : 'All of them are already on the shopping list'); return; }
+  const at = new Date().toISOString(), by = who().slice(0, 100);
+  const lines = saveMany('shop', fresh.map(it => ({ id: L.uid(), name: [it.brand, it.name].filter(Boolean).join(' ').slice(0, LINE_MAX), itemId: it.id, done: false, at, by })));
+  redraw();
+  const msg = `${plural(lines.length, 'item')} on the shopping list${already ? ` (${already} already there)` : ''}`;
+  haToast(msg, { action: 'Undo', onAction: () => {
+    // a line another phone has ticked or removed since is left as it is
+    const gone = lines.filter(m => { const now = S.shop.get(m.id); return now && !L.isRemoved(now) && !now.done; });
+    if (gone.length) patchLines(gone.map(m => ({ id: m.id, ops: L.removeOps(who()) })));
+    redraw();
+    const left = lines.length - gone.length, t = `Undone${left ? `: ${left} changed since, left as ${left === 1 ? 'it is' : 'they are'}` : ''}`;
+    haToast(t); haAnnounce(t);
+  } });
+  haAnnounce(msg);
+}
+function bulkDelete(list) {
+  finishBulk();
+  const sent = patchMany(list.map(it => ({ id: it.id, ops: L.removeOps(who()) })));
+  redraw();
+  const msg = `${plural(sent.length, 'item')} deleted`;
+  haToast(msg, { action: 'Undo', onAction: () => undoBatch(sent, { liveOnly: false }) }); haAnnounce(msg);
+}
+// Move to…: the place picker as a sheet (a radio list; the button names how many move).
+function openMoveTo(list) {
+  const { listed, unlisted } = placeChoices();
+  const counts = P.placeCounts(items());
+  const here = new Set(list.map(it => it.location));
+  const row = (p, i) => `<li><label class="ha-row"><input type="radio" name="pa-moveto" value="${esc(p)}" id="pa-moveto-${i}"><span class="ha-row-body"><span class="ha-row-title">${esc(p)}</span><span class="ha-row-sub">${esc(plural(counts.get(p) || 0, 'item'))} there${here.size === 1 && here.has(p) ? ' · where they are now' : ''}</span></span></label></li>`;
+  const all = [...listed, ...unlisted];
+  const s = haSheet({
+    title: `Move ${plural(list.length, 'item')}`, closeLabel: 'Cancel', grey: true,
+    body: `<fieldset class="pa-moveto"><legend class="ha-sr">Move to which place?</legend><ul class="ha-list">${all.map(row).join('')}</ul></fieldset>`,
+    footer: `<button type="button" class="ha-btn ha-btn--primary ha-btn--block" id="pa-moveto-go" aria-disabled="true">Choose a place</button>`,
+    onClose: afterSheet,
+  });
+  const go = $('#pa-moveto-go', s.el);
+  s.el.addEventListener('change', e => {
+    if (e.target.name !== 'pa-moveto') return;
+    go.setAttribute('aria-disabled', 'false'); go.textContent = `Move ${plural(list.length, 'item')} to ${e.target.value}`;
+  });
+  go.addEventListener('click', async () => {
+    const v = $('input[name="pa-moveto"]:checked', s.el)?.value;
+    if (!v) return;
+    await haCloseSheet(s.el);
+    bulkMove(list.filter(it => S.items.has(it.id) && itemById(it.id)), v);
+  });
+  return s;
+}
+// ---- My order, and dragging by the grip (order.js, drag.js) ---------------------------------------------------------------------
+
+const catOf = it => it.category || 'Other';
+const groupOf = it => items().filter(x => catOf(x) === catOf(it));   // an item's category, every item (the filters don't matter to the order)
+// Put item `id` just after `afterId` (null: first) in its category: ONE field on ONE item, or, when there is no room (or the items
+// have no numbers yet), a renumbering of the category in one batch. No stamp: moving isn't changing. { sent, plan } or null.
+function commitOrder(id, afterId) {
+  const it = itemById(id); if (!it) return null;
+  const plan = O.planMove(groupOf(it), id, afterId);
+  if (!plan.sets.length) return null;
+  const sent = patchMany(plan.sets.map(x => ({ id: x.id, ops: { set: { order: x.order }, inc: {}, del: [] } })), { stamp: false });
+  return { sent, plan, cat: catOf(it) };
+}
+// One step up or down (the buttons, the arrow keys): { moved, text } with what to say.
+function moveStep(id, dir) {
+  const it = itemById(id); if (!it) return null;
+  const cat = catOf(it), to = O.stepTarget(groupOf(it), id, dir);
+  if (to === undefined) return { moved: false, text: `${it.name} is already ${dir < 0 ? 'first' : 'last'} in ${cat}` };
+  const r = commitOrder(id, to);
+  const p = O.positionOf(groupOf(it), id);
+  return { moved: !!r, ...r, text: `${it.name} moved ${dir < 0 ? 'up' : 'down'}: ${p.index + 1} of ${p.count} in ${cat}` };
+}
+// The sheet behind a grip, for anyone who isn't dragging (a tap, Enter or Space on the grip): Move up and Move down in My order,
+// and Move to… in every sort. The result is spoken each time.
+function openGrip(id) {
+  const it = itemById(id); if (!it) return;
+  const ord = sortMode() === 'myorder', cat = catOf(it);
+  const pos = () => { const p = O.positionOf(groupOf(it), id); return `${p.index + 1} of ${p.count} in ${cat}`; };
+  const btn = (g, title, sub, dis = false) => `<li><button type="button" class="ha-row ha-row--action" data-g="${g}"${dis ? ' aria-disabled="true"' : ''}><span class="ha-row-body"><span class="ha-row-title">${title}</span><span class="ha-row-sub" ${g === 'to' ? '' : `id="pa-grip-sub-${g}"`}>${sub}</span></span></button></li>`;
+  const first = () => O.positionOf(groupOf(it), id).index === 0, last = () => { const p = O.positionOf(groupOf(it), id); return p.index === p.count - 1; };
+  const s = haSheet({
+    title: it.name, closeLabel: 'Done', grey: true,
+    body: `<ul class="ha-list">${ord ? btn('up', 'Move up', esc(pos()), first()) + btn('down', 'Move down', esc(pos()), last()) : ''}${btn('to', 'Move to…', `Now in ${esc(it.location || 'no place')}`)}</ul>
+      ${ord ? '' : '<p class="ha-section-footer">To put items in your own order, choose Category under Sort by, then My order.</p>'}`,
+    onClose: afterSheet,
+  });
+  const refresh = () => {
+    const u = $('[data-g="up"]', s.el), d = $('[data-g="down"]', s.el); if (!u) return;
+    u.setAttribute('aria-disabled', String(first())); d.setAttribute('aria-disabled', String(last()));
+    for (const sub of s.el.querySelectorAll('[id^="pa-grip-sub-"]')) sub.textContent = pos();
+  };
+  s.el.addEventListener('click', async e => {
+    const b = e.target.closest('[data-g]'); if (!b || b.getAttribute('aria-disabled') === 'true') return;
+    if (b.dataset.g === 'to') { await haCloseSheet(s.el); return openMoveTo([it]); }
+    const r = moveStep(id, b.dataset.g === 'up' ? -1 : 1);
+    if (r) { haAnnounce(r.text); refresh(); }
+  });
+  return s;
+}
+// A drag from a grip (drag.js). A grip of a ticked row, while selecting, carries every ticked item. It can be dropped on a place
+// (a heading or section in Group by place, or one of the place chips at the top) to move, and in My order within its category
+// to reorder. The ghost says which, and where.
+function onGripDown(e) {
+  const grip = e.target.closest?.('.pa-grip'); if (!grip || screen() !== 'items') return;
+  const id = grip.dataset.id, it = itemById(id); if (!it) return;
+  const ids = S.sel.on && SEL.isSel(S.sel, id) ? selectedItems().map(x => x.id) : [id];
+  const many = ids.length > 1, ord = sortMode() === 'myorder' && !many;
+  const nameOf2 = i => S.items.get(i)?.name || 'item';
+  const hit = (x, y, under) => {
+    const t = under?.closest?.('[data-place]');
+    if (t) {
+      const place = t.dataset.place, movers = ids.map(itemById).filter(i => i && i.location !== place);
+      if (!movers.length) return { key: 'own', tip: `Already in ${place}`, drop: null };   // its own heading isn't a target
+      return { key: 'place:' + place, el: t, tip: many ? `Move ${ids.length} items to ${place}` : `Move to ${place}`, drop: { place } };
+    }
+    if (ord) {
+      const sec = [...document.querySelectorAll('section[data-cat]')].find(c => c.dataset.cat === catOf(it)), list = sec?.querySelector('ul.ha-list');
+      if (list) {
+        const lr = list.getBoundingClientRect();
+        if (y >= lr.top - 24 && y <= lr.bottom + 24 && x >= lr.left - 24 && x <= lr.right + 24) {
+          const all = [...list.querySelectorAll('li[data-id]')], rows = all.filter(li => li.dataset.id !== id);
+          const idx = rows.filter(li => { const r = li.getBoundingClientRect(); return r.top + r.height / 2 < y; }).length;
+          const afterId = idx > 0 ? rows[idx - 1].dataset.id : null;
+          const own = all.findIndex(li => li.dataset.id === id), prevId = own > 0 ? all[own - 1].dataset.id : null;
+          const at = idx < rows.length ? rows[idx].getBoundingClientRect().top : rows.length ? rows[rows.length - 1].getBoundingClientRect().bottom : lr.top;
+          const same = afterId === prevId;
+          return { key: 'ord:' + (afterId || ''), tip: same ? 'Stays here' : afterId ? `After ${nameOf2(afterId)}` : `First in ${catOf(it)}`, line: same ? null : { y: at, left: lr.left, width: lr.width }, drop: same ? null : { afterId } };
+        }
+      }
+    }
+    return { key: 'none', tip: ord ? 'Drop in the list to reorder, or on a place to move' : 'Drop on a place to move it', drop: null };
+  };
+  S.dragging = true;
+  startDrag(e, {
+    handle: grip,
+    ghost: many ? null : grip.closest('li'),
+    text: many ? `${ids.length} items` : '',
+    hit, haptic: () => haHaptic(8),
+    suppressClick: () => { S.gripQuiet = Date.now() + 500; },
+    onDrop: d => {
+      if (d.place) { const list = ids.map(itemById).filter(Boolean); bulkMove(list, d.place); return; }
+      const r = commitOrder(id, d.afterId);
+      if (!r) return;
+      redraw();
+      const msg = d.afterId ? `${it.name} moved after ${nameOf2(d.afterId)}` : `${it.name} moved to the top of ${catOf(it)}`;
+      haToast(msg, { action: 'Undo', onAction: () => undoBatch(r.sent) }); haAnnounce(msg);
+    },
+    onEnd: () => { S.dragging = false; afterSheet(); },
+  });
+}
+// What the bar's actions do with the items as they are now.
+function selAction(act) {
+  const list = selectedItems();
+  if (!list.length) { haToast('Select some items first'); return; }
+  if (act === 'sel-move') return openMoveTo(list);
+  if (act === 'sel-list') return bulkToList(list);
+  if (act === 'sel-delete') return bulkDelete(list);
+}
+
+// ---- Bulk edit (#/bulk; bulk-items.js): pick items, choose what to change (every field starts Unchanged), Review, Save ONE batch -----
+
+const bulkState = () => (S.bulk ||= { q: '', place: '', cat: '', sel: SEL.newSel(), ch: BI.none(), step: 'edit', plan: null });
+function openBulk(ids = []) {
+  S.bulk = null; const b = bulkState();
+  SEL.startSel(b.sel); SEL.setMany(b.sel, ids, true);
+  haGo('#/bulk');
+}
+// What the filters let through (the same search and place chips as Items, plus a category), by name.
+function bulkFiltered() {
+  const b = bulkState();
+  return items().filter(i => (!b.place || i.location === b.place) && (!b.cat || (i.category || 'Other') === b.cat) && (!b.q || L.score(b.q, `${i.name} ${i.brand} ${i.category} ${i.barcode || ''}`)))
+    .sort((a, c) => a.name.localeCompare(c.name));
+}
+const bulkChosen = () => SEL.chosen(bulkState().sel, items());
+function bulkList() {
+  const b = bulkState(), list = bulkFiltered();
+  SEL.pruneSel(b.sel, items().map(i => i.id));
+  if (!list.length) return `<div class="ha-empty"><span class="ha-empty-icon">${icon('search')}</span><p class="ha-empty-title">Nothing found</p><p class="ha-empty-text">No items match. Try another word, place or category.</p></div>`;
+  return `<ul class="ha-list">${list.map(i => itemRow(i, { select: true, sel: b.sel, attr: 'bsel' })).join('')}</ul>`;
+}
+function bulkChanges() {
+  const ch = bulkState().ch, { listed, unlisted } = placeChoices();
+  const sel = (id, label, value, opts, extra = '') => `<div class="pa-bk-field"><label class="ha-field"><span class="ha-field-label">${label}</span><select class="ha-select" id="pa-bk-${id}" data-bk="${id}">${opts.map(([v, t]) => `<option value="${esc(v)}"${v === value ? ' selected' : ''}>${esc(t)}</option>`).join('')}</select></label>${extra}</div>`;
+  const placeOpts = [['', 'Choose a place…'], ...[...listed, ...unlisted].map(p => [p, p])];
+  const catOpts = [['', 'Choose a category…'], ...CATEGORIES.map(c => [c, c])];
+  const x = ch.expiry;
+  return `${sel('place', 'Place', ch.place ? 'set' : '', [['', 'Unchanged'], ['set', 'Move to…']],
+      ch.place ? `<label class="ha-field"><span class="ha-field-label">Move to</span><select class="ha-select" id="pa-bk-place-to" data-bk="place-to">${placeOpts.map(([v, t]) => `<option value="${esc(v)}"${v === ch.place.to ? ' selected' : ''}>${esc(t)}</option>`).join('')}</select></label>` : '')}
+    ${sel('category', 'Category', ch.category ? 'set' : '', [['', 'Unchanged'], ['set', 'Change to…']],
+      ch.category ? `<label class="ha-field"><span class="ha-field-label">Change to</span><select class="ha-select" id="pa-bk-category-to" data-bk="category-to">${catOpts.map(([v, t]) => `<option value="${esc(v)}"${v === ch.category.to ? ' selected' : ''}>${esc(t)}</option>`).join('')}</select></label>` : '')}
+    ${sel('mode', 'Kept track of', ch.mode || '', [['', 'Unchanged'], ['count', 'Counting'], ['level', 'Plenty, low, out']])}
+    ${sel('expiry', 'Best-before', x ? x.kind : '', [['', 'Unchanged'], ['shift', 'Move every date by…'], ['set', 'Set one date…']],
+      x?.kind === 'shift' ? `<div class="pa-bk-shift"><label class="ha-field"><span class="ha-field-label">Days</span><input class="ha-input" id="pa-bk-days" data-bk="days" type="number" inputmode="numeric" min="1" max="3650" value="${esc(x.days ?? '')}"></label>
+          <label class="ha-field"><span class="ha-field-label">Which way</span><select class="ha-select" id="pa-bk-dir" data-bk="dir"><option value="later"${x.dir !== 'earlier' ? ' selected' : ''}>Later</option><option value="earlier"${x.dir === 'earlier' ? ' selected' : ''}>Earlier</option></select></label></div>`
+      : x?.kind === 'set' ? `<label class="ha-field"><span class="ha-field-label">Date</span><input class="ha-input" id="pa-bk-date" data-bk="date" type="date" value="${esc(x.date || '')}"></label>` : '')}
+    ${sel('list', 'Shopping list', ch.list ? 'add' : '', [['', 'Unchanged'], ['add', 'Add to the shopping list']])}
+    ${sel('bin', 'Delete', ch.bin ? 'del' : '', [['', 'Unchanged'], ['del', 'Delete these items']], ch.bin ? '<p class="ha-field-hint">Delete is done on its own: any other change you chose is ignored. The items stay in Recently removed for 30 days.</p>' : '')}`;
+}
+function viewBulk() {
+  const b = bulkState();
+  if (b.step === 'review' && b.plan) return viewBulkReview();
+  const all = items();
+  const cats = CATEGORIES.filter(c => all.some(i => (i.category || 'Other') === c));
+  const { listed, unlisted } = placeChoices();
+  const places = [...listed, ...unlisted].filter(l => all.some(i => i.location === l));
+  const chip = (v, label, n) => `<button type="button" class="ha-chip" aria-pressed="${b.place === v}" data-act="bk-place" data-v="${esc(v)}">${esc(label)} <span class="ha-chip-count">${n}</span></button>`;
+  return `<h1 class="ha-large-title">Bulk edit</h1>
+    <p class="ha-large-sub">Pick items, choose what to change, then check it. Nothing is saved until you say so.</p>
+    ${section('Which items', `<div class="ha-search" role="search">${icon('search')}
+        <input type="search" id="pa-bq" placeholder="Search the pantry" aria-label="Search the pantry" autocomplete="off" value="${esc(b.q)}">
+        <button type="button" class="ha-search-clear" data-act="bk-q-clear" aria-label="Clear search">${icon('close')}</button></div>
+      <div class="ha-chips" role="group" aria-label="Where it’s kept">${chip('', 'All', all.length)}${places.map(p => chip(p, p, all.filter(i => i.location === p).length)).join('')}</div>
+      <label class="ha-field pa-bk-cat"><span class="ha-field-label">Category</span><select class="ha-select" id="pa-bk-cat" data-bk="cat"><option value="">All categories</option>${cats.map(c => `<option value="${esc(c)}"${b.cat === c ? ' selected' : ''}>${esc(c)}</option>`).join('')}</select></label>
+      <div class="pa-bk-bar"><span class="pa-selcount" id="pa-bcount" role="status" aria-live="polite"></span>
+        <span class="pa-selbar-links"><button type="button" class="ha-btn ha-btn--plain ha-btn--compact" data-act="bk-all">Select all matching</button><button type="button" class="ha-btn ha-btn--plain ha-btn--compact" data-act="bk-none">Select none</button></span></div>
+      <div id="pa-bulk-list">${bulkList()}</div>`, { id: 'bk-items' })}
+    ${section('What to change', `<div class="ha-card pa-bk-changes" id="pa-bulk-changes">${bulkChanges()}</div>
+      <button type="button" class="ha-btn ha-btn--primary ha-btn--block" data-act="bk-review">Review changes</button>`, { id: 'bk-change', footer: 'Every field stays as it is until you choose. Names are changed one item at a time, on the item.' })}`;
+}
+function updateBulkUI() {
+  const b = S.bulk; if (!b) return;
+  const shown = new Set(bulkFiltered().map(i => i.id)), n = b.sel.ids.size, hidden = [...b.sel.ids].filter(id => !shown.has(id)).length;
+  const c = $('#pa-bcount'); if (c) { const t = SEL.selText(n, hidden); if (c.textContent !== t) c.textContent = t; }
+  for (const i of document.querySelectorAll('input.pa-bsel')) { const on = SEL.isSel(b.sel, i.dataset.bsel); if (i.checked !== on) i.checked = on; i.closest('.pa-item')?.classList.toggle('is-selected', on); }
+}
+function drawBulkList() { const el = $('#pa-bulk-list'); if (!el) return; const k = el.contains(document.activeElement) ? document.activeElement.id : ''; el.innerHTML = bulkList(); if (k) document.getElementById(k)?.focus({ preventScroll: true }); updateBulkUI(); }
+// The choice made in a field of the Change section. `structure`: the set of inputs changed (redraw that block).
+function bulkField(name, v) {
+  const b = bulkState(), ch = b.ch;
+  let structure = true;
+  if (name === 'place') ch.place = v ? { to: ch.place?.to || '' } : null;
+  else if (name === 'place-to') { ch.place.to = v; structure = false; }
+  else if (name === 'category') ch.category = v ? { to: ch.category?.to || '' } : null;
+  else if (name === 'category-to') { ch.category.to = v; structure = false; }
+  else if (name === 'mode') ch.mode = v || null;
+  else if (name === 'expiry') ch.expiry = v === 'shift' ? { kind: 'shift', days: ch.expiry?.days || 7, dir: ch.expiry?.dir || 'later' } : v === 'set' ? { kind: 'set', date: ch.expiry?.date || '' } : null;
+  else if (name === 'days') { ch.expiry.days = v; structure = false; }
+  else if (name === 'dir') { ch.expiry.dir = v; structure = false; }
+  else if (name === 'date') { ch.expiry.date = v; structure = false; }
+  else if (name === 'list') ch.list = v === 'add';
+  else if (name === 'bin') ch.bin = v === 'del';
+  if (structure) { const el = $('#pa-bulk-changes'), id = document.activeElement?.id; if (el) { el.innerHTML = bulkChanges(); if (id) document.getElementById(id)?.focus({ preventScroll: true }); } }
+}
+// Review: what will change, in numbers, with up to three before and after.
+function bulkReview() {
+  const b = bulkState(), ch = b.ch, list = bulkChosen();
+  if (!list.length) return haToast('Select some items first');
+  if (BI.isEmpty(ch)) return haToast('Choose what to change first');
+  const gap = BI.missing(ch); if (gap) return haToast(gap);
+  const p = BI.plan(list, ch, { onList, by: who() });
+  if (!p.changing) return haToast(p.unchanged ? 'None of them would change: they are already as chosen' : 'None of them would change');
+  b.plan = p; b.step = 'review';
+  redraw();
+  window.scrollTo(0, 0);
+}
+function viewBulkReview() {
+  const b = bulkState(), ch = b.ch, p = b.plan;
+  const lines = BI.changeLines(ch, p), notes = BI.reviewNotes(p, ch);
+  const big = p.changing >= BI.BIG && BI.overwrites(ch);
+  const samples = p.pairs.slice(0, 3).map(x => `<li><div class="ha-row"><span class="ha-row-body"><span class="ha-row-sub">${esc(BI.summary(x.before))}</span><span class="ha-row-title pa-break">→ ${esc(BI.summary(x.after))}</span></span></div></li>`).join('')
+    || p.addToList.slice(0, 3).map(i => `<li><div class="ha-row"><span class="ha-row-body"><span class="ha-row-title pa-break">${esc(i.name)} → on the shopping list</span></span></div></li>`).join('');
+  return `<h1 class="ha-large-title" id="pa-bulk-h" tabindex="-1">Review changes</h1>
+    <p class="ha-large-sub">${esc(BI.headline(p))}${p.total > p.changing ? ` (of ${p.total} picked)` : ''}</p>
+    <ul class="ha-list">${lines.map(t => `<li><div class="ha-row"><span class="ha-row-body"><span class="ha-row-title pa-break">${esc(t)}</span></span></div></li>`).join('')}</ul>
+    ${notes.map(n => `<p class="ha-panel ${n.kind === 'warn' ? 'pa-warn' : ''}" role="note">${n.kind === 'warn' ? icon('alert') : ''}<span>${esc(n.text)}</span></p>`).join('')}
+    ${section(p.pairs.length > 3 ? 'For example' : 'Before and after', `<ul class="ha-list">${samples}</ul>`, { id: 'bk-samples' })}
+    <div class="ha-btn-stack"><button type="button" class="ha-btn ${p.deleting ? 'ha-btn--danger' : 'ha-btn--primary'} ha-btn--block" data-act="bk-save">${p.deleting ? `Delete ${plural(p.changing, 'item')}` : big ? `Change ${plural(p.changing, 'item')}` : 'Save'}</button>
+      <button type="button" class="ha-btn ha-btn--plain ha-btn--block" data-act="bk-back">Back</button></div>`;
+}
+// Save: ONE batch for the items, one for the shopping lines, ONE toast with Undo for both.
+function bulkSave() {
+  const b = bulkState(), p = b.plan, ch = b.ch;
+  if (!p) return;
+  const pairs = p.pairs.filter(x => itemById(x.id));   // (not what another phone deleted meanwhile)
+  const sent = pairs.length ? patchMany(pairs.map(x => ({ id: x.id, ops: x.ops }))) : [];
+  const fresh = ch.bin ? [] : p.addToList.filter(it => itemById(it.id) && !onList(it.id));
+  const at = new Date().toISOString(), by = who().slice(0, 100);
+  const lines = fresh.length ? saveMany('shop', fresh.map(it => ({ id: L.uid(), name: [it.brand, it.name].filter(Boolean).join(' ').slice(0, LINE_MAX), itemId: it.id, done: false, at, by }))) : [];
+  const n = new Set([...sent.map(x => x.id), ...fresh.map(i => i.id)]).size;
+  S.bulk = null;
+  haBack(S.originTab);
+  redraw();
+  const msg = ch.bin ? `${plural(n, 'item')} deleted` : `${plural(n, 'item')} changed`;
+  haToast(msg, { action: 'Undo', onAction: () => undoBatch(sent, { liveOnly: !ch.bin, lines }) }); haAnnounce(msg);
 }
 
 // ---- Item -------------------------------------------------------------------------------------------------------
@@ -1766,6 +2243,18 @@ function setPersonName(email, name) {
   const ops = PP.nameOps(email, name, { orphans: PP.orphanNames(cur, members, email) });
   return patchDoc('settings', PP.PEOPLE_ID, S.settings.has(PP.PEOPLE_ID) ? ops : L.mergeOps(ops, { set: { id: PP.PEOPLE_ID } }));
 }
+// A name this phone had saved for itself (Settings → You, before the family pantry) becomes the family's name for this account, once per
+// household and only when the family has none for it: one field (`names.<email>`) like any other name. Waits until the family's own
+// copy has come from the server (never decided from the phone's cache). The person's own row in Family sharing is the one place for
+// the name from then on (the field is hidden in a family pantry); the phone's own name stays saved, and is what shows on this phone alone.
+function adoptName() {
+  if (S.mode !== 'cloud' || !S.household || !me() || S.sync.cache) return;
+  const done = prefs.get('nameAdopted', {}) || {};
+  if (done[S.household.id]) return;
+  prefs.set('nameAdopted', { ...done, [S.household.id]: true });
+  const mine = PP.cleanName(prefs.get('name') || '');
+  if (mine && !names()[me()]) setPersonName(me(), mine);
+}
 // A family member's contact sheet: their Gmail, a name everyone sees, email an invite, stop sharing (not for whoever
 // started it, nor yourself).
 function openPerson(email) {
@@ -1776,7 +2265,7 @@ function openPerson(email) {
     body: `<ul class="ha-list"><li><div class="ha-row"><span class="ha-row-icon">${icon('mail')}</span><span class="ha-row-body"><span class="ha-row-title pa-break">${esc(email)}</span>
         <span class="ha-row-sub">${email === h.owner ? 'Started the family pantry' : 'Google account'}${email === me() ? ' · you' : ''}</span></span></div></li></ul>
       <form id="pa-person" class="pa-person-form" novalidate>
-        <label class="ha-field"><span class="ha-field-label">Name</span>
+        <label class="ha-field"><span class="ha-field-label">${email === me() ? 'Your name' : 'Name'}</span>
           <input class="ha-input" name="name" id="pa-person-name" value="${esc(names()[email] || '')}" maxlength="${PP.NAME_MAX}" autocomplete="off" placeholder="For example, Mum or Ah Mei" aria-describedby="pa-person-hint"></label>
         <p class="ha-section-footer" id="pa-person-hint">Everyone in the family sees this name instead of the email, in history and on the shopping list. Leave it empty to show the email.</p>
         <button type="submit" class="ha-btn ha-btn--primary ha-btn--block">Save</button>
@@ -1817,9 +2306,48 @@ function viewSaving() {
   const mine = SY.refusedFor(S.refused, S.household?.id || '');
   const row = r => `<li><div class="ha-row pa-refused"><span class="ha-row-body"><span class="ha-row-title pa-break">${esc(SY.describeRefused(r, id => S.items.get(id)?.name))}</span><span class="ha-row-sub">${esc(SY.refusedReason(r.code))}</span></span>
       <span class="pa-batch-acts"><button type="button" class="ha-btn ha-btn--small" data-act="refused-retry" data-n="${esc(r.n)}">Retry</button><button type="button" class="ha-btn ha-btn--small ha-btn--quiet" data-act="refused-discard" data-n="${esc(r.n)}">Discard</button></span></div></li>`;
-  const foot = { saved: 'Everything done on this phone has reached the family.', waiting: 'These changes are kept on this phone and sent when there is signal. Nothing is lost by closing the app.',
+  const syncRow = `<ul class="ha-list pa-syncnow"><li><button type="button" class="ha-row ha-row--action" data-act="sync-now" id="pa-syncnow"${S.syncNow.busy ? ' aria-disabled="true"' : ''}><span class="ha-row-icon">${icon('refresh')}</span><span class="ha-row-body"><span class="ha-row-title">${S.syncNow.busy ? 'Checking…' : 'Sync now'}</span><span class="ha-row-sub">Send what’s waiting and check the family can be reached</span></span></button></li></ul>`;
+  return section('Saving to the family', `${syncChip()}${syncRow}<div id="pa-sync-detail" class="pa-sync-detail">${syncDetail()}</div>${mine.length ? `<ul class="ha-list pa-refusals">${mine.map(row).join('')}</ul>` : ''}`, { id: 'saving' });
+}
+// What Sync now found, what is waiting (each change in words), and when the family last answered. Redrawn on its own as the
+// state changes (drawSyncDetail), without redrawing the screen.
+function syncDetail() {
+  const r = S.syncNow.result, list = S.sync.list || [];
+  const ctx = { itemName: id => S.items.get(id)?.name || '', lineName: id => S.shop.get(id)?.name || '', placeName: id => S.places.get(id)?.name || '', personName: e => nameOf(e) };
+  const lines = list.map(x => SY.describeWaiting(x, ctx));
+  let h = '';
+  if (r) h += `<p class="pa-syncnow-result pa-syncnow-result--${r.kind}" role="status">${esc(r.text)}</p>`;
+  if (r?.offer && !S.syncNow.busy) h += `<ul class="ha-list pa-syncnow"><li><button type="button" class="ha-row ha-row--action" data-act="sync-cycle"><span class="ha-row-icon">${icon('refresh')}</span><span class="ha-row-body"><span class="ha-row-title">Reconnect and try again</span><span class="ha-row-sub">Switches this phone’s connection off and on once</span></span></button></li></ul>`;
+  if (lines.length) h += `<h3 class="pa-sync-h" id="pa-waiting-h">Waiting to be sent (${lines.length})</h3><ul class="ha-list pa-waiting" aria-labelledby="pa-waiting-h">${lines.map(t => `<li><div class="ha-row"><span class="ha-row-body"><span class="ha-row-title pa-break">${esc(t)}</span></span></div></li>`).join('')}</ul>`;
+  h += `<p class="pa-heard" id="pa-heard">Last heard from the family: ${esc(SY.heardText(S.sync.heard))}</p>`;
+  const v = syncView();
+  const foot = v && { saved: 'Everything done on this phone has reached the family.', waiting: 'These changes are kept on this phone and sent when there is signal. Nothing is lost by closing the app.',
     attention: 'The family pantry would not take these. Retry sends one again; Discard drops it.' }[v.kind];
-  return section('Saving to the family', `${syncChip()}${mine.length ? `<ul class="ha-list pa-refusals">${mine.map(row).join('')}</ul>` : ''}`, { id: 'saving', footer: foot });
+  return h + (foot ? `<p class="ha-section-footer pa-sync-foot">${esc(foot)}</p>` : '');
+}
+function drawSyncDetail() {
+  const el = $('#pa-sync-detail'); if (!el) return;
+  const v = syncView();
+  if (v?.kind === 'saved' && S.syncNow.result?.kind === 'waiting') S.syncNow.result = { kind: 'saved', text: 'Everything is saved' };
+  const html = syncDetail();
+  if (el.dataset.html !== html) { el.innerHTML = html; el.dataset.html = html; }
+  const b = $('#pa-syncnow');
+  if (b) {
+    b.setAttribute('aria-disabled', String(S.syncNow.busy));
+    b.querySelector('.ha-row-title').textContent = S.syncNow.busy ? 'Checking…' : 'Sync now';
+  }
+}
+// Sync now: try to send what is waiting (cloud.js syncNow), then say plainly how it went.
+async function syncNow({ cycle = false } = {}) {
+  if (S.syncNow.busy || S.mode !== 'cloud' || !S.backend?.syncNow) return;
+  S.syncNow = { busy: true, result: null }; drawSyncDetail(); haAnnounce(cycle ? 'Reconnecting…' : 'Checking…');
+  try { S.backend.nudge?.('syncnow'); } catch { /* not listening */ }
+  let r;
+  try { r = await S.backend.syncNow({ cycle }); } catch (err) { console.warn('sync now', err?.code || err?.message); r = { ok: false }; }
+  S.syncNow = { busy: false, result: SY.syncNowResult(r, { refused: SY.refusedFor(S.refused, S.household?.id || '').length, pending: S.sync.pending }) };
+  drawSyncDetail(); drawSync();
+  if (document.activeElement === document.body) $('#pa-syncnow')?.focus({ preventScroll: true });
+  haAnnounce(S.syncNow.result.text);
 }
 
 function viewSettings() {
@@ -1842,6 +2370,10 @@ function viewSettings() {
     fam = `<ul class="ha-list">${btnRow('signin', 'Continue with Google', { iconName: 'user' })}</ul>
       <p class="pa-quiet"><button type="button" class="ha-btn ha-btn--plain ha-btn--compact" data-act="email-open">Use email instead</button></p>`;
     famFoot = 'Sign in to share one pantry with the family: everyone sees the same items and shopping list. Only the people added can see it.';
+  } else if (!S.household && S.lost) {
+    fam = `<ul class="ha-list">${row(`<span class="ha-row-icon">${icon('alert')}</span><span class="ha-row-body"><span class="ha-row-title">Your pantry changed</span><span class="ha-row-sub pa-break">${S.lost.failed ? 'No signal to check right now.' : 'Your family pantry is gone, or this account isn’t in it any more.'}</span></span>`)}
+      ${btnRow('hh-check', 'Try again', { iconName: 'refresh' })}${btnRow('hh-create', 'Start our family pantry')}${btnRow('signout', 'Sign out')}</ul>`;
+    famFoot = `Signed in as ${esc(S.user.email)}. Try again looks for a pantry this account is in now; starting a new one is your choice.`;
   } else if (!S.household && S.lookupFailed) {
     // couldn't ask the server (no signal): not "no pantry", so no Start button
     fam = `<ul class="ha-list">${row(`<span class="ha-row-icon">${icon('alert')}</span><span class="ha-row-body"><span class="ha-row-title">Can’t check right now</span><span class="ha-row-sub pa-break">${esc(S.user.email)}</span></span>`)}
@@ -1854,7 +2386,7 @@ function viewSettings() {
   } else {
     fam = familyList(S.household, { extra: `${S.localCount ? btnRow('copy-up', `Copy ${plural(S.localCount, 'item')} from this phone`, { iconName: 'upload', sub: 'Saved here before you signed in' }) : ''}
       ${btnRow('signout', 'Sign out')}` });
-    famFoot = 'They sign in with that email (Google, or an emailed link or password) to see the pantry. Tap someone to give them a name, email them the link again, or stop sharing. Whoever started it can’t be removed.';
+    famFoot = 'They sign in with that email (Google, or an emailed link or password) to see the pantry. Tap your own row to set your name; tap someone else to name them, email them the link again, or stop sharing. Whoever started it can’t be removed.';
   }
   return `<h1 class="ha-large-title">Settings</h1>
     ${viewSaving()}
@@ -1872,9 +2404,9 @@ function viewSettings() {
       ${btnRow('welcome', 'Show the welcome again', { iconName: 'home' })}
       ${tourOn() ? '' : btnRow('tour-on', 'Show the getting-started list', { iconName: 'list' })}
     </ul>`, { id: 'help' })}
-    ${section('You', `<ul class="ha-list"><li><label class="ha-row"><span class="ha-row-body"><span class="ha-row-title">Your name</span></span>
+    ${S.mode === 'cloud' ? '' : section('You', `<ul class="ha-list"><li><label class="ha-row"><span class="ha-row-body"><span class="ha-row-title">Your name</span></span>
       <input class="ha-input ha-input--inline" id="pa-name" value="${esc(prefs.get('name') || '')}" placeholder="${esc(S.user?.name?.split(' ')[0] || 'For example, Mum')}" autocomplete="off"></label></li></ul>`,
-      { id: 'you', footer: 'Shows in each item’s history and on the shopping list. Kept on this phone. In a family pantry, the name the family gives you (Family sharing) comes first.' })}
+      { id: 'you', footer: 'Shows in each item’s history and on the shopping list. Kept on this phone. In a family pantry, your name is set on your own row under Family sharing, and the family sees it too.' })}
     ${section('Your data', `<ul class="ha-list">
       ${btnRow('csv', 'Export as CSV', { iconName: 'download', sub: 'A spreadsheet of what’s in stock' })}
       ${btnRow('backup', 'Back up', { iconName: 'download', sub: 'Everything, as a JSON file' })}
@@ -1906,7 +2438,9 @@ function draw(r, { keep = false } = {}) {
       return;
     }
   }
-  if (!['home', 'items', 'item', 'add', 'edit', 'shop', 'settings', 'guide', 'places', 'removed'].includes(name)) name = 'home';
+  if (!['home', 'items', 'item', 'add', 'edit', 'shop', 'settings', 'guide', 'places', 'removed', 'bulk'].includes(name)) name = 'home';
+  if (name !== 'bulk') S.bulk = null;   // (leaving Bulk edit drops what was chosen there)
+  if (name !== 'items' && S.sel.on) SEL.endSel(S.sel);   // (a sheet-like history entry: the new screen replaced it)
   if (TOP[name]) { S.originTab = name === 'home' ? '#/' : '#/' + name; S.backLabel = TOP[name]; }
 
   document.body.classList.toggle('ha-has-tabbar', !task);
@@ -1916,7 +2450,8 @@ function draw(r, { keep = false } = {}) {
 
   let title = TOP[name] || '';
   if (name === 'home') { main.innerHTML = viewHome(); setBar({ title, trail: iconBtn('mic', 'Say or type what you bought', 'quick') + iconBtn('barcode', 'Scan a barcode', 'scan-home') }); }
-  else if (name === 'items') { main.innerHTML = viewItems(); setBar({ title }); }
+  else if (name === 'items') { main.innerHTML = viewItems(); setBar({ title, trail: `<button type="button" class="ha-bar-btn" data-act="bulk-open" data-sel="${S.sel.on ? 'with' : ''}">Bulk edit</button>${S.sel.on ? '' : `<button type="button" class="ha-bar-btn" id="pa-sel-toggle" data-act="sel-on">Select</button>`}` }); }
+  else if (name === 'bulk') { title = 'Bulk edit'; main.innerHTML = viewBulk(); updateBulkUI(); setBar({ title, lead: backBtn(S.backLabel) }); if (S.bulk?.step === 'review') $('#pa-bulk-h')?.focus({ preventScroll: true }); }
   else if (name === 'item') {
     title = it.name;
     main.innerHTML = viewItem(it);
@@ -1936,6 +2471,7 @@ function draw(r, { keep = false } = {}) {
     haVersion($('#pa-version'), 'pantry');
   }
   document.title = name === 'home' ? 'Pantry' : `${title} · Pantry`;
+  drawSelBar();
   drawBadge();
   S.pendingRender = false;
   if (keep) haLargeTitle();
@@ -1944,7 +2480,7 @@ function draw(r, { keep = false } = {}) {
 // in or a sheet is open: then it waits (a family member's change must never wipe what someone is typing).
 function redraw() {
   if (!R) return;
-  if (haSheetOpen() || ['add', 'edit'].includes(screen())) { S.pendingRender = true; drawBadge(); return; }
+  if (haSheetOpen() || S.dragging || ['add', 'edit'].includes(screen())) { S.pendingRender = true; drawBadge(); return; }
   // someone is typing (a family member's email, a shopping line): draw once they leave the field
   const a = document.activeElement;
   if (a?.matches?.('#main input:not([type=checkbox]):not([type=radio]):not([type=search]), #main textarea') && a.value) {
@@ -2012,6 +2548,31 @@ async function onClick(e) {
       haBack(S.originTab);
       haToast(`${it.name} deleted`, { action: 'Undo', onAction: () => { restoreItem(it.id); redraw(); haAnnounce('Undone'); } });
       return;
+    }
+    case 'grip': if (Date.now() < S.gripQuiet) return; return openGrip(b.dataset.id);
+    case 'bulk-open': return openBulk(b.dataset.sel === 'with' ? [...S.sel.ids] : []);
+    case 'bk-place': { bulkState().place = b.dataset.v; for (const c of document.querySelectorAll('[data-act="bk-place"]')) c.setAttribute('aria-pressed', String(c === b)); return drawBulkList(); }
+    case 'bk-q-clear': { bulkState().q = ''; const q = $('#pa-bq'); q.value = ''; drawBulkList(); return q.focus(); }
+    case 'bk-all': { const n = SEL.selectAll(bulkState().sel, bulkFiltered().map(i => i.id)); updateBulkUI(); return haAnnounce(`All ${n} matching selected`); }
+    case 'bk-none': { SEL.selectNone(bulkState().sel); updateBulkUI(); return haAnnounce('None selected'); }
+    case 'bk-review': return bulkReview();
+    case 'bk-back': { bulkState().step = 'edit'; redraw(); return window.scrollTo(0, 0); }
+    case 'bk-save': return bulkSave();
+    case 'sel-on': return enterSelect('');
+    case 'sel-done': return exitSelect();
+    case 'sel-all': { const n = SEL.selectAll(S.sel, filteredItems().map(i => i.id)); selChanged(); return haAnnounce(`All ${n} selected`); }
+    case 'sel-none': { SEL.selectNone(S.sel); selChanged(); return haAnnounce('None selected'); }
+    case 'sel-group': {
+      const g = (itemGroups(sortedItems(filteredItems())) || []).find(x => x.key === b.dataset.g); if (!g) return;
+      const ids = g.items.map(i => i.id), all = SEL.groupState(S.sel, ids) === 'all';
+      SEL.setMany(S.sel, ids, !all); selChanged();
+      return haAnnounce(`${all ? 'Unselected' : 'Selected'} ${g.items.length} in ${g.title}. ${S.sel.ids.size} selected.`);
+    }
+    case 'sel-move': case 'sel-list': case 'sel-delete': return selAction(act);
+    case 'fold': {
+      if (S.folded.has(b.dataset.g)) S.folded.delete(b.dataset.g); else S.folded.add(b.dataset.g);
+      prefs.set('folded', [...S.folded]);
+      return drawItemsList();
     }
     case 'place': {
       S.place = b.dataset.v;
@@ -2129,6 +2690,8 @@ async function onClick(e) {
       } catch (err) { S.lookupFailed = true; redraw(); haToast(S.cloud.explain(err, 'Checking')); }
       return;
     }
+    case 'sync-now': return syncNow();
+    case 'sync-cycle': return syncNow({ cycle: true });
     case 'refused-retry': return settleRefused(b.dataset.n, true);
     case 'refused-discard': return settleRefused(b.dataset.n, false);
     case 'person': return openPerson(b.dataset.v);
@@ -2178,7 +2741,18 @@ async function onChange(e) {
     } });
     return;
   }
-  if (t.name === 'pa-sort') { S.sort = t.value; prefs.set('sort', t.value); return drawItemsList(); }
+  if (t.name === 'pa-sort') {
+    S.sort = t.value === 'category' && prefs.get('within') === 'myorder' ? 'myorder' : t.value;   // Category comes back as it was left (by name, or My order)
+    prefs.set('sort', S.sort);
+    return redraw();
+  }
+  if (t.name === 'pa-within') { S.sort = t.value; prefs.set('sort', t.value); prefs.set('within', t.value); return redraw(); }
+  if (t.dataset.bsel !== undefined) { const b = bulkState(); if (t.checked) b.sel.ids.add(t.dataset.bsel); else b.sel.ids.delete(t.dataset.bsel); return updateBulkUI(); }
+  if (t.dataset.bk !== undefined) {
+    if (t.dataset.bk === 'cat') { bulkState().cat = t.value; return drawBulkList(); }
+    return bulkField(t.dataset.bk, t.value);
+  }
+  if (t.dataset.sel !== undefined) { if (t.checked) S.sel.ids.add(t.dataset.sel); else S.sel.ids.delete(t.dataset.sel); return selChanged(); }
   if (t.id === 'pa-name') { prefs.set('name', t.value.trim()); return haToast('Saved'); }
   if (t.dataset.shop) {
     const m = S.shop.get(t.dataset.shop); if (!m) return;
@@ -2210,6 +2784,8 @@ async function onChange(e) {
 }
 function onInput(e) {
   if (e.target.id === 'pa-q') { S.q = e.target.value; drawItemsList(); }
+  if (e.target.id === 'pa-bq') { bulkState().q = e.target.value; drawBulkList(); }
+  if (e.target.dataset?.bk === 'days') bulkField('days', e.target.value);
   if (e.target.id === 'pa-find') showSugg();
 }
 async function onSubmit(e) {
@@ -2272,6 +2848,7 @@ function syncView() {
   return SY.syncState({
     refused: SY.refusedFor(S.refused, S.household?.id || '').length, pending: S.sync.pending, cache: S.sync.cache,
     offline: navigator.onLine === false, waited: S.sync.since ? Date.now() - S.sync.since : 0,
+    recent: !!S.sync.lastServerAt && Date.now() - S.sync.lastServerAt < 10000,
   });
 }
 const SYNC_BADGE = { saved: 'ha-badge--ok', waiting: 'ha-badge--warn', attention: 'ha-badge--bad' };
@@ -2299,8 +2876,9 @@ function drawSync() {
 // stays unconfirmed for a moment turns the chip to "Waiting for signal"; a normal save confirms before that.
 function onSyncState(st) {
   const was = S.sync.pending;
-  S.sync = { pending: st.pending, cache: st.cache, since: st.pending > 0 ? (was > 0 ? S.sync.since : Date.now()) : 0 };
-  drawSync();
+  S.sync = { pending: st.pending, cache: st.cache, since: st.pending > 0 ? (was > 0 ? S.sync.since : Date.now()) : 0, list: st.list || [], heard: st.heard || S.sync.heard || 0, lastServerAt: st.lastServerAt || 0, relistens: st.relistens || 0, cycles: st.cycles || 0 };
+  drawSync(); drawSyncDetail();
+  adoptName();
   clearTimeout(syncTimer);
   if (st.pending > 0) syncTimer = setTimeout(drawSync, 1600);
 }
@@ -2339,10 +2917,10 @@ function settleRefused(n, retry) {
 
 let unwatch = null;
 async function useHousehold(h) {
-  S.household = h;
+  S.household = h; S.lost = null;
   prefs.set('household', h.id);
   S.backend?.close?.();
-  S.sync = { pending: 0, cache: false, since: 0 };
+  S.sync = { pending: 0, cache: false, since: 0, list: [], heard: 0, lastServerAt: 0, relistens: 0, cycles: 0 }; S.syncNow = { busy: false, result: null };
   S.backend = await S.cloud.openCloud(h.id, onWriteError, onSyncState);
   S.mode = 'cloud';
   S.pics.clear();
@@ -2351,16 +2929,45 @@ async function useHousehold(h) {
   S.backend.listen(onRemote);
   setTimeout(sweep, 6000);   // once the first copy from the server is in
   unwatch?.();
-  unwatch = await S.cloud.watchHousehold(h.id, x => { if (x) { S.household = x; redraw(); } });
+  unwatch = await S.cloud.watchHousehold(h.id, x => onHouseholdDoc(h.id, x));
   S.localCount = (await S.local.load()).items.length;
   redraw();
+}
+// The household document changed (x), or is gone or can't be read any more (x is null: deleted or merged away by its owner, this
+// account taken out of it, or the rules refused). Nothing is read from the phone's copy to decide: see householdLost.
+function onHouseholdDoc(hid, x) {
+  if (S.household?.id !== hid) return;   // an old listener, after the phone moved to another pantry
+  if (x) { S.household = x; redraw(); } else householdLost(hid);
+}
+// The pantry this phone was showing is gone. Stop its listeners, ask the SERVER which pantries this account is in now (never the
+// phone's copy: it would still say the old one is there), and move to the one left; with none, or no signal, say so plainly with
+// Try again (a pantry is never started by mistake). Phone: "Your pantry changed", at most once at a time.
+let losing = false;
+async function householdLost(hid) {
+  if (losing || !S.user || S.household?.id !== hid) return;
+  losing = true;
+  try {
+    S.backend?.close?.();
+    unwatch?.(); unwatch = null;
+    let h = null, failed = false;
+    try { h = await locate(S.user.email); } catch (e) { console.warn('household', e?.code); failed = true; }
+    if (h) {
+      await useHousehold(h);   // (the same pantry again if it was only unreadable for a moment)
+      if (h.id !== hid) { haToast(`Your pantry changed: now showing ${h.name}`); haAnnounce(`Your pantry changed. Now showing ${h.name}.`); }
+      return;
+    }
+    await useLocal();
+    S.lost = { at: Date.now(), failed };
+    S.lookupFailed = failed;
+    redraw();
+  } finally { losing = false; }
 }
 async function useLocal() {
   S.backend?.close?.();
   unwatch?.(); unwatch = null;
   S.backend = S.local;
   S.mode = 'local';
-  S.household = null; S.pantries = []; S.lookupFailed = false; S.syncError = false;
+  S.household = null; S.pantries = []; S.lookupFailed = false; S.syncError = false; S.lost = null;
   S.pics.clear();
   loadInto(await S.local.load());
   migratePhotos();
@@ -2599,15 +3206,36 @@ async function start() {
   });
   setTimeout(migratePhotos, 1000);   // old-style photos move out quietly, after the first screen is drawn
   if (!DEMO) setTimeout(sweep, 4000);   // (this phone's own pantry; the family's runs once it is open)
+  // selecting: a press and hold on a row (select.js), Escape and Back leave it; Enter ticks a row's checkbox like Space does
+  SEL.holdToSelect($('#main'), {
+    start: el => { if (!S.sel.on && screen() === 'items') enterSelect(el.closest('li')?.dataset.id || ''); },
+    haptic: () => haHaptic(15),
+  });
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape' && S.sel.on && !haSheetOpen()) { e.preventDefault(); exitSelect(); }
+    else if (e.key === 'Enter' && e.target.matches?.('input.pa-sel, input.pa-bsel')) { e.preventDefault(); e.target.click(); }
+    else if ((e.key === 'ArrowUp' || e.key === 'ArrowDown') && e.target.matches?.('.pa-grip') && sortMode() === 'myorder' && !e.altKey && !e.metaKey && !e.ctrlKey) {
+      // on a grip in My order, the arrow keys move the item one step (and say where it went)
+      e.preventDefault();
+      const r = moveStep(e.target.dataset.id, e.key === 'ArrowUp' ? -1 : 1);
+      if (r) { haAnnounce(r.text); if (r.moved) { redraw(); document.getElementById('pa-grip-' + e.target.dataset.id)?.focus({ preventScroll: false }); } }
+    }
+  });
+  addEventListener('popstate', () => { if (S.sel.on && !history.state?.paSelect) exitSelect({ pop: false }); });
+  document.addEventListener('pointerdown', onGripDown);
   document.addEventListener('click', onClick);
   document.addEventListener('change', onChange);
   document.addEventListener('input', onInput);
   document.addEventListener('submit', onSubmit);
-  addEventListener('online', () => { if (S.user && !S.household && S.lookupFailed && S.cloud) handleUser(S.user); else redraw(); });
+  // the listener watchdog (cloud.js, listen-watch.js): a moment the phone came back is when a dead listener is most likely
+  const resumed = () => { try { S.backend?.nudge?.('resume'); } catch { /* not listening */ } };
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') resumed(); });
+  addEventListener('pageshow', resumed);
+  addEventListener('online', () => { resumed(); if (S.user && !S.household && S.lookupFailed && S.cloud) handleUser(S.user); else redraw(); });
   addEventListener('offline', redraw);
   R = haRouter({
     render: r => draw(r),
-    tabOf: r => ['item', 'edit', 'add', 'guide', 'places', 'removed'].includes(r.parts[0]) ? S.originTab : r.hash,
+    tabOf: r => ['item', 'edit', 'add', 'guide', 'places', 'removed', 'bulk'].includes(r.parts[0]) ? S.originTab : r.hash,
   });
   // family sharing, only when a Firebase project is set up (config.js) or in the emulator tests
   if (!DEMO && (firebaseConfig || EMULATOR)) {
@@ -2626,7 +3254,7 @@ async function start() {
   if ('serviceWorker' in navigator && !EMULATOR) {
     navigator.serviceWorker.register('sw.js').then(watchUpdates).catch(() => { /* no offline copy (private window) */ });
   }
-  window.__pantry = { ...(window.__pantry || {}), S, places: () => placeList().map(e => e.name), ...(EMULATOR ? { act: testActions } : {}) };
+  window.__pantry = { ...(window.__pantry || {}), S, redraw, places: () => placeList().map(e => e.name), ...(EMULATOR ? { act: testActions } : {}) };
   setTimeout(maybeWelcome, 300);
 }
 
@@ -2651,6 +3279,11 @@ const testActions = {
   reorderPlace: (id, dir) => { const e = placeList().find(x => x.id === id); return e ? movePlace(e, dir) : 0; },
   removePlace: id => { const e = placeList().find(x => x.id === id); if (e) removePlace(e); return !!e; },
   restorePlace: id => { restorePlaces([id]); return true; },
+  // the Items list (this PR): move items to a place in one batch, put one after another in My order, and tidy a category's numbers
+  bulkMove: (ids, place) => moveItems(ids.map(itemById).filter(Boolean), place).sent.length,
+  reorder: (id, afterId = null) => { const r = commitOrder(id, afterId); return r ? { sets: r.plan.sets, renumbered: r.plan.renumbered } : null; },
+  bulkPlan: (ids, ch) => BI.plan(ids.map(itemById).filter(Boolean), ch, { onList, by: who() }).changing,
+  renumber: category => { const g = items().filter(x => catOf(x) === category); const sets = O.renumber(O.sortByOrder(g)); patchMany(sets.map(x => ({ id: x.id, ops: { set: { order: x.order }, inc: {}, del: [] } })), { stamp: false }); return sets.length; },
 };
 
 // ---- the welcome, once per phone (guide.js) -------------------------------------------------------------------------

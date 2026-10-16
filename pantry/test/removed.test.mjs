@@ -186,6 +186,9 @@ const OK_GET = [
   /S\.items\.get\(it\.id\)\?\.location/,                          // moving the items of a renamed place
   /\(\[id, at\]\) => S\.items\.get\(id\)/,                       // the items a note is about (then checked removed)
   /use: \(id, batchId|add: \(id, qty|open: \(id, batchId/,         // the emulator tests' own actions
+  /S\.items\.get\(sent\[0\]\.id\)\?\.name/,                         // the name in a toast about an item just moved
+  /const nameOf2 = i => S\.items\.get\(i\)\?\.name/,              // a name in a drag's label (the item is on screen)
+  /const now = S\.items\.get\(x\.id\)/,                          // Undo of a batch: the item as it is now (one removed since counts as changed, except undoing a delete)
 ];
 const strayGet = byId.filter(([, t]) => !OK_GET.some(re => re.test(t)));
 assert.deepEqual(strayGet, [], 'screens that look an item up by id without skipping removed ones: ' + JSON.stringify(strayGet));
@@ -204,6 +207,7 @@ const OK_PLACES = [
   /L\.backup\(\{ items:.*places: \[\.\.\.S\.places\.values\(\)\]/,                                                      // a backup carries markers
   /const mergedPlaces = data => P\.mergeInto\(\{ docs: \[\.\.\.S\.places\.values\(\)\]/,                                // copying and restoring merge by name
   /places: new Map\(\)/,
+  /placeName: id => S\.places\.get\(id\)\?\.name/,                                                                   // naming a waiting change (Sync now), hidden place or not
 ];
 const strayP = placeBulk.filter(([, t]) => !OK_PLACES.some(re => re.test(t)));
 assert.deepEqual(strayP, [], 'places read other than through placeList(): ' + JSON.stringify(strayP));

@@ -55,6 +55,17 @@
   (new `places` collection; deploys on merge). Phones older than this version still write the old list: their place edits don't
   show on new phones until they update. Plan complete: PLAN-sync.md has the picture and the limits that remain.
 
+- 16 Oct 2026: one combined PR after sync safety (the owner's queue), as separate commits. Commit 1, small fixes: a pantry deleted or
+  merged away under an open phone (the phone moves to the one left, or says "Your pantry changed" with Try again); Sync now in
+  Settings → Saving to the family (waiting changes in words, last heard from the family); the "Waiting for signal" chip no longer
+  reads an acknowledged change as waiting (reproduced in the emulator); no "Your name" field in a family pantry (adopted once as
+  the family name). Commit 2: select mode on Items (Select button, press and hold, checkboxes, a bar with Move to… / Shopping list /
+  Delete and one Undo each) and Group by place. Commit 3: a grip on every row (drag onto a place heading or chip, a selection
+  too; My order under Category, one number per move; Move up / Move down and Move to… without dragging); rules: `order` absent or a
+  number (deploys on merge). Commit 4: the Bulk edit screen (`#/bulk`: pick, choose, Review, Save one batch, one Undo).
+  Commit 5: a listener watchdog (a phone whose connection died after an offline spell listens again, then restarts the connection if
+  nothing is unacknowledged; found by the live harness, seed 11).
+
 ## Waiting on the owner
 
 - Billing: waiting on the owner (Blaze), then the US$5 budget and daily backups.

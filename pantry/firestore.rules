@@ -72,6 +72,11 @@ service cloud.firestore {
       return (!('removedAt' in d) || (d.removedAt is string && d.removedAt.size() <= 40 && d.removedAt.matches('[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9:.]+Z')))
         && (!('removedBy' in d) || (d.removedBy is string && d.removedBy.size() <= 40));
     }
+    // My order (16 Oct 2026): an item's `order` (where the family put it under its category on Items) is absent or a number, a fraction
+    // (the midpoint of its new neighbours), inside plus or minus a million. Nothing else about an item's keys is limited.
+    function orderOk(d) {
+      return !('order' in d) || (d.order is number && d.order > -1000000 && d.order < 1000000);
+    }
     // A shopping line (16 Oct 2026): { id, name, done } and, as the app writes them, itemId (an item's id, or null), at
     // (when added), by and doneBy (names), and the two removal fields. Nothing else. Old phones still write the whole line;
     // that stays allowed, and so does a change by field (ticking, renaming, removing): the rules see the line as it will be.
@@ -145,6 +150,7 @@ service cloud.firestore {
         allow create, update: if member(hid)
           && stockOk(request.resource.data)
           && removedOk(request.resource.data)
+          && orderOk(request.resource.data)
           && request.resource.data.get('thumb', '') is string
           && request.resource.data.get('thumb', '').size() <= 12288
           && (request.resource.data.get('photo', '') == ''

@@ -179,6 +179,11 @@ export function viewGuide() {
       row('cart', 'Bought more', 'On the item, add what you bought and its date.'),
       row('snowflake', 'Freeze and Thaw', 'Freeze moves it to the freezer and keeps it about 3 months. Thaw moves it to the fridge: use within 2 days.'),
       row('barcode', 'Scan many', 'On Home: choose Bought, Used up or Add to list, then scan one barcode after another. Done saves them all, with one Undo.'),
+      row('check', 'Select several', 'On Items, tap Select (or press and hold a row), tick items, then Move to…, Shopping list or Delete. One Undo for the lot.'),
+      row('edit', 'Bulk edit', 'On Items, tap Bulk edit: pick items, choose what to change (place, category, how it is counted, best-before, shopping list, delete), then Review. One Undo for the lot.'),
+      row('list', 'Your own order', 'On Items, choose Category, then My order. Drag an item by its grip (the dots) up or down inside its category, or tap the grip for Move up and Move down.'),
+      row('home', 'Move by dragging', 'Drag an item by its grip onto a place (a heading under Sort by Place, or a place at the top) to move it. While selecting, the grip of a ticked item moves them all.'),
+      row('home', 'Group by place', 'On Items, choose Place under Sort by: a heading for each place, with how many. Tap a heading to fold it.'),
     ])}
     ${section('soon', 'Use soon and expired', [
       plainRow('Past its date', 'Use it today or throw it away.', badge('Expired', 'bad')),
@@ -201,13 +206,14 @@ export function viewGuide() {
     ${section('family', 'Family sharing', [
       row('user', 'Start it', 'One person: Settings, Continue with Google (or Use email instead), then Start our family pantry.'),
       row('users', 'Add the family', 'Type each person’s email and tap Add, then tap them to email the link.'),
-      row('edit', 'Names', 'Tap someone to give them a name, like Mum. Everyone sees it instead of the email, in history and on the list.'),
+      row('edit', 'Names', 'Tap someone, yourself included, to give them a name, like Mum. Everyone sees it instead of the email, in history and on the list.'),
       row('mail', 'When you’re invited', 'Open the link, then Settings, Continue with Google or Use email instead, with the email that was added.'),
       row('info', 'Who can see it', 'Only the people added. Whoever started it can stop sharing with anyone else.'),
     ])}
     ${section('phone', 'Phone tips', [
       row('download', 'On your home screen', 'iPhone: in Safari, Share, then Add to Home Screen. Android: in Chrome, the menu, then Add to home screen.'),
       row('cloud', 'No signal', 'It still works. Changes reach the family when you’re back online.'),
+      row('refresh', 'Not sure it reached the family?', 'Settings, Sync now: it sends anything waiting, lists each change and says if everything is saved.'),
       row('refresh', 'Looks out of date?', 'At the bottom of Settings, tap Get the latest version. Your items are kept.'),
     ])}
     <ul class="ha-list pa-gagain"><li><button type="button" class="ha-row ha-row--action ha-row--center" data-act="welcome"><span class="ha-row-body"><span class="ha-row-title">Show the welcome again</span></span></button></li></ul>`;

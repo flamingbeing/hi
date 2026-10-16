@@ -11,6 +11,10 @@
 import assert from 'node:assert/strict';
 import { serve } from './serve.mjs';
 import { placeId as Lgp } from '../js/places.js';
+import { stallProxy } from './proxy.mjs';
+import * as Ord from '../js/order.js';
+import fs from 'node:fs';
+import { createRequire } from 'node:module';
 const { chromium } = await import(process.env.PLAYWRIGHT_PATH || '/opt/node22/lib/node_modules/playwright/index.mjs');
 
 const srv = await serve();
@@ -18,12 +22,13 @@ const browser = await chromium.launch();
 const url = srv.url + '/pantry/?emulator';
 const errors = [];
 const settle = p => p.waitForTimeout(400);
-async function person(email) {
+async function person(email, base = url, { init = null } = {}) {
   const ctx = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  if (init) await ctx.addInitScript(init);
   const page = await ctx.newPage();
   page.on('pageerror', e => errors.push(email + ': ' + e.message));
   if (process.env.DEBUG) page.on('console', m => console.log(email, m.type(), m.text()));
-  await page.goto(url + '#/settings');
+  await page.goto(base + '#/settings');
   await page.waitForFunction(() => window.__pantry?.signIn);
   await page.evaluate(e => window.__pantry.signIn(e), email);
   await page.locator('#main', { hasText: email }).waitFor();
@@ -43,6 +48,18 @@ const admin = {
   async del(path) { const r = await fetch(FS + path, { method: 'DELETE', headers: { Authorization: 'Bearer owner' } }); assert.ok(r.ok, 'delete ' + path); },
   async get(path) { const r = await fetch(FS + path, { headers: { Authorization: 'Bearer owner' } }); return r.ok ? unfields((await r.json()).fields || {}) : null; },
 };
+
+// axe on the screens Sync now and "Your pantry changed" add (when axe-core is installed: AXE_PATH, or npm install --no-save axe-core)
+const AXE = (() => {
+  try { return fs.readFileSync(process.env.AXE_PATH || createRequire(import.meta.url).resolve('axe-core/axe.min.js'), 'utf8'); } catch { return null; }
+})();
+async function axe(page, what) {
+  if (!AXE) return;
+  if (!(await page.evaluate(() => !!window.axe))) await page.addScriptTag({ content: AXE });
+  const v = await page.evaluate(async () => (await window.axe.run(document, { runOnly: ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa', 'best-practice'] }))
+    .violations.map(x => `${x.id} (${x.impact}): ${x.nodes.slice(0, 3).map(n => n.target.join(' ')).join(' | ')}`));
+  assert.equal(v.length, 0, `${what}: axe violations\n  ${v.join('\n  ')}`);
+}
 const SYNC_REFUSED = list => list.length;
 const go = async (p, h) => { await p.evaluate(x => { location.hash = x; }, h); await settle(p); };
 const sub = (p, name) => p.locator('#pa-items-list .ha-row', { hasText: name }).locator('.ha-row-sub');
@@ -762,6 +779,23 @@ try {
     // an old array turned into a map by one write (what the app does for an old-style item)
     await tryIt('convert an array', () => F.updateDoc(d('items', 'r3'), { batches: { a: { qty: 1, expiry: null } } }));
     await tryIt('a whole item with an array over a map', () => F.setDoc(d('items', 'r3'), item('r3', [{ id: 'a', qty: 1, expiry: null }])));
+    // My order: `order` absent or a number inside plus or minus a million; no limit on other keys of an item
+    await tryIt('order a fraction', () => F.setDoc(d('items', 'o1'), { ...item('o1', {}), order: 1.5 }));
+    await tryIt('order a string', () => F.setDoc(d('items', 'o2'), { ...item('o2', {}), order: '2' }));
+    await tryIt('order null', () => F.setDoc(d('items', 'o3'), { ...item('o3', {}), order: null }));
+    await tryIt('order 999999.5', () => F.setDoc(d('items', 'o4'), { ...item('o4', {}), order: 999999.5 }));
+    await tryIt('order 1000000', () => F.setDoc(d('items', 'o5'), { ...item('o5', {}), order: 1000000 }));
+    await tryIt('order -1000000', () => F.setDoc(d('items', 'o6'), { ...item('o6', {}), order: -1000000 }));
+    await tryIt('order -999999', () => F.setDoc(d('items', 'o7'), { ...item('o7', {}), order: -999999 }));
+    await tryIt('order NaN', () => F.setDoc(d('items', 'o8'), { ...item('o8', {}), order: NaN }));
+    await tryIt('order a map', () => F.setDoc(d('items', 'o9'), { ...item('o9', {}), order: { a: 1 } }));
+    await tryIt('order a list', () => F.setDoc(d('items', 'o10'), { ...item('o10', {}), order: [1] }));
+    await tryIt('order by field', () => F.updateDoc(d('items', 'o1'), { order: 2.25 }));
+    await tryIt('order a string by field', () => F.updateDoc(d('items', 'o1'), { order: 'x' }));
+    await tryIt('order too big by field', () => F.updateDoc(d('items', 'o1'), { order: 5000000 }));
+    await tryIt('order and a rename in one update', () => F.updateDoc(d('items', 'o1'), { order: 3, name: 'Renamed o1' }));
+    await tryIt('order taken off by field', () => F.updateDoc(d('items', 'o1'), { order: F.deleteField() }));
+    await tryIt('another key is still fine (no hasOnly on items)', () => F.setDoc(d('items', 'o11'), { ...item('o11', {}), colour: 'red', order: 4 }));
     // history: created once, never edited; deleting a line (Undo) is fine; writing it again exactly as it is is fine
     const e = (id, qty = 1) => ({ id, itemId: 'r1', type: 'use', qty, at: '2026-10-16T00:00:00.000Z', by: 'Mum' });
     await tryIt('event create', () => F.setDoc(d('events', 'ev1'), e('ev1')));
@@ -784,6 +818,10 @@ try {
     'convert an array': 'ok', 'a whole item with an array over a map': 'ok',
     'event create': 'ok', 'event rewritten as it is': 'ok', 'event changed': 'permission-denied', 'event field changed': 'permission-denied', 'event field added': 'permission-denied',
     'event delete': 'ok', 'event create again': 'ok', 'shop line create and change': 'ok',
+    'order a fraction': 'ok', 'order a string': 'permission-denied', 'order null': 'permission-denied', 'order 999999.5': 'ok', 'order 1000000': 'permission-denied',
+    'order -1000000': 'permission-denied', 'order -999999': 'ok', 'order NaN': 'permission-denied', 'order a map': 'permission-denied', 'order a list': 'permission-denied',
+    'order by field': 'ok', 'order a string by field': 'permission-denied', 'order too big by field': 'permission-denied', 'order and a rename in one update': 'ok',
+    'order taken off by field': 'ok', 'another key is still fine (no hasOnly on items)': 'ok',
   }, 'stock rules');
   const outsiderStock = await stranger.evaluate(async hid => {
     const F = await import('https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js');
@@ -797,6 +835,70 @@ try {
   }, hid);
   assert.deepEqual(outsiderStock, Array(5).fill('permission-denied'), 'outsider and stock: ' + outsiderStock.join(', '));
   assert.ok(await admin.get(`households/${hid}/events/ev1`), 'the outsider didn’t delete history');
+
+  // ---- the Items list: a bulk move and a reorder racing another phone: both kept; every phone shows the same order ----
+  {
+    const mk = async (id, name, extra = {}) => { await admin.put(`households/${hid}/items/${id}`, { id, name, ...base, batches: { a: { qty: 5, expiry: '2027-01-01', openedAt: null, addedAt: '2026-10-01' } }, ...extra }); await has(mum, id); await has(dad, id); };
+    for (const [id, n] of [['bm1', 'Bulk 1'], ['bm2', 'Bulk 2'], ['bm3', 'Bulk 3']]) await mk(id, n);
+    // A moves all three to the Garage in ONE batch while B, with no signal, uses one of them and renames another
+    await net(dad, false);
+    await act(dad, 'use', 'bm2', 'a'); await act(dad, 'set', 'bm3', 'name', 'Bulk 3 renamed');
+    assert.equal(await act(mum, 'bulkMove', ['bm1', 'bm2', 'bm3'], 'Garage'), 3, 'three moved');
+    await drain(mum);
+    assert.equal((await admin.get(`households/${hid}/items/bm2`)).location, 'Garage', 'the move reached the server while B was offline');
+    await net(dad, true); await drain(dad);
+    for (const [id, loc, qty, name] of [['bm1', 'Garage', 5, 'Bulk 1'], ['bm2', 'Garage', 4, 'Bulk 2'], ['bm3', 'Garage', 5, 'Bulk 3 renamed']]) {
+      const raw = await admin.get(`households/${hid}/items/${id}`);
+      assert.equal(raw.location, loc, id + ' place'); assert.equal(raw.batches.a.qty, qty, id + ' stock'); assert.equal(raw.name, name, id + ' name');
+      for (const ph of [mum, dad]) assert.deepEqual(await ph.evaluate(i => { const it = window.__pantry.S.items.get(i); return [it.location, it.batches[0].qty, it.name]; }, id), [loc, qty, name], id + ' on a phone');
+    }
+    // two bulk moves of the same item to different places at once: one place wins, on every phone (a field: last write)
+    await net(dad, false);
+    await act(dad, 'bulkMove', ['bm1'], 'Fridge'); await act(mum, 'bulkMove', ['bm1'], 'Laundry'); await drain(mum);
+    await net(dad, true); await drain(dad);
+    const won = (await admin.get(`households/${hid}/items/bm1`)).location;
+    assert.ok(['Fridge', 'Laundry'].includes(won), 'one of the two places: ' + won);
+    for (const ph of [mum, dad]) assert.equal(await ph.evaluate(() => window.__pantry.S.items.get('bm1').location), won, 'both phones agree');
+
+    // My order: a category of four (nothing numbered yet): a move is ONE field; after an item with no number, the category is numbered in one batch
+    for (const [id, n] of [['bo1', 'Pet A'], ['bo2', 'Pet B'], ['bo3', 'Pet C'], ['bo4', 'Pet D']]) await mk(id, n, { category: 'Pet' });
+    const seq = async () => Ord.sortByOrder((await admin.list(`households/${hid}/items`)).filter(i => /^bo\d$/.test(i.id))).map(i => i.id).join(',');
+    const phoneSeq = ph => ph.evaluate(() => [...window.__pantry.S.items.values()].filter(i => /^bo\d$/.test(i.id)).map(i => ({ id: i.id, name: i.name, order: i.order }))).then(l => Ord.sortByOrder(l).map(i => i.id).join(','));
+    assert.equal(await seq(), 'bo1,bo2,bo3,bo4');
+    const r1 = await act(mum, 'reorder', 'bo4', null);
+    assert.equal(r1.renumbered, false); assert.deepEqual(r1.sets, [{ id: 'bo4', order: 1 }], 'to the top of a category with no numbers: ONE field on ONE item');
+    await drain(mum); await drain(dad);
+    assert.equal(await seq(), 'bo4,bo1,bo2,bo3'); assert.equal(await phoneSeq(dad), 'bo4,bo1,bo2,bo3', 'the other phone shows it');
+    assert.deepEqual((await admin.list(`households/${hid}/items`)).filter(i => /^bo\d$/.test(i.id) && 'order' in i).map(i => i.id), ['bo4'], 'only the moved item has a number');
+    const r2 = await act(mum, 'reorder', 'bo3', 'bo4');
+    assert.equal(r2.sets.length, 1, 'again ONE field on ONE item'); assert.equal(r2.sets[0].order, 2); assert.equal(r2.renumbered, false);
+    await drain(mum);
+    const raw3 = await admin.get(`households/${hid}/items/bo3`);
+    assert.deepEqual(Object.keys(raw3).filter(k => ['order', 'updatedAt', 'updatedBy'].includes(k)), ['order'], 'only the order field, no stamp');
+    // a reorder racing a rename of the same item: both kept
+    await net(dad, false);
+    await act(dad, 'set', 'bo3', 'name', 'Pet C renamed');
+    await act(mum, 'reorder', 'bo3', 'bo2'); await drain(mum);
+    await net(dad, true); await drain(dad);
+    const raw3b = await admin.get(`households/${hid}/items/bo3`);
+    assert.equal(raw3b.name, 'Pet C renamed', 'the rename is kept'); assert.equal(typeof raw3b.order, 'number', 'and so is the move: ' + raw3b.order);
+    assert.equal(await seq(), 'bo4,bo1,bo2,bo3', 'moved to just after bo2 (after an item with no number: the category got numbered)');
+    // two phones put different items into the same gap at once (possibly the same number): every phone still shows one order
+    await net(dad, false);
+    await act(dad, 'reorder', 'bo1', 'bo4'); await act(mum, 'reorder', 'bo2', 'bo4'); await drain(mum);
+    await net(dad, true); await drain(dad);
+    const want = await seq();
+    for (let k = 0; k < 40 && (await phoneSeq(mum) !== want || await phoneSeq(dad) !== want); k++) await mum.waitForTimeout(250);   // (the listeners deliver a moment after the writes are acknowledged)
+    assert.equal(await phoneSeq(mum), want, 'mum shows the server’s order'); assert.equal(await phoneSeq(dad), want, 'dad shows the server’s order');
+    // tidying the numbers (a renumber) keeps the sequence and leaves every number different
+    const n = await act(mum, 'renumber', 'Pet'); await drain(mum); await drain(dad);
+    assert.ok(n >= 0);
+    assert.equal(await seq(), want, 'renumbering never changes the order');
+    const orders = (await admin.list(`households/${hid}/items`)).filter(i => /^bo\d$/.test(i.id)).map(i => i.order);
+    assert.equal(new Set(orders).size, 4, 'all different after a renumber: ' + orders.join(','));
+    assert.equal(await phoneSeq(dad), want);
+    for (const ph of [mum, dad]) assert.equal(await ph.evaluate(() => window.__pantry.S.refused.length), 0, 'nothing refused');
+  }
 
   // ---- removing without losing: a delete is a marker, a change that lands on a removed thing never brings it back ----
   const rawAt = path => admin.get(`households/${hid}/${path}`);
@@ -1102,6 +1204,234 @@ try {
   assert.equal((await admin.list('households/dupE/items')).length, 2, 'and its items');
   assert.equal((await admin.list('households/dupE/photos')).length, 2, 'and its photos');
   assert.ok(await admin.get('households/dupF'));
+
+  // ---- the chip tells the truth; Sync now; the name moves into Family sharing (PR-D) ----
+  {
+    const proxy = await stallProxy();
+    const pUrl = srv.url + `/pantry/?emulator=${proxy.port}:9099`;
+    const sy = await person('syncy@example.com', pUrl, { init: () => { try { localStorage.setItem('pantry:name', JSON.stringify('Jun')); } catch { /* */ } } });
+    // (a) Settings → You → Your name is gone in a family pantry; before signing in it was there (adopted below)
+    if (process.env.PROGRESS) console.log('  chip block a');
+    assert.equal(await sy.locator('#pa-name').count(), 1, 'signed in but in no pantry yet: the field is still there');
+    await sy.click('[data-act="hh-create"]');
+    await sy.locator('#main .ha-row-title', { hasText: 'Our pantry' }).waitFor();
+    const shid = await sy.evaluate(() => window.__pantry.S.household.id);
+    assert.equal(await sy.locator('#pa-name').count(), 0, 'no “Your name” field in Settings');
+    assert.equal(await sy.locator('#h-you').count(), 0, 'no You section');
+    // the name this phone had saved became the family's name for it, once
+    await sy.waitForFunction(() => window.__pantry.S.settings.get('people')?.names?.['syncy@example.com'] === 'Jun', null, { timeout: 15000 });
+    await sy.waitForFunction(() => window.__pantry.S.sync.pending === 0);
+    assert.equal((await admin.get(`households/${shid}/settings/people`)).names['syncy@example.com'], 'Jun', 'adopted as the family name');
+    assert.deepEqual(await sy.evaluate(() => JSON.parse(localStorage.getItem('pantry:nameAdopted'))), { [shid]: true }, 'adopted once: the flag is kept');
+    await sy.locator('[data-act="person"][data-v="syncy@example.com"] .ha-row-title', { hasText: 'Jun' }).waitFor();
+    if (process.env.SHOTS) { await sy.evaluate(() => { document.querySelector('.ha-toast')?.classList.remove('is-visible'); scrollTo(0, document.querySelector('section[aria-labelledby="h-family"]').offsetTop - 70); }); await settle(sy); await sy.screenshot({ path: process.env.SHOTS + '/p02-family.png' }); await sy.screenshot({ path: process.env.SHOTS + '/p02-family-full.png', fullPage: true }); }
+    // cleared by the family, it is not adopted again, even after a reload
+    await act(sy, 'namePerson', 'syncy@example.com', '');
+    await sy.waitForFunction(() => window.__pantry.S.sync.pending === 0);
+    await sy.reload(); await sy.waitForFunction(() => window.__pantry?.S?.household?.id);
+    await settle(sy); await settle(sy);
+    assert.equal(await sy.evaluate(() => window.__pantry.S.settings.get('people')?.names?.['syncy@example.com'] ?? ''), '', 'not adopted again');
+    // a family that already has a name for the account keeps it: the phone's own name is not adopted over it
+    await admin.put(`households/${shid}/settings/people`, { id: 'people', names: { 'syncy2@example.com': 'Ah Mei' }, updatedAt: 'x' });
+    await admin.put(`households/${shid}`, { name: 'Our pantry', owner: 'syncy@example.com', members: ['syncy@example.com', 'syncy2@example.com'], createdAt: '2026-10-16T00:00:00.000Z' });
+    const sy2 = await person('syncy2@example.com', url, { init: () => { try { localStorage.setItem('pantry:name', JSON.stringify('Someone else')); } catch { /* */ } } });
+    await sy2.waitForFunction(() => window.__pantry.S.household?.id);
+    await settle(sy2); await settle(sy2);
+    assert.equal((await admin.get(`households/${shid}/settings/people`)).names['syncy2@example.com'], 'Ah Mei', 'the family’s name wins');
+    assert.equal(await sy2.evaluate(() => (JSON.parse(localStorage.getItem('pantry:nameAdopted')) || {})[window.__pantry.S.household.id]), true);
+    // signed out (this phone's own pantry) the field is back
+    await go(sy, '#/settings');
+    await sy.click('[data-act="signout"]'); await sy.locator('[data-act="signin"]').waitFor();
+    assert.equal(await sy.locator('#pa-name').count(), 1, 'the field is back on this phone alone');
+    assert.equal(await sy.inputValue('#pa-name'), 'Jun');
+    await sy.evaluate(e => window.__pantry.signIn(e), 'syncy@example.com');
+    await sy.waitForFunction(() => window.__pantry.S.household?.id);
+    await go(sy, '#/settings');
+    const base = { category: 'Other', location: 'Fridge', brand: '', size: '', barcode: '', lowAt: 0, openDays: 7, createdAt: '2026-10-16T00:00:00.000Z', createdBy: 'Mum' };
+    await admin.put(`households/${shid}/items/sy1`, { id: 'sy1', name: 'Rice', ...base, batches: { b1: { qty: 5, expiry: null } } });
+    await sy.waitForFunction(() => window.__pantry.S.items.has('sy1'));
+
+    // (b) the chip tells the truth. The phone's change is acknowledged, but what it listens to is cut off, so the SDK keeps the
+    if (process.env.PROGRESS) console.log('  chip block b');
+    // document flagged `hasPendingWrites` ("committed mutations") for good: the chip used to read that as "Waiting for signal".
+    // (a listener made before the write, as the app's own is: a listener made after it never sees the flag)
+    await sy.evaluate(async ([u, hid]) => {
+      const F = await import(u), db = F.getFirestore();
+      window.__flag = null;
+      F.onSnapshot(F.doc(db, 'households', hid, 'items', 'sy1'), { includeMetadataChanges: true }, s => { window.__flag = s.metadata.hasPendingWrites; });
+    }, [FSJS, shid]);
+    proxy.set({ listen: true });
+    await settle(sy);
+    await act(sy, 'set', 'sy1', 'notes', 'one');
+    await sy.waitForFunction(() => window.__pantry.S.sync.pending === 0, null, { timeout: 8000 });
+    await sy.waitForTimeout(1500);
+    const flag = await sy.evaluate(() => window.__flag);
+    assert.equal(flag, true, 'the premise: the SDK still flags the document as having pending writes after the server acknowledged it, while its listener is cut off');
+    await settle(sy); await settle(sy); await sy.waitForTimeout(1200);
+    assert.equal(await sy.locator('[data-sync] .ha-badge').first().textContent(), 'Saved', 'acknowledged, so Saved, whatever the listener says');
+    assert.equal((await admin.get(`households/${shid}/items/sy1`)).notes, 'one', 'the server has it');
+    proxy.set({ listen: false });
+    await sy.waitForFunction(() => window.__pantry.S.items.get('sy1')?.notes === 'one');
+
+    // (c) Sync now: the server hears every change but its acknowledgements never arrive: the phone truly cannot tell
+    if (process.env.PROGRESS) console.log('  chip block c');
+    proxy.set({ write: true });
+    await act(sy, 'set', 'sy1', 'name', 'Rice (new)');
+    await act(sy, 'namePerson', 'syncy@example.com', 'Jun');
+    await act(sy, 'addPlace', 'Shed');
+    await sy.waitForFunction(() => window.__pantry.S.sync.pending === 3, null, { timeout: 8000 });
+    await sy.locator('[data-sync] .ha-badge--warn', { hasText: 'Waiting for signal (3 changes)' }).waitFor({ timeout: 8000 });
+    await go(sy, '#/settings');
+    await sy.click('#pa-syncnow');
+    await sy.locator('.pa-syncnow-result--waiting', { hasText: 'Still waiting: this phone can’t reach the family right now' }).waitFor({ timeout: 20000 });
+    const lines = await sy.locator('.pa-waiting .ha-row-title').allTextContents();
+    assert.deepEqual(lines.sort(), ['A change to Rice (new)', 'Added place Shed', 'Name for Jun'], 'each waiting change in words');
+    assert.equal(await sy.locator('#pa-heard').count(), 1);
+    assert.match(await sy.locator('#pa-heard').textContent(), /^Last heard from the family: (just now|at \d)/, 'last heard from the family');
+    assert.equal(await sy.locator('[data-act="sync-cycle"]').count(), 1, 'offers one reconnect');
+    await axe(sy, 'Settings: Sync now, still waiting, with the list');
+    if (process.env.SHOTS) { await sy.locator('section[aria-labelledby="h-saving"]').scrollIntoViewIfNeeded(); await sy.evaluate(() => scrollTo(0, document.querySelector('section[aria-labelledby="h-saving"]').offsetTop - 70)); await settle(sy); await sy.screenshot({ path: process.env.SHOTS + '/p01-sync-now.png' }); }
+    // the server already has all three
+    assert.equal((await admin.get(`households/${shid}/items/sy1`)).name, 'Rice (new)');
+    // Reconnect and try again: one switch off and on; nothing breaks, and still nothing is heard back
+    await sy.click('[data-act="sync-cycle"]');
+    await sy.locator('.pa-syncnow-result--waiting').waitFor({ timeout: 30000 });
+    await sy.locator('#pa-syncnow .ha-row-title', { hasText: 'Sync now' }).waitFor();
+    assert.equal(await sy.locator('[data-act="sync-cycle"]').count(), 0, 'only one reconnect is offered');
+    // the acknowledgements arrive: Saved, the list empties
+    proxy.set({ write: false });
+    await sy.waitForFunction(() => window.__pantry.S.sync.pending === 0, null, { timeout: 20000 });
+    await sy.click('#pa-syncnow');
+    await sy.locator('.pa-syncnow-result--saved', { hasText: 'Everything is saved' }).waitFor({ timeout: 20000 });
+    assert.equal(await sy.locator('.pa-waiting').count(), 0, 'nothing waiting any more');
+    assert.equal(await sy.locator('[data-sync] .ha-badge').first().textContent(), 'Saved');
+    await axe(sy, 'Settings: Sync now, everything saved');
+    // a change the server refuses is Needs attention (not "Everything is saved")
+    await sy.evaluate(() => { window.__pantry.S.refused.push({ n: 'x1', hid: window.__pantry.S.household.id, kind: 'items', id: 'sy1', op: 'patch', ops: { set: { a: 1 }, inc: {}, del: [] }, code: 'permission-denied', at: new Date().toISOString(), name: 'Rice' }); });
+    await sy.click('#pa-syncnow');
+    await sy.locator('.pa-syncnow-result--attention', { hasText: 'Needs attention: the family pantry wouldn’t take one change' }).waitFor({ timeout: 20000 });
+    await sy.evaluate(() => { window.__pantry.S.refused = []; });
+    await sy.waitForTimeout(100);
+    // no console or page errors (the stalled streams and the reconnect included)
+    proxy.close();
+  }
+
+  // ---- the listener watchdog: a phone whose listen stream died (nothing tells it) hears again within seconds ----
+  {
+    const proxy = await stallProxy();
+    const wUrl = srv.url + `/pantry/?emulator=${proxy.port}:9099`;
+    const wa = await person('watcha@example.com', wUrl);   // the phone behind the proxy
+    await wa.click('[data-act="hh-create"]');
+    await wa.locator('#main .ha-row-title', { hasText: 'Our pantry' }).waitFor();
+    const wid = await wa.evaluate(() => window.__pantry.S.household.id);
+    await admin.put(`households/${wid}`, { name: 'Our pantry', owner: 'watcha@example.com', members: ['watcha@example.com', 'watchb@example.com'], createdAt: '2026-10-16T00:00:00.000Z' });
+    const base2 = { category: 'Other', location: 'Fridge', brand: '', size: '', barcode: '', lowAt: 0, openDays: 7, createdAt: '2026-10-16T00:00:00.000Z', createdBy: 'Mum' };
+    for (const id of ['wd1', 'wd2']) await admin.put(`households/${wid}/items/${id}`, { id, name: 'Watch ' + id, ...base2, batches: { a: { qty: 5, expiry: null, openedAt: null, addedAt: '2026-10-01' } } });
+    await wa.waitForFunction(() => window.__pantry.S.items.has('wd1') && window.__pantry.S.items.has('wd2'));
+    const wb = await person('watchb@example.com');   // the other phone, straight to the emulator
+    await wb.waitForFunction(i => window.__pantry.S.household?.id === i, wid);
+    await wb.waitForFunction(() => window.__pantry.S.items.has('wd1'));
+    const nameOn = (p, id) => p.evaluate(i => window.__pantry.S.items.get(i)?.name, id);
+    // (1) the stream dies; the other phone changes an item; this phone hears nothing. It comes back (online): it listens again and catches up
+    proxy.set({ dropListen: true });
+    await settle(wa);
+    await act(wb, 'set', 'wd1', 'name', 'Watch one, renamed by B'); await drain(wb);
+    await wa.waitForTimeout(12000);   // (long enough for "nothing heard for 10 s" to be true)
+    assert.equal(await nameOn(wa, 'wd1'), 'Watch wd1', 'a dead stream: the phone does not hear the change');
+    assert.equal(await wa.evaluate(() => window.__pantry.S.sync.relistens), 0, 'and has not listened again yet (a quiet household is not a sign)');
+    proxy.set({ dropListen: false });
+    const t0 = Date.now();
+    await wa.evaluate(() => dispatchEvent(new Event('online')));
+    await wa.waitForFunction(() => window.__pantry.S.items.get('wd1')?.name === 'Watch one, renamed by B', null, { timeout: 15000 });
+    assert.ok(Date.now() - t0 < 15000, 'caught up within 15 s');
+    assert.equal(await wa.evaluate(() => window.__pantry.S.sync.relistens), 1, 'by listening again, once');
+    // after listening again it keeps hearing: another change arrives without any nudge
+    await act(wb, 'set', 'wd1', 'name', 'Watch one, again'); await drain(wb);
+    await wa.waitForFunction(() => window.__pantry.S.items.get('wd1')?.name === 'Watch one, again', null, { timeout: 10000 });
+    // not twice in a row: the throttle holds a second nudge for 30 s
+    await wa.evaluate(() => dispatchEvent(new Event('online')));
+    await wa.waitForTimeout(500);
+    assert.equal(await wa.evaluate(() => window.__pantry.S.sync.relistens), 1, 'at most one re-listen every 30 s');
+    // (2) a document still flagged pending long after its write was acknowledged: no event needed. The stream dies, this phone writes
+    // (the write is acknowledged on its own stream), the other phone changes another item; within about 15 s it listens again by itself
+    await wa.waitForTimeout(31000);   // (past the throttle)
+    proxy.set({ dropListen: true });
+    await settle(wa);
+    await act(wa, 'set', 'wd2', 'notes', 'from A');
+    await wa.waitForFunction(() => window.__pantry.S.sync.pending === 0, null, { timeout: 8000 });
+    await act(wb, 'set', 'wd1', 'name', 'Watch one, third'); await drain(wb);
+    proxy.set({ dropListen: false });
+    const t1 = Date.now();
+    await wa.waitForFunction(() => window.__pantry.S.items.get('wd1')?.name === 'Watch one, third', null, { timeout: 25000 });
+    assert.ok(Date.now() - t1 < 22000, 'caught up on its own: ' + (Date.now() - t1) + ' ms');
+    const acts = await wa.evaluate(() => [window.__pantry.S.sync.relistens, window.__pantry.S.sync.cycles]);
+    assert.ok(acts[0] + acts[1] >= 2, 'the watchdog acted again by itself (listened again, or restarted the connection): ' + JSON.stringify(acts));
+    assert.equal((await admin.get(`households/${wid}/items/wd2`)).notes, 'from A', 'its own change is on the server');
+    assert.equal(await wa.evaluate(() => window.__pantry.S.refused.length), 0);
+    // the chip says Saved throughout
+    assert.equal(await wa.evaluate(() => window.__pantry.S.sync.pending), 0);
+    proxy.close();
+  }
+
+  // ---- a pantry that goes away under an open phone (the owner merges or deletes it; evidence: 16 Oct, rules errors when a phone
+  // resumed on a deleted household) ----
+  {
+    const iso = '2026-10-16T00:00:00.000Z';
+    await seedPantry('goneX', 'losta@example.com', ['losta@example.com', 'lostb@example.com', 'lostc@example.com'], 'GX');   // the bigger one opens first
+    await admin.put('households/goneY', { name: 'Our other pantry', owner: 'lostb@example.com', members: ['lostb@example.com'], createdAt: iso });
+    await admin.put('households/goneY/items/gy1', { id: 'gy1', name: 'Survivor rice', batches: { y1: { qty: 3, expiry: null } } });
+    const lostB = await person('lostb@example.com');
+    const bErrors = [];
+    lostB.on('console', m => { if (m.type() === 'error' && !/Failed to load resource/.test(m.text())) bErrors.push(m.text()); });
+    assert.equal(await lostB.evaluate(() => window.__pantry.S.household.id), 'goneX', 'B opens the bigger pantry');
+    await go(lostB, '#/items');
+    await lostB.locator('#pa-items-list .ha-row', { hasText: 'GX item 0' }).waitFor();
+    await lostB.evaluate(() => { window.__sameDocument = true; });
+    const lostA = await person('losta@example.com');
+    assert.equal(await lostA.evaluate(() => window.__pantry.S.household.id), 'goneX');
+    // A, the owner, merges it away (the same call the merge sheet makes last)
+    await lostA.evaluate(() => window.__pantry.S.cloud.removeHousehold('goneX'));
+    await lostB.waitForFunction(() => window.__pantry.S.household?.id === 'goneY', null, { timeout: 30000 });
+    await lostB.locator('#pa-items-list .ha-row', { hasText: 'Survivor rice' }).waitFor();
+    assert.equal(await lostB.locator('#pa-items-list .ha-row', { hasText: 'GX item' }).count(), 0, 'the deleted pantry’s items are gone from the list');
+    assert.equal(await lostB.evaluate(() => window.__sameDocument === true), true, 'no reload');
+    assert.equal(await lostB.evaluate(() => window.__pantry.S.mode), 'cloud');
+    await lostB.locator('.ha-toast', { hasText: 'Your pantry changed' }).waitFor();
+    // the old listeners are stopped: nothing changes the screen after, and a change made now reaches the surviving pantry
+    await act(lostB, 'set', 'gy1', 'notes', 'after the switch');
+    await lostB.waitForFunction(() => window.__pantry.S.refused.length === 0 && window.__pantry.S.sync.pending === 0);
+    assert.equal((await admin.get('households/goneY/items/gy1')).notes, 'after the switch', 'writes go to the surviving pantry');
+    assert.equal(await lostB.evaluate(() => window.__pantry.S.syncError), false, 'no "changes didn’t reach" banner');
+    assert.deepEqual(bErrors, [], 'no console errors on the phone that was left behind: ' + bErrors.join(' | '));
+
+    // nothing left: a plain "Your pantry changed" with Try again, never a new pantry started on its own
+    await admin.put('households/goneZ', { name: 'Our pantry', owner: 'lostd@example.com', members: ['lostd@example.com', 'loste@example.com'], createdAt: iso });
+    const lostE = await person('loste@example.com');
+    const eErrors = [];
+    lostE.on('console', m => { if (m.type() === 'error' && !/Failed to load resource/.test(m.text())) eErrors.push(m.text()); });
+    assert.equal(await lostE.evaluate(() => window.__pantry.S.household.id), 'goneZ');
+    const lostD = await person('lostd@example.com');
+    await lostD.evaluate(() => window.__pantry.S.cloud.removeHousehold('goneZ'));
+    await lostE.locator('#pa-lost, [data-act="hh-check"]').first().waitFor({ timeout: 30000 });
+    await go(lostE, '#/');
+    await lostE.locator('#pa-lost', { hasText: 'Your pantry changed' }).waitFor();
+    await axe(lostE, 'Home: Your pantry changed');
+    assert.equal(await lostE.evaluate(() => window.__pantry.S.mode), 'local');
+    assert.equal(await lostE.evaluate(() => window.__pantry.S.household), null);
+    await go(lostE, '#/settings');
+    await lostE.locator('#main .ha-row-title', { hasText: 'Your pantry changed' }).waitFor();
+    await axe(lostE, 'Settings: Your pantry changed');
+    assert.equal(await lostE.locator('[data-act="hh-check"]').count(), 1, 'a Try again');
+    assert.equal((await admin.list('households')).filter(h => h.owner === 'loste@example.com').length, 0, 'nothing was started for them');
+    await lostE.click('[data-act="hh-check"]');
+    await lostE.locator('.ha-toast', { hasText: 'Not added yet' }).waitFor();
+    assert.equal(await lostE.evaluate(() => window.__pantry.S.household), null, 'still nothing to open');
+    await admin.put('households/goneW', { name: 'Our pantry', owner: 'lostd@example.com', members: ['lostd@example.com', 'loste@example.com'], createdAt: iso });
+    await lostE.click('[data-act="hh-check"]');
+    await lostE.waitForFunction(() => window.__pantry.S.household?.id === 'goneW', null, { timeout: 30000 });
+    assert.equal(await lostE.evaluate(() => window.__pantry.S.lost), null, 'the notice goes once a pantry is found');
+    assert.deepEqual(eErrors, [], 'no console errors: ' + eErrors.join(' | '));
+  }
 
   // ---- no signal: "can't tell" is never "no pantry", and nothing is created offline ----
   const owned = async email => (await admin.list('households')).filter(h => h.owner === email).length;

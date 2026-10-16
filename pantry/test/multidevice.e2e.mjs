@@ -23,10 +23,16 @@
 //     stays hidden on every phone: a rename or a move landing on it brings nothing back); a place's name is one some phone gave
 //     it; the eleven default places made from the old list by whichever phone changed places first exist once, however many
 //     phones tried at once (some offline); and every phone's list of places is the server's, in the same order.
+//   - the Items list (this PR): phones put items in My order (one field on one item, or the whole category numbered when there is
+//     no room) and move several items to a place in one batch, at random, offline or not: every `order` and place on the server is
+//     a number / place some phone gave it, every phone shows exactly the server's `order` and place for every item (so every phone
+//     shows the same order), nothing is refused, and after one phone tidies the numbers (a renumber) every live item in the
+//     category has its own number and the sequence is exactly what it was before.
 // Run by pantry/test/run-sync.sh; one seed: SEED=7 node test/multidevice.e2e.mjs (inside the emulators), more: SEEDS=1,2,3.
 import assert from 'node:assert/strict';
 import { serve } from './serve.mjs';
 import * as Lg from '../js/logic.js';
+import * as Ord from '../js/order.js';
 const { chromium } = await import(process.env.PLAYWRIGHT_PATH || '/opt/node22/lib/node_modules/playwright/index.mjs');
 
 const SEEDS = (process.env.SEEDS || process.env.SEED || '11,2026').split(',').map(Number);
@@ -132,12 +138,26 @@ try {
     const names0 = (await admin.get(`households/${hid}/settings/people`))?.names || {};   // (what earlier seeds left)
     const nameLast = emails.map(e => names0[e] ?? ''), nameEver = emails.map(() => new Set());
     const placeIds = [], placeNameEver = {}, placeRemoved = new Set(), placeRestored = new Set();
-    const counts = { use: 0, add: 0, open: 0, rename: 0, undo: 0, delete: 0, restore: 0, tick: 0, 'remove line': 0, 'restore line': 0, 'name myself': 0, 'add place': 0, 'rename place': 0, 'move place': 0, 'remove place': 0, 'restore place': 0, toggles: 0 };
+    const locs = Object.fromEntries(ids.map(id => [id, new Set(['Fridge'])])), orderEver = Object.fromEntries(ids.map(id => [id, new Set()]));
+    const counts = { reorder: 0, 'bulk move': 0, use: 0, add: 0, open: 0, rename: 0, undo: 0, delete: 0, restore: 0, tick: 0, 'remove line': 0, 'restore line': 0, 'name myself': 0, 'add place': 0, 'rename place': 0, 'move place': 0, 'remove place': 0, 'restore place': 0, toggles: 0 };
 
     for (let step = 0; step < STEPS; step++) {
       const i = Math.floor(R() * 3), p = phones[i], id = pick(ids);
       nowStep = step; nowWho = i;
       const r = R();
+      if (R() < 0.15) {
+        // the Items list: put one item after another (or first) in its category, or move several to a place in one batch
+        if (R() < 0.55) {
+          const after = pick([null, ...ids.filter(x => x !== id)]);
+          const res = await act(p, 'reorder', id, after);
+          if (res) { counts.reorder++; for (const x of res.sets) if (ids.includes(x.id)) orderEver[x.id].add(x.order); }
+        } else {
+          const sub = ids.filter(() => R() < 0.6), place = pick(['Fridge', 'Garage', 'Laundry']);
+          if (sub.length) { await act(p, 'bulkMove', sub, place); for (const x of sub) locs[x].add(place); counts['bulk move']++; }
+        }
+        await p.waitForTimeout(Math.floor(R() * 60));
+        continue;
+      }
       if (R() < 0.34) {
         // names and places (a third of the steps)
         const q = R();
@@ -249,6 +269,18 @@ try {
         if (mustBeRemoved(lid) && !gone) problem += `${lid}: removed, never restored, but it is back; `;
         for (const [n, p] of phones.entries()) { const l = await localLine(p, lid); if (l.removed !== gone || l.done !== raw.done) problem += `${lid}: phone ${n} has done ${l.done}/removed ${l.removed}, the server ${raw.done}/${gone}; `; }
       }
+      // the Items list: the server's `order` is a number inside the rules' limit, one some phone wrote (or none); its place is one
+      // some phone moved it to (or where it started); every phone shows exactly the server's order and place
+      for (const id of ids) {
+        const raw = await admin.get(`households/${hid}/items/${id}`);
+        if ('order' in raw && !(typeof raw.order === 'number' && Math.abs(raw.order) < 1000000)) problem += `${id}: order ${JSON.stringify(raw.order)} is not a number inside the limit; `;
+        if (typeof raw.order === 'number' && !orderEver[id].has(raw.order)) problem += `${id}: order ${raw.order} was never written by a phone; `;
+        if (!locs[id].has(raw.location)) problem += `${id}: place ${raw.location} was never chosen; `;
+        for (const [n, ph] of phones.entries()) {
+          const got = await ph.evaluate(i => { const it = window.__pantry.S.items.get(i); return [it.order ?? null, it.location]; }, id);
+          if (got[0] !== (raw.order ?? null) || got[1] !== raw.location) problem += `${id}: phone ${n} shows order ${got[0]} in ${got[1]}, the server ${raw.order ?? null} in ${raw.location}; `;
+        }
+      }
       // names: the last name each phone set (or cleared) for itself, on the server and on every phone
       const srvPeople = (await admin.get(`households/${hid}/settings/people`))?.names || {};
       for (const [k, email] of emails.entries()) {
@@ -285,6 +317,22 @@ try {
     if (problem) for (const id of ids) console.error('  server', id, JSON.stringify((await admin.get(`households/${hid}/items/${id}`)).batches));
     if (problem) for (const m of problem.matchAll(/(s\d+-\w+\/[\w-]+):/g)) console.error('  history', m[1], JSON.stringify(history[m[1]] || []));
     assert.equal(problem, '', problem);
+    // tidy the numbers: one phone renumbers the category; the sequence is unchanged and every live item has its own number
+    {
+      const live = async () => (await admin.list(`households/${hid}/items`)).filter(i => i.category === 'Other' && typeof i.removedAt !== 'string');
+      const before = Ord.sortByOrder(await live()).map(i => i.id).join(',');
+      await act(phones[0], 'renumber', 'Other');
+      for (const p of phones) await drain(p);
+      let after = '', orders = [];
+      for (let a = 0; a < 20; a++) { const l = await live(); after = Ord.sortByOrder(l).map(i => i.id).join(','); orders = l.map(i => i.order); if (after === before && new Set(orders).size === l.length) break; await mum.waitForTimeout(300); }
+      assert.equal(after, before, 'renumbering never changes the sequence');
+      assert.equal(new Set(orders).size, orders.length, 'every live item in the category has its own number after a renumber: ' + orders.join(','));
+      assert.ok(orders.every(o => typeof o === 'number' && Number.isInteger(o)), 'whole numbers 1, 2, 3 …');
+      for (const [n, ph] of phones.entries()) {
+        const mine = await ph.evaluate(() => [...window.__pantry.S.items.values()].filter(i => i.category === 'Other' && !i.removedAt).map(i => ({ id: i.id, name: i.name, order: i.order })));
+        assert.equal(Ord.sortByOrder(mine).map(i => i.id).join(','), before, `phone ${n} shows the same sequence`);
+      }
+    }
     // events of this seed on the server are exactly those not undone
     const evOnServer = (await admin.list(`households/${hid}/events`)).filter(e => ids.includes(e.itemId)).map(e => e.id).sort();
     assert.deepEqual(evOnServer, [...events].sort(), 'history on the server = lines created and not undone');
