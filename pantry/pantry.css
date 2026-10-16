@@ -73,3 +73,5 @@ label.ha-row:focus-within:has(.pa-file){outline:2px solid var(--home-focus);outl
 
 /* the guide screen */
 .pa-gagain{margin:var(--home-s2) 0 var(--home-s6)}
+.pa-quick-text{width:100%;min-height:6.5em;resize:vertical}
+.pa-mic.is-on{background:var(--home-bad);color:#fff}

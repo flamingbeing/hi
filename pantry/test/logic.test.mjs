@@ -108,7 +108,29 @@ assert.equal(L.whyText({ why: 'out' }, T), 'None left');
 assert.equal(L.whyText({ why: 'low', qty: 1 }, T), 'Only 1 left');
 assert.equal(L.whyText({ why: 'soon', runOut: '2026-10-19' }, T), 'Runs out in about 3 days');
 assert.equal(L.whyText({ why: 'soon', runOut: '2026-10-16' }, T), 'Runs out about now');
-assert.deepEqual(L.monthStats([...evs, { type: 'add', qty: 3, at: '2026-10-05T00:00:00Z' }], '2026-10'), { used: 0, wasted: 1, bought: 3 });
+assert.deepEqual(L.monthStats([...evs, { type: 'add', qty: 3, at: '2026-10-05T00:00:00Z' }], '2026-10'), { used: 0, wasted: 1, bought: 3, expired: 0, saved: 0 });
+
+// Kaki Home's measures: used before expiry ("saved"), and binned after the date ("expired")
+const dated = item([{ id: 'old', qty: 1, expiry: '2026-10-10' }, { id: 'new', qty: 2, expiry: '2026-11-01' }], { openDays: null });
+r = L.takeOut(dated, { batchId: 'new', today: T });
+assert.equal(r.event.type, 'use'); assert.equal(r.event.saved, 1);
+r = L.takeOut(dated, { type: 'discard', batchId: 'old', today: T });
+assert.equal(r.event.type, 'expired', 'binned past its date counts as expired');
+r = L.takeOut(dated, { type: 'discard', batchId: 'new', today: T });
+assert.equal(r.event.type, 'discard', 'binned in date stays thrown away');
+r = L.takeOut(dated, { batchId: 'old', today: T });
+assert.equal(r.event.saved, undefined, 'used after its date is not saved');
+r = L.takeOut(item([{ id: 'x', qty: 1, expiry: null }], { openDays: null }), { today: T });
+assert.equal(r.event.saved, undefined, 'no date: not counted');
+const ms = L.monthStats([
+  { type: 'use', qty: 2, saved: 2, at: '2026-10-02T00:00:00Z' }, { type: 'use', qty: 1, at: '2026-10-03T00:00:00Z' },
+  { type: 'expired', qty: 1, at: '2026-10-04T00:00:00Z' }, { type: 'discard', qty: 1, at: '2026-10-05T00:00:00Z' },
+  { type: 'use', qty: 1, saved: 1, at: '2026-09-30T00:00:00Z' },
+], '2026-10');
+assert.deepEqual(ms, { used: 3, saved: 2, wasted: 2, expired: 1, bought: 0 });
+assert.equal(L.usage([{ type: 'expired', qty: 1, at: '2026-10-04T00:00:00Z' }], now).discards, 1);
+const rec = L.recent([{ id: 'a', createdAt: '2026-10-15T00:00:00Z' }, { id: 'b', createdAt: '2026-09-01T00:00:00Z' }, { id: 'c', createdAt: '2026-10-12T00:00:00Z' }], { now });
+assert.deepEqual(rec.map(x => x.id), ['a', 'c']);
 assert.equal(L.shareText(['Milk', 'Eggs']), 'Shopping list\n- Milk\n- Eggs');
 
 // backups: round trip, and anything else is refused in plain words

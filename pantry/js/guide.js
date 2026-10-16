@@ -156,6 +156,7 @@ export function viewGuide() {
     <p class="ha-large-sub">Everything it does, in a few words each.</p>
     ${section('adding', 'Adding things', [
       row('search', 'Search the list', 'Tap + and type a name, like soy sauce or Milo. Picking a common Singapore product fills in the brand, size and where it’s kept.'),
+      row('mic', 'Say or type a list', 'Tap the microphone on Home, or Say or type a list on Add. Say “2 Meiji milk in the fridge expires 25 Oct and 3 tins of sardines”, check the list it makes, then Add.'),
       row('barcode', 'Scan a barcode', 'Tap Scan barcode and point the camera at it. Once something is named, its barcode finds it next time.'),
       row('camera', 'Add a photo', 'So everyone knows which one it is.'),
       row('plus', 'How many', 'How many you have now. Tap + or − to change it.'),
@@ -165,7 +166,7 @@ export function viewGuide() {
     ${section('daily', 'Every day', [
       row('check', 'Used 1', 'Tap on the item when one is finished. It takes one out of stock.'),
       row('box', 'Open', 'Tap when you open one. Its countdown starts (only for things with “keeps once opened”).'),
-      row('trash', 'Bin 1', 'Tap when one is thrown away. Home counts what gets wasted each month.'),
+      row('trash', 'Bin 1', 'Tap when one is thrown away. If it was past its date, it counts as expired. Home counts what gets wasted each month.'),
       row('refresh', 'Undo', 'Tapped the wrong thing? Tap Undo in the message at the bottom.'),
       row('cart', 'Bought more', 'On the item, add what you bought and its date.'),
     ])}
