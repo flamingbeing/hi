@@ -161,15 +161,28 @@ export async function openCloud(hid, onError = () => {}) {
       return out;
     },
     // Writes go to the phone's copy at once and reach the household when there's signal; don't wait for the server.
-    put: (kind, obj) => { F.setDoc(F.doc(col(kind), obj.id), clean(obj)).catch(e => { console.warn('save failed', e?.code); onError(e); }); },
+    // The promise (which callers may ignore) says whether the server took it: true, or false when refused.
+    put: (kind, obj) => F.setDoc(F.doc(col(kind), obj.id), clean(obj)).then(() => true, e => { console.warn('save failed', e?.code); onError(e); return false; }),
     del: (kind, id) => { F.deleteDoc(F.doc(col(kind), id)).catch(e => { console.warn('delete failed', e?.code); onError(e); }); },
-    // Write many at once (copying the phone's list up, restoring a backup), 400 to a batch.
+    // One document (an item's photo, when the item is opened), or null when there is none. Offline it is the
+    // phone's copy if it has one; otherwise it throws, and the app tries again next time.
+    async get(kind, id) {
+      const s = await F.getDoc(F.doc(col(kind), id));
+      return s.exists() ? s.data() : null;
+    },
+    // Every document of one kind (a backup's photos): only when someone asks for it.
+    async list(kind) { return (await F.getDocs(col(kind))).docs.map(d => d.data()); },
+    // Write many at once (copying the phone's list up, restoring a backup): at most 400 documents or about 4 MB
+    // to a batch (photos are up to 150 KB each; Firestore takes about 10 MB a request).
     async putMany(kind, list) {
-      for (let i = 0; i < list.length; i += 400) {
-        const b = F.writeBatch(db);
-        for (const o of list.slice(i, i + 400)) b.set(F.doc(col(kind), o.id), clean(o));
-        await b.commit();
+      let b = null, n = 0, bytes = 0;
+      for (const o of list) {
+        const c = clean(o), size = JSON.stringify(c).length;
+        if (b && (n >= 400 || bytes + size > 4e6)) { await b.commit(); b = null; }
+        if (!b) { b = F.writeBatch(db); n = 0; bytes = 0; }
+        b.set(F.doc(col(kind), o.id), c); n++; bytes += size;
       }
+      if (b) await b.commit();
     },
     listen(cb) {
       for (const k of KINDS) {

@@ -27,6 +27,7 @@ jobs:
       - run: node kakihome/test/config.test.mjs
       - run: node kakihome/test/quick.test.mjs
       - run: node kakihome/test/tour.test.mjs
+      - run: node kakihome/test/photo.test.mjs
       - name: Install Playwright and axe-core
         run: |
           npm install --no-save playwright@1.56.1 axe-core

@@ -13,7 +13,7 @@ export function sampleData(by = 'Sample', { household = false } = {}) {
   const ago = d => new Date(now - d * 86400000).toISOString();
   const items = [], events = [];
   const add = (f, batches, history = []) => {
-    const it = { id: uid(), brand: '', size: '', lowAt: 0, barcode: '', photo: '', openDays: null, createdAt: ago(200), createdBy: who(), sample: true, ...f, batches: batches.map(b => ({ id: uid(), openedAt: null, addedAt: t, ...b })) };
+    const it = { id: uid(), brand: '', size: '', lowAt: 0, barcode: '', openDays: null, createdAt: ago(200), createdBy: who(), sample: true, ...f, batches: batches.map(b => ({ id: uid(), openedAt: null, addedAt: t, ...b })) };
     items.push(it);
     // used up while still in date unless marked 'late'; 'expired' is binned past its date
     for (const [type, d, qty = 1, late] of history) {
