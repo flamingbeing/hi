@@ -8,7 +8,11 @@
 // The cloud backend (cloud.js) keeps the household's shared copy in Firestore.
 
 // settings: shared household settings, one document per id (today only 'people': the names given to members)
+// KINDS are loaded in full and kept in memory; photos (one per item with a picture, photos/<item id>) are read one at
+// a time, when their item is opened (photo.js).
 export const KINDS = ['items', 'events', 'shop', 'settings'];
+export const PHOTOS = 'photos';
+export const ALL_KINDS = [...KINDS, PHOTOS];
 const DB = 'kakihome', STORE = 'docs', VER = 1;
 
 function idb() {
@@ -46,6 +50,17 @@ export async function openLocal() {
       }
       return data;
     },
+    get: (kind, id) => new Promise((res, rej) => {
+      const r = db.transaction(STORE, 'readonly').objectStore(STORE).get(`${kind}/${id}`);
+      r.onsuccess = () => res(r.result ?? null);
+      r.onerror = () => rej(r.error);
+    }),
+    list: kind => new Promise((res, rej) => {
+      const range = IDBKeyRange.bound(kind + '/', kind + '/\uffff');
+      const r = db.transaction(STORE, 'readonly').objectStore(STORE).getAll(range);
+      r.onsuccess = () => res(r.result || []);
+      r.onerror = () => rej(r.error);
+    }),
     put: (kind, obj) => tx(db, 'readwrite', s => s.put(obj, `${kind}/${obj.id}`)),
     del: (kind, id) => tx(db, 'readwrite', s => s.delete(`${kind}/${id}`)),
     clear: () => tx(db, 'readwrite', s => s.clear()),
@@ -55,13 +70,15 @@ export async function openLocal() {
 
 // Demo mode: everything in memory, gone on reload.
 export function openMemory(seed = {}) {
-  const data = Object.fromEntries(KINDS.map(k => [k, new Map((seed[k] || []).map(o => [o.id, o]))]));
+  const data = Object.fromEntries(ALL_KINDS.map(k => [k, new Map((seed[k] || []).map(o => [o.id, o]))]));
   return {
     kind: 'memory',
     async load() { return Object.fromEntries(KINDS.map(k => [k, [...data[k].values()]])); },
+    async get(kind, id) { return data[kind].get(id) ?? null; },
+    async list(kind) { return [...data[kind].values()]; },
     put(kind, obj) { data[kind].set(obj.id, obj); },
     del(kind, id) { data[kind].delete(id); },
-    async clear() { for (const k of KINDS) data[k].clear(); },
+    async clear() { for (const k of ALL_KINDS) data[k].clear(); },
     listen() {},
   };
 }

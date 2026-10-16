@@ -42,6 +42,12 @@ Lasting decisions and how to test. Now: [STATUS.md](STATUS.md). Setup: [SETUP.md
   Rules: members only; writes only to `people`, only those fields, at most 20 names; the app trims names to 40
   characters (rules can't loop over a map). The name the household gives you is also what your changes are signed
   with ("added by", history, shopping list). No default places in Kaki Home (that's the pantry's).
+- **Photos cost fix** (owner: "go ahead and improve", 16 Oct; the pantry's #26, ported): every item keeps a ~96px
+  thumbnail (`thumb`, `hasPhoto`, a few KB) for lists, rows and Home; the ~480px photo lives in
+  `households/{hid}/photos/{itemId}` and is read only when the item is opened (never listened to). So opening the app
+  downloads thumbnails, not photos: many people attaching many photos can't use up the free 10 GB a month of Firestore
+  downloads. Rules: members only; thumb at most 12 KB; photo data at most 150 KB; no item may gain a `photo` field.
+  Older items with a whole photo inside (none exist yet) would move by themselves. Backups include the photos.
 - Everything else as in `pantry/NOTES.md` (stock as batches, undo over confirm, a household member's change never
   wipes what someone is typing, sign-in on the app's own address, the service worker waits to take over, rules deploy
   on merge with the `KAKIHOME_FIREBASE_PROJECT` variable).
@@ -52,6 +58,7 @@ Lasting decisions and how to test. Now: [STATUS.md](STATUS.md). Setup: [SETUP.md
 node kakihome/test/logic.test.mjs      # logic, measures, catalogue, backups
 node kakihome/test/quick.test.mjs      # Say or type: dates, places, quantities, matching
 node kakihome/test/tour.test.mjs       # first steps: quick-start list, checklist ticks
+node kakihome/test/photo.test.mjs      # photo sizes: the thumbnail and photo limits
 node kakihome/test/config.test.mjs     # set-config, sign-in choice, plain-word errors, sw.js rules
 node kakihome/test/e2e.mjs             # phone browser test with axe; SHOTS=<dir> saves screenshots
 kakihome/test/run-sync.sh              # household sharing and the rules in the local emulators (demo-kakihome)

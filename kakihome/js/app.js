@@ -5,7 +5,7 @@
 // the household's shared copy (Firestore), or memory only (demo mode, ?demo).
 import * as L from './logic.js';
 import { CATALOGUE, CATEGORIES, LOCATIONS } from './catalogue.js';
-import { openLocal, openMemory, prefs, KINDS } from './store.js';
+import { openLocal, openMemory, prefs, KINDS, PHOTOS } from './store.js';
 import { sampleData } from './sample.js';
 import { openWelcome, viewGuide, welcomed, markWelcomed, installed } from './guide.js';
 import { starterChoices, tourTasks } from './tour.js';
@@ -22,7 +22,7 @@ const EMULATOR = params.has('emulator') && /^(localhost|127\.0\.0\.1)$/.test(loc
 const WELCOME = params.has('welcome');   // show the welcome even in the demo, or again
 
 const S = {
-  items: new Map(), events: new Map(), shop: new Map(), settings: new Map(),
+  items: new Map(), events: new Map(), shop: new Map(), settings: new Map(), pics: new Map(),
   backend: null, local: null, mode: DEMO ? 'demo' : 'local', cloud: null, user: null, household: null, localCount: 0,
   q: '', place: '', sort: prefs.get('sort', 'expiry'),
   draft: null, dirty: false, pendingRender: false, syncError: false,
@@ -64,7 +64,10 @@ const screen = () => route().parts[0] || 'home';
 // ---- saving ----------------------------------------------------------------------------------------------------
 
 function save(kind, obj) {
-  if (kind === 'items') obj = { ...obj, updatedAt: new Date().toISOString(), updatedBy: who() };
+  if (kind === 'items') {
+    obj = { ...obj, updatedAt: new Date().toISOString(), updatedBy: who() };
+    if (obj.photo === '') delete obj.photo;   // left by older versions; pictures are `thumb` + photos/<id> now
+  }
   S[kind].set(obj.id, obj);
   S.backend.put(kind, obj);
   return obj;
@@ -73,6 +76,100 @@ function remove(kind, id) {
   S[kind].delete(id);
   S.backend.del(kind, id);
 }
+// ---- photos (photo.js): a tiny `thumb` on the item for every list; the photo itself in photos/<item id>, read only
+// when the item is opened (cached here, keyed by the thumb it belongs to, so a household member's new photo is fetched).
+// Items from before 16 Oct 2026 may still carry the whole photo as `photo`: shown as it is until migratePhotos() moves it.
+
+const thumbSrc = it => it.thumb || it.photo || '';
+function bestPic(it) {
+  if (it.photo) return it.photo;
+  const c = S.pics.get(it.id);
+  return c && c.thumb === (it.thumb || '') && c.data ? c.data : it.thumb || '';
+}
+const fetching = new Set();
+function wantPhoto(it) {
+  if (!it.hasPhoto || it.photo || fetching.has(it.id)) return;
+  const ver = it.thumb || '', c = S.pics.get(it.id);
+  if (c && c.thumb === ver) return;
+  fetching.add(it.id);
+  Promise.resolve().then(() => S.backend.get(PHOTOS, it.id)).then(doc => {
+    S.pics.set(it.id, { thumb: ver, data: doc?.data || null });
+    const img = document.getElementById('kh-hero');
+    if (doc?.data && img && img.dataset.id === it.id) img.src = doc.data;
+  }, () => { /* no signal: the thumbnail stays; tried again next time */ }).finally(() => fetching.delete(it.id));
+}
+function savePhoto(id, thumb, data) {
+  S.pics.set(id, { thumb, data });
+  return S.backend.put(PHOTOS, { id, data, updatedAt: new Date().toISOString() });
+}
+function delPhoto(id) {
+  S.pics.delete(id);
+  S.backend.del(PHOTOS, id);
+}
+async function photoOf(it) {
+  if (!it.hasPhoto) return null;
+  const c = S.pics.get(it.id);
+  if (c?.data) return c.data;
+  // not fetched yet: ask, but never hold up a delete for long (no signal)
+  const got = Promise.resolve().then(() => S.backend.get(PHOTOS, it.id)).then(d => d?.data || null, () => null);
+  return Promise.race([got, new Promise(r => setTimeout(() => r(null), 1500))]);
+}
+// An old-style item (whole photo inside it) as { item, doc }: the item with a thumbnail, and its photos document.
+// null when the picture can't be read.
+async function splitOld(it) {
+  try {
+    const { picturesFromData } = await import('./photo.js');
+    const p = await picturesFromData(it.photo);
+    const item = { ...it, thumb: p.thumb, hasPhoto: true };
+    delete item.photo;
+    return { item, doc: { id: it.id, data: p.photo, updatedAt: new Date().toISOString() } };
+  } catch { return null; }
+}
+// Before copying or restoring into the household (whose rules refuse old-style photos): split every old-style item.
+async function splitAll(data) {
+  const have = new Set(data.photos.map(p => p.id));
+  data.items = await Promise.all(data.items.map(async it => {
+    if (it.photo === '' || (it.photo && typeof it.photo !== 'string')) { const x = { ...it }; delete x.photo; return x; }
+    if (!it.photo) return it;
+    const s = await splitOld(it);
+    if (!s) { const x = { ...it }; delete x.photo; return x; }   // an unreadable picture is left behind
+    if (!have.has(it.id)) data.photos.push(s.doc);
+    return s.item;
+  }));
+  return data;
+}
+// Moves old-style photos out of their items, quietly, a few a second: the photo is written first, and only once it is
+// saved does the item lose its `photo` (so a photo is never lost). Runs again whenever items load or change.
+let migrating = false;
+async function migratePhotos() {
+  if (migrating) return;
+  migrating = true;
+  let moved = 0;
+  try {
+    const skip = new Set();
+    for (;;) {
+      const it = [...S.items.values()].find(i => typeof i.photo === 'string' && i.photo && !skip.has(i.id));
+      if (!it) break;
+      const backend = S.backend;
+      const s = await splitOld(it);
+      if (!s) { skip.add(it.id); continue; }   // unreadable: left as it is
+      if ((await backend.put(PHOTOS, s.doc)) === false) { skip.add(it.id); continue; }
+      if (backend !== S.backend) break;   // signed in or out meanwhile: done on the next load
+      const cur = S.items.get(it.id);
+      if (cur && cur.photo === it.photo) {
+        const next = { ...cur, thumb: s.item.thumb, hasPhoto: true };
+        delete next.photo;
+        S.items.set(next.id, next);
+        S.pics.set(next.id, { thumb: next.thumb, data: s.doc.data });
+        await backend.put('items', next);
+        moved++;
+      }
+      await new Promise(r => setTimeout(r, 300));
+    }
+  } finally { migrating = false; }
+  if (moved) redraw();
+}
+
 // Apply a stock change from logic.js ({ item, event }) and offer Undo.
 function apply(res, msg) {
   if (!res.event) { haToast('Nothing in stock to do that with'); return; }
@@ -86,7 +183,8 @@ function apply(res, msg) {
 // ---- small pieces --------------------------------------------------------------------------------------------------
 
 function thumb(it, cls = 'ha-row-thumb') {
-  return it.photo ? `<img class="${cls}" src="${esc(it.photo)}" alt="">` : `<span class="${cls}">${icon(CAT_ICON[it.category] || 'box')}</span>`;
+  const src = thumbSrc(it);
+  return src ? `<img class="${cls}" src="${esc(src)}" alt="">` : `<span class="${cls}">${icon(CAT_ICON[it.category] || 'box')}</span>`;
 }
 function badge(date) {
   const b = L.shortLabel(date, today());
@@ -298,7 +396,7 @@ function openStarter() {
     const added = [];
     for (const { cat, days } of list) {
       const base = { id: L.uid(), batches: [], createdAt: new Date().toISOString(), createdBy: who(), name: cat.name, brand: cat.brand, size: cat.size,
-        category: cat.category, location: cat.location, openDays: cat.openDays ?? null, lowAt: 0, barcode: '', photo: '' };
+        category: cat.category, location: cat.location, openDays: cat.openDays ?? null, lowAt: 0, barcode: '' };
       const res = L.addStock(base, { qty: 1, expiry: days ? L.addDays(today(), days) : null, by: who() });
       save('items', res.item); added.push({ id: base.id, ev: save('events', res.event).id });
     }
@@ -357,7 +455,10 @@ function viewItem(it) {
   const batches = L.fefo(it);
   const t = today();
   let h = `<h1 class="ha-large-title">${esc(it.name)}</h1>${subOf(it) ? `<p class="ha-large-sub">${subOf(it)}</p>` : ''}`;
-  if (it.photo) h += `<img class="kh-hero" src="${esc(it.photo)}" alt="Photo of ${esc(it.name)}">`;
+  // the thumbnail straight away; the photo replaces it once fetched (wantPhoto)
+  const pic = bestPic(it);
+  if (pic) h += `<img class="kh-hero" id="kh-hero" data-id="${esc(it.id)}" src="${esc(pic)}" alt="Photo of ${esc(it.name)}">`;
+  wantPhoto(it);
 
   // stock, batch by batch (first to use at the top)
   const batchRow = b => {
@@ -415,14 +516,16 @@ function viewItem(it) {
 // ---- Add and edit -----------------------------------------------------------------------------------------------
 
 function blank() {
-  return { id: null, name: '', brand: '', size: '', category: 'Other', location: 'Kitchen cabinet', qty: 1, expiry: '', openDays: '', lowAt: 0, barcode: '', photo: '' };
+  return { id: null, name: '', brand: '', size: '', category: 'Other', location: 'Kitchen cabinet', qty: 1, expiry: '', openDays: '', lowAt: 0, barcode: '', pic: '' };
 }
+// The form's picture: `pic` is what it shows (a thumbnail); `_pics` is { photo, thumb } for a new picture, null when
+// removed, and absent when unchanged.
 function viewForm(id) {
   const editing = !!id;
   const key = id || 'new';
   if (!S.draft || S.draft._for !== key) {
     const it = id && S.items.get(id);
-    S.draft = it ? { ...blank(), ...it, openDays: it.openDays ?? '', _for: key } : { ...blank(), _for: key };
+    S.draft = it ? { ...blank(), ...it, openDays: it.openDays ?? '', pic: thumbSrc(it), _for: key } : { ...blank(), _for: key };
     S.dirty = false;
   }
   const d = S.draft;
@@ -442,14 +545,14 @@ function viewForm(id) {
   h += `<form id="kh-form" novalidate>
     <section class="ha-section" aria-labelledby="h-f-details"><h2 class="ha-section-header" id="h-f-details">Details</h2>
       <div class="kh-photo-row">
-        <label class="kh-photo">${d.photo ? `<img src="${esc(d.photo)}" alt="">` : icon('camera')}<span>${d.photo ? 'Change photo' : 'Add photo'}</span>
+        <label class="kh-photo">${d.pic ? `<img src="${esc(d.pic)}" alt="">` : icon('camera')}<span>${d.pic ? 'Change photo' : 'Add photo'}</span>
           <input type="file" accept="image/*" capture="environment" class="kh-file" id="kh-photo-file"></label>
         <div class="kh-photo-fields">
           <label class="ha-field"><span class="ha-field-label">Name</span><input class="ha-input" name="name" value="${esc(d.name)}" required autocomplete="off" placeholder="Light soy sauce" aria-describedby="kh-name-err"></label>
           <p class="ha-field-error" id="kh-name-err" hidden>${icon('alert')}Give it a name</p>
         </div>
       </div>
-      ${d.photo ? `<p class="kh-photo-del"><button type="button" class="ha-btn ha-btn--plain ha-btn--compact" data-act="photo-del">Remove photo</button></p>` : ''}
+      ${d.pic ? `<p class="kh-photo-del"><button type="button" class="ha-btn ha-btn--plain ha-btn--compact" data-act="photo-del">Remove photo</button></p>` : ''}
       <div class="kh-two">${field('brand', 'Brand', 'autocomplete="off" placeholder="Kikkoman"')}${field('size', 'Size', 'autocomplete="off" placeholder="500 ml"')}</div>
       <div class="kh-two">
         <label class="ha-field"><span class="ha-field-label">Category</span><select class="ha-select" name="category">${opt(CATEGORIES, d.category)}</select></label>
@@ -529,8 +632,15 @@ function submitForm(e) {
   const it = {
     ...(base || { id: L.uid(), batches: [], createdAt: new Date().toISOString(), createdBy: who() }),
     name: d.name.trim(), brand: String(d.brand || '').trim(), size: String(d.size || '').trim(), category: d.category, location: d.location,
-    openDays: num(d.openDays) || null, lowAt: num(d.lowAt), barcode: String(d.barcode || '').trim(), photo: d.photo || '',
+    openDays: num(d.openDays) || null, lowAt: num(d.lowAt), barcode: String(d.barcode || '').trim(),
   };
+  // a new or removed picture: the photo is written (or deleted) first, then the item with its thumbnail
+  const pics = d._pics, hadPhoto = !!base?.hasPhoto;
+  if (pics !== undefined) {
+    delete it.photo;
+    if (pics) { it.thumb = pics.thumb; it.hasPhoto = true; savePhoto(it.id, pics.thumb, pics.photo); }
+    else { delete it.thumb; delete it.hasPhoto; if (hadPhoto) delPhoto(it.id); }
+  }
   S.draft = null; S.dirty = false;
   if (base) {
     save('items', it);
@@ -545,7 +655,7 @@ function submitForm(e) {
     save('items', res.item); ev = save('events', res.event);
   } else save('items', it);
   haGo('#/item/' + it.id, { replace: true });
-  haToast(`${it.name} added`, { action: 'Undo', onAction: () => { remove('items', it.id); if (ev) remove('events', ev.id); redraw(); } });
+  haToast(`${it.name} added`, { action: 'Undo', onAction: () => { remove('items', it.id); if (ev) remove('events', ev.id); if (it.hasPhoto) delPhoto(it.id); redraw(); } });
 }
 
 // ---- barcode scanning -------------------------------------------------------------------------------------------
@@ -602,10 +712,10 @@ async function gotBarcode(code) {
   if (!p) { fillDraft({ barcode: code }); haToast('Barcode saved. Type the name once and it’s known next time.'); $('#kh-form [name="name"]')?.focus(); return; }
   fillDraft({ barcode: code, name: p.name, brand: p.brand, size: p.size });
   haToast(`Found ${p.name}`);
-  if (p.image && !S.draft.photo) {
+  if (p.image && !S.draft.pic) {
     const { fromUrl } = await import('./photo.js');
     const ph = await fromUrl(p.image);
-    if (ph && S.draft && !S.draft.photo) fillDraft({ photo: ph });
+    if (ph && S.draft && !S.draft.pic) fillDraft({ pic: ph.thumb, _pics: ph });
   }
 }
 
@@ -698,7 +808,7 @@ async function openQuick() {
       const base = mine || {
         id: L.uid(), batches: [], createdAt: new Date().toISOString(), createdBy: who(),
         name: x.name, brand: x.brand || '', size: c?.size || '', category: c?.category || 'Other',
-        location: x.location || c?.location || 'Kitchen cabinet', openDays: c?.openDays ?? null, lowAt: 0, barcode: '', photo: '',
+        location: x.location || c?.location || 'Kitchen cabinet', openDays: c?.openDays ?? null, lowAt: 0, barcode: '',
       };
       const res = L.addStock(base, { qty: x.qty, expiry: x.expiry || null, by: who() });
       undo.push({ before: mine || null, id: base.id, ev: save('events', res.event).id });
@@ -926,10 +1036,15 @@ async function onClick(e) {
     case 'to-list': return addToList(it);
     case 'delete': {
       const evs = eventsFor(it.id);
+      const photo = await photoOf(it);   // kept for Undo (already fetched when the item opened)
       remove('items', it.id);
       for (const ev of evs) remove('events', ev.id);
+      if (it.hasPhoto) delPhoto(it.id);
       haBack(S.originTab);
-      haToast(`${it.name} deleted`, { action: 'Undo', onAction: () => { save('items', it); for (const ev of evs) save('events', ev); redraw(); } });
+      haToast(`${it.name} deleted`, { action: 'Undo', onAction: () => {
+        if (photo) savePhoto(it.id, it.thumb || '', photo);
+        save('items', it); for (const ev of evs) save('events', ev); redraw();
+      } });
       return;
     }
     case 'place': {
@@ -972,7 +1087,7 @@ async function onClick(e) {
       haGo('#/item/' + mine.id, { replace: true });
       return openBought(mine);
     }
-    case 'photo-del': return fillDraft({ photo: '' });
+    case 'photo-del': return fillDraft({ pic: '', _pics: null });
     case 'shop-del': {
       e.preventDefault();
       const m = S.shop.get(b.dataset.id);
@@ -992,11 +1107,16 @@ async function onClick(e) {
       return;
     }
     case 'csv': return download('kakihome.csv', L.toCsv(items()), 'text/csv');
-    case 'backup': return download(`kakihome-backup-${today()}.json`, JSON.stringify(L.backup({ items: [...S.items.values()], events: [...S.events.values()], shop: [...S.shop.values()] })), 'application/json');
+    case 'backup': {
+      let photos;
+      try { photos = await S.backend.list(PHOTOS); } catch (err) { return haToast(S.cloud ? S.cloud.explain(err, 'The backup') : 'The backup didn’t work. Try again.'); }
+      return download(`kakihome-backup-${today()}.json`, JSON.stringify(L.backup({ items: [...S.items.values()], events: [...S.events.values()], shop: [...S.shop.values()], photos })), 'application/json');
+    }
     case 'wipe': {
       if (!(await haConfirm({ title: 'Delete everything?', text: 'Every item, its history and the shopping list on this phone are deleted. This can’t be undone. A backup first keeps a copy.', ok: 'Delete everything', danger: true }))) return;
       await S.local.clear();
       for (const k of KINDS) S[k].clear();
+      S.pics.clear();
       redraw(); return haToast('Deleted everything on this phone');
     }
     case 'signin':
@@ -1031,7 +1151,8 @@ async function onClick(e) {
     }
     case 'copy-up': {
       try {
-        const data = await S.local.load();
+        const data = await splitAll({ ...(await S.local.load()), photos: await S.local.list(PHOTOS) });
+        await S.backend.putMany(PHOTOS, data.photos);   // photos first, so no item points at a missing photo
         for (const k of KINDS) await S.backend.putMany(k, data[k] || []);
         for (const k of KINDS) for (const o of data[k] || []) S[k].set(o.id, o);
         await S.local.clear();
@@ -1064,16 +1185,22 @@ async function onChange(e) {
     return redraw();
   }
   if (t.id === 'kh-photo-file' && t.files[0]) {
-    const { shrink } = await import('./photo.js');
-    try { fillDraft({ photo: await shrink(t.files[0]) }); } catch { haToast('Couldn’t read that picture. Try another.'); }
+    const { pictures } = await import('./photo.js');
+    try { const p = await pictures(t.files[0]); fillDraft({ pic: p.thumb, _pics: p }); } catch { haToast('Couldn’t read that picture. Try another.'); }
     return;
   }
   if (t.id === 'kh-restore' && t.files[0]) {
     try {
       const data = L.parseBackup(await t.files[0].text());
-      if (S.backend.putMany) for (const k of KINDS) await S.backend.putMany(k, data[k] || []);
+      S.pics.clear();
+      if (S.backend.putMany) {
+        await splitAll(data);   // Kaki Home's rules take only thumbnails on items
+        await S.backend.putMany(PHOTOS, data.photos);
+        for (const k of KINDS) await S.backend.putMany(k, data[k] || []);
+      } else for (const p of data.photos) S.backend.put(PHOTOS, p);
       for (const k of KINDS) for (const o of data[k] || []) { if (S.backend.putMany) S[k].set(o.id, o); else save(k, o); }
       redraw(); haToast(`Restored ${plural(data.items.length, 'item')}`);
+      migratePhotos();
     } catch (err) { haToast(err?.message?.startsWith('That file') ? err.message : 'Couldn’t restore that file.'); }
     t.value = '';
   }
@@ -1169,6 +1296,7 @@ function onRemote(kind, docs, removed) {
   for (const d of docs) S[kind].set(d.id, d);
   for (const id of removed) S[kind].delete(id);
   redraw();
+  if (kind === 'items' && docs.some(d => d.photo)) migratePhotos();
 }
 let unwatch = null;
 async function useHousehold(h) {
@@ -1177,7 +1305,9 @@ async function useHousehold(h) {
   S.backend?.close?.();
   S.backend = await S.cloud.openCloud(h.id, err => { S.syncError = S.cloud.explain(err, 'Saving'); redraw(); });
   S.mode = 'cloud';
+  S.pics.clear();
   loadInto(await S.backend.load());
+  migratePhotos();
   S.backend.listen(onRemote);
   unwatch?.();
   unwatch = await S.cloud.watchHousehold(h.id, x => { if (x) { S.household = x; redraw(); } });
@@ -1190,7 +1320,9 @@ async function useLocal() {
   S.backend = S.local;
   S.mode = 'local';
   S.household = null; S.syncError = false;
+  S.pics.clear();
   loadInto(await S.local.load());
+  migratePhotos();
   redraw();
 }
 
@@ -1227,6 +1359,7 @@ async function start() {
     S.backend = S.local;
   }
   loadInto(await S.backend.load());
+  setTimeout(migratePhotos, 1000);   // old-style photos move out quietly, after the first screen is drawn
   document.addEventListener('click', onClick);
   document.addEventListener('change', onChange);
   document.addEventListener('input', onInput);
