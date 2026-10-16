@@ -6,8 +6,9 @@
 import * as L from './logic.js';
 import { CATALOGUE, CATEGORIES } from './catalogue.js';
 import * as P from './places.js';
+import * as PP from './people.js';
 import { openLocal, openMemory, prefs, KINDS, PHOTOS } from './store.js';
-import { sampleData } from './sample.js';
+import { sampleData, demoBy, DEMO_FAMILY, DEMO_ME, DEMO_NAMES } from './sample.js';
 import { openWelcome, viewGuide, welcomed, markWelcomed, installed } from './guide.js';
 import { starterChoices, tourTasks } from './tour.js';
 import { firebaseConfig } from '../config.js';
@@ -40,7 +41,14 @@ const CAT_ICON = {
 const icon = (name, o) => haIcon(name, o);
 const chevron = () => icon('chevron-right', { cls: 'ha-row-chevron' });
 
-const who = () => prefs.get('name') || S.user?.name?.split(' ')[0] || '';
+// Names the family gave its members (settings/people, people.js), shared with everyone in the family pantry.
+const names = () => PP.namesOf(S.settings.get(PP.PEOPLE_ID));
+// This phone's Google account (in the demo, a made-up family member).
+const me = () => S.user?.email || (DEMO ? DEMO_ME : '');
+// How a person shows (history, added by, the shopping list): the family's name for them, else what was saved.
+const nameOf = by => PP.label(names(), by);
+// The name this phone signs changes with: the family's name for me, this phone's own, or my Google first name.
+const who = () => (me() && names()[me()]) || prefs.get('name') || S.user?.name?.split(' ')[0] || '';
 const items = () => [...S.items.values()].filter(i => !i.archived);
 const eventsFor = id => [...S.events.values()].filter(e => e.itemId === id);
 function eventsByItem() {
@@ -511,11 +519,11 @@ function viewItem(it) {
 
   // details
   const detail = (label, value) => value === '' || value == null ? '' : `<li><div class="ha-row"><span class="ha-row-body"><span class="ha-row-title">${label}</span></span><span class="ha-row-value pa-wrap">${esc(value)}</span></div></li>`;
-  h += section('Details', `<ul class="ha-list">${detail('Category', it.category)}${detail('Kept in', it.location)}${detail('Keeps once opened', it.openDays ? plural(it.openDays, 'day') : 'Not set')}${detail('Shopping list at', it.lowAt ? `${it.lowAt} left` : 'None left')}${detail('Barcode', it.barcode)}${detail('Added by', it.createdBy || '')}${detail('Last changed by', it.updatedBy || '')}</ul>`, { id: 'details' });
+  h += section('Details', `<ul class="ha-list">${detail('Category', it.category)}${detail('Kept in', it.location)}${detail('Keeps once opened', it.openDays ? plural(it.openDays, 'day') : 'Not set')}${detail('Shopping list at', it.lowAt ? `${it.lowAt} left` : 'None left')}${detail('Barcode', it.barcode)}${detail('Added by', nameOf(it.createdBy))}${detail('Last changed by', nameOf(it.updatedBy))}</ul>`, { id: 'details' });
 
   // history
   h += section('History', evs.length
-    ? `<ul class="ha-list">${evs.slice(0, 15).map(e => `<li><div class="ha-row"><span class="ha-row-body"><span class="ha-row-title">${VERB[e.type] || esc(e.type)} ${e.qty > 1 ? e.qty : ''}</span><span class="ha-row-sub">${esc(fmtTime(e.at))}${e.by ? ' · ' + esc(e.by) : ''}</span></span></div></li>`).join('')}</ul>`
+    ? `<ul class="ha-list">${evs.slice(0, 15).map(e => `<li><div class="ha-row"><span class="ha-row-body"><span class="ha-row-title">${VERB[e.type] || esc(e.type)} ${e.qty > 1 ? e.qty : ''}</span><span class="ha-row-sub">${esc(fmtTime(e.at))}${e.by ? ' · ' + esc(nameOf(e.by)) : ''}</span></span></div></li>`).join('')}</ul>`
     : `<ul class="ha-list"><li><div class="ha-row"><span class="ha-row-body"><span class="ha-row-sub">Nothing yet.</span></span></div></li></ul>`, { id: 'history', footer: evs.length > 15 ? `The latest 15 of ${evs.length}.` : '' });
   h += `<ul class="ha-list pa-delete"><li><button type="button" class="ha-row ha-row--danger ha-row--center" data-act="delete"><span class="ha-row-body"><span class="ha-row-title">Delete item</span></span></button></li></ul>`;
   return h;
@@ -922,7 +930,7 @@ function viewShop() {
       <button class="ha-btn ha-btn--compact" type="submit">Add</button></form>`;
   const line = m => `<li><label class="ha-row${m.done ? ' is-done' : ''}">
       <input type="checkbox" data-shop="${esc(m.id)}"${m.done ? ' checked' : ''}>
-      <span class="ha-row-body"><span class="ha-row-title">${esc(m.name)}</span>${m.by ? `<span class="ha-row-sub">Added by ${esc(m.by)}</span>` : ''}</span>
+      <span class="ha-row-body"><span class="ha-row-title">${esc(m.name)}</span>${m.by ? `<span class="ha-row-sub">Added by ${esc(nameOf(m.by))}</span>` : ''}</span>
       <button type="button" class="ha-btn ha-btn--quiet ha-btn--icon" data-act="shop-del" data-id="${esc(m.id)}" aria-label="Remove ${esc(m.name)}">${icon('trash')}</button></label></li>`;
   h += section('To buy', manual.length ? `<ul class="ha-list" id="pa-shop">${manual.map(line).join('')}</ul>`
     : `<ul class="ha-list" id="pa-shop"><li><div class="ha-row"><span class="ha-row-body"><span class="ha-row-sub">Nothing on the list yet.</span></span></div></li></ul>`,
@@ -1107,13 +1115,82 @@ function openMovePlace(name) {
 
 // ---- Settings ---------------------------------------------------------------------------------------------------
 
+// The family: one row per member (the name, with the Gmail under it), each opening their contact sheet; then the line
+// to add someone. In the demo, a made-up family that changes in memory only.
+function familyList(h, { demo = false, extra = '' } = {}) {
+  const n = names();
+  const person = m => {
+    const sub = [n[m] ? m : '', m === h.owner ? 'Started it' : '', m === me() ? 'You' : ''].filter(Boolean).join(' · ');
+    return `<li><button type="button" class="ha-row pa-person" data-act="person" data-v="${esc(m)}"><span class="ha-row-icon ha-row-icon--grey">${icon('user')}</span>
+      <span class="ha-row-body"><span class="ha-row-title pa-break">${esc(n[m] || m)}</span>${sub ? `<span class="ha-row-sub pa-break">${esc(sub)}</span>` : ''}</span>${chevron()}</button></li>`;
+  };
+  return `<ul class="ha-list">
+      <li><div class="ha-row"><span class="ha-row-icon">${icon('cloud')}</span><span class="ha-row-body"><span class="ha-row-title">${esc(h.name)}</span><span class="ha-row-sub pa-break">${demo ? 'Demo family' : `Signed in as ${esc(me())}`}</span></span></div></li>
+      ${h.members.map(person).join('')}${extra}</ul>
+    <form class="pa-addline pa-member" id="pa-member-add"><label class="ha-sr" for="pa-member-email">Family member’s Google email</label>
+      <input class="ha-input" id="pa-member-email" type="email" placeholder="Family member’s Gmail" autocomplete="off" autocapitalize="off" spellcheck="false">
+      <button class="ha-btn ha-btn--compact" type="submit">Add</button></form>`;
+}
+// Adding or removing someone: the family pantry's members (in the demo, only in memory).
+async function setMembers(list) {
+  if (S.mode === 'demo') { S.household = { ...S.household, members: list }; redraw(); return; }
+  await S.cloud.setMembers(S.household.id, list);
+}
+const saveNames = n => save('settings', PP.peopleDoc(n));
+// A family member's contact sheet: their Gmail, a name everyone sees, email an invite, stop sharing (not for whoever
+// started it, nor yourself).
+function openPerson(email) {
+  const h = S.household; if (!h) return;
+  const canRemove = email !== h.owner && email !== me();
+  const s = haSheet({
+    title: names()[email] || 'Family member', closeLabel: 'Done', grey: true,
+    body: `<ul class="ha-list"><li><div class="ha-row"><span class="ha-row-icon">${icon('mail')}</span><span class="ha-row-body"><span class="ha-row-title pa-break">${esc(email)}</span>
+        <span class="ha-row-sub">${email === h.owner ? 'Started the family pantry' : 'Google account'}${email === me() ? ' · you' : ''}</span></span></div></li></ul>
+      <form id="pa-person" class="pa-person-form" novalidate>
+        <label class="ha-field"><span class="ha-field-label">Name</span>
+          <input class="ha-input" name="name" id="pa-person-name" value="${esc(names()[email] || '')}" maxlength="${PP.NAME_MAX}" autocomplete="off" placeholder="For example, Mum or Ah Mei" aria-describedby="pa-person-hint"></label>
+        <p class="ha-section-footer" id="pa-person-hint">Everyone in the family sees this name instead of the email, in history and on the shopping list. Leave it empty to show the email.</p>
+        <button type="submit" class="ha-btn ha-btn--primary ha-btn--block">Save</button>
+      </form>
+      <ul class="ha-list pa-person-acts">
+        ${email !== me() ? `<li><a class="ha-row ha-row--action" href="${esc(inviteHref(email))}"><span class="ha-row-icon">${icon('mail')}</span><span class="ha-row-body"><span class="ha-row-title">Email an invite</span><span class="ha-row-sub">From your own mail app, with the link</span></span></a></li>` : ''}
+        ${canRemove ? `<li><button type="button" class="ha-row ha-row--danger ha-row--center" data-pp="remove"><span class="ha-row-body"><span class="ha-row-title">Stop sharing</span></span></button></li>` : ''}
+      </ul>`,
+    onClose: afterSheet,
+  });
+  $('#pa-person', s.el).addEventListener('submit', async e => {
+    e.preventDefault();
+    const v = PP.cleanName($('#pa-person-name', s.el).value);
+    const before = names();
+    if ((before[email] || '') !== v) saveNames(PP.keepMembers(PP.setName(before, email, v), h.members));
+    await haCloseSheet(s.el);
+    redraw();
+    haToast(v ? `Saved: ${v}` : 'Name removed; the email shows instead');
+  });
+  s.el.addEventListener('click', async e => {
+    if (!e.target.closest('[data-pp="remove"]')) return;
+    const label = nameOf(email);
+    if (!(await haConfirm({ title: 'Stop sharing?', text: `${label} won’t see the pantry any more. You can add them again later.`, ok: 'Stop sharing', danger: true }))) return;
+    try {
+      await setMembers(h.members.filter(x => x !== email));
+      if (names()[email]) saveNames(PP.setName(names(), email, ''));
+      await haCloseSheet(s.el);
+      redraw();
+      haToast(`Stopped sharing with ${label}`);
+    } catch (err) { haToast(S.cloud.explain(err, 'Removing them')); }
+  });
+  return s;
+}
+
+
 function viewSettings() {
   const configured = !!S.cloud?.configured;
   const row = (inner, cls = '') => `<li><div class="ha-row${cls}">${inner}</div></li>`;
   const btnRow = (act, title, { cls = ' ha-row--action', iconName = '', sub = '' } = {}) => `<li><button type="button" class="ha-row${cls}" data-act="${act}">${iconName ? `<span class="ha-row-icon">${icon(iconName)}</span>` : ''}<span class="ha-row-body"><span class="ha-row-title">${title}</span>${sub ? `<span class="ha-row-sub">${sub}</span>` : ''}</span></button></li>`;
   let fam, famFoot = '';
   if (S.mode === 'demo') {
-    fam = `<ul class="ha-list">${row(`<span class="ha-row-icon ha-row-icon--grey">${icon('info')}</span><span class="ha-row-body"><span class="ha-row-title">Not in the demo</span><span class="ha-row-sub">The demo uses made-up items and saves nothing.</span></span>`)}</ul>`;
+    fam = familyList(S.household, { demo: true });
+    famFoot = 'A made-up family: tap someone to give them a name. Nothing is saved.';
   } else if (!configured) {
     fam = `<ul class="ha-list">${row(`<span class="ha-row-icon ha-row-icon--grey">${icon('box')}</span><span class="ha-row-body"><span class="ha-row-title">On this phone only</span><span class="ha-row-sub">Family sharing isn’t set up yet.</span></span>`)}</ul>`;
     famFoot = 'Sharing with the family needs a one-time setup of the pantry’s Firebase project (SETUP.md).';
@@ -1125,17 +1202,9 @@ function viewSettings() {
       ${btnRow('hh-create', 'Start our family pantry')}${btnRow('hh-check', 'Check again')}${btnRow('signout', 'Sign out')}</ul>`;
     famFoot = `Not in a family pantry yet. Start one, or ask whoever started yours to add ${esc(S.user.email)}, then tap Check again.`;
   } else {
-    const h = S.household;
-    fam = `<ul class="ha-list">${row(`<span class="ha-row-icon">${icon('cloud')}</span><span class="ha-row-body"><span class="ha-row-title">${esc(h.name)}</span><span class="ha-row-sub">Signed in as ${esc(S.user.email)}</span></span>`)}
-      ${h.members.map(m => row(`<span class="ha-row-icon ha-row-icon--grey">${icon('user')}</span><span class="ha-row-body"><span class="ha-row-title pa-wrap">${esc(m)}</span>${m === h.owner ? '<span class="ha-row-sub">Started it</span>' : ''}</span>
-        ${m !== S.user.email ? `<a class="ha-btn ha-btn--quiet ha-btn--icon" href="${esc(inviteHref(m))}" aria-label="Email an invite to ${esc(m)}">${icon('mail')}</a>` : ''}
-        ${m !== h.owner && m !== S.user.email ? `<button type="button" class="ha-btn ha-btn--quiet ha-btn--icon" data-act="member-del" data-v="${esc(m)}" aria-label="Stop sharing with ${esc(m)}">${icon('trash')}</button>` : ''}`)).join('')}
-      ${S.localCount ? btnRow('copy-up', `Copy ${plural(S.localCount, 'item')} from this phone`, { iconName: 'upload', sub: 'Saved here before you signed in' }) : ''}
-      ${btnRow('signout', 'Sign out')}</ul>
-      <form class="pa-addline pa-member" id="pa-member-add"><label class="ha-sr" for="pa-member-email">Family member’s Google email</label>
-        <input class="ha-input" id="pa-member-email" type="email" placeholder="Family member’s Gmail" autocomplete="off" autocapitalize="off" spellcheck="false">
-        <button class="ha-btn ha-btn--compact" type="submit">Add</button></form>`;
-    famFoot = 'They sign in with that Google account to see the pantry. The envelope emails them the link from your own mail app. Whoever started it can’t be removed.';
+    fam = familyList(S.household, { extra: `${S.localCount ? btnRow('copy-up', `Copy ${plural(S.localCount, 'item')} from this phone`, { iconName: 'upload', sub: 'Saved here before you signed in' }) : ''}
+      ${btnRow('signout', 'Sign out')}` });
+    famFoot = 'They sign in with that Google account to see the pantry. Tap someone to give them a name, email them the link again, or stop sharing. Whoever started it can’t be removed.';
   }
   return `<h1 class="ha-large-title">Settings</h1>
     ${section('Family sharing', fam, { id: 'family', footer: famFoot })}
@@ -1151,7 +1220,7 @@ function viewSettings() {
     </ul>`, { id: 'help' })}
     ${section('You', `<ul class="ha-list"><li><label class="ha-row"><span class="ha-row-body"><span class="ha-row-title">Your name</span></span>
       <input class="ha-input ha-input--inline" id="pa-name" value="${esc(prefs.get('name') || '')}" placeholder="${esc(S.user?.name?.split(' ')[0] || 'For example, Mum')}" autocomplete="off"></label></li></ul>`,
-      { id: 'you', footer: 'Shows in each item’s history and on the shopping list. Kept on this phone.' })}
+      { id: 'you', footer: 'Shows in each item’s history and on the shopping list. Kept on this phone. In a family pantry, the name the family gives you (Family sharing) comes first.' })}
     ${section('Your data', `<ul class="ha-list">
       ${btnRow('csv', 'Export as CSV', { iconName: 'download', sub: 'A spreadsheet of what’s in stock' })}
       ${btnRow('backup', 'Back up', { iconName: 'download', sub: 'Everything, as a JSON file' })}
@@ -1377,12 +1446,7 @@ async function onClick(e) {
       } catch (err) { haToast(S.cloud.explain(err, 'Checking')); }
       return;
     }
-    case 'member-del': {
-      const m = b.dataset.v;
-      if (!(await haConfirm({ title: 'Stop sharing?', text: `${m} won’t see the pantry any more. You can add them again later.`, ok: 'Stop sharing', danger: true }))) return;
-      try { await S.cloud.setMembers(S.household.id, S.household.members.filter(x => x !== m)); } catch (err) { haToast(S.cloud.explain(err, 'Removing them')); }
-      return;
-    }
+    case 'person': return openPerson(b.dataset.v);
     case 'copy-up': {
       try {
         const data = await splitAll({ ...(await S.local.load()), photos: await S.local.list(PHOTOS) });
@@ -1469,11 +1533,12 @@ async function onSubmit(e) {
     e.preventDefault();
     const v = $('#pa-member-email').value.trim().toLowerCase();
     if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(v)) return haToast('Type their Google email address');
+    if (S.household.members.includes(v)) return haToast(`${nameOf(v)} is already in the family pantry`);
     try {
-      await S.cloud.setMembers(S.household.id, [...S.household.members, v]);
+      await setMembers([...S.household.members, v]);
       $('#pa-member-email').value = '';
       haToast(`Added ${v}`, { action: 'Email invite', onAction: () => { location.href = inviteHref(v); }, ms: 10000 });
-    } catch (err) { haToast(S.cloud.explain(err, 'Adding them')); }
+    } catch (err) { haToast(S.cloud ? S.cloud.explain(err, 'Adding them') : 'Adding them didn’t work.'); }
   }
 }
 
@@ -1552,7 +1617,8 @@ function watchUpdates(reg) {
 let R = null;
 async function start() {
   if (DEMO) {
-    S.local = S.backend = openMemory(sampleData('Sample'));
+    S.local = S.backend = openMemory({ ...sampleData(demoBy), settings: [PP.peopleDoc(DEMO_NAMES)] });
+    S.household = { ...DEMO_FAMILY };
   } else {
     try { S.local = await openLocal(); }
     catch { S.local = openMemory(); haToast('This browser can’t save here (private mode?). Changes last until you close it.'); }

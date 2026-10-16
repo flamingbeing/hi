@@ -101,3 +101,8 @@ label.ha-row:focus-within:has(.pa-file){outline:2px solid var(--home-focus);outl
 .pa-pl-add{margin:0 0 var(--home-s5)}
 .pa-pl-del{margin:var(--home-s2) 0 0}
 .pa-mv-text{color:var(--home-ink-2)}
+
+/* family names (Settings → Family sharing): the person rows and their contact sheet */
+.pa-break{white-space:normal;overflow-wrap:anywhere}
+.pa-person-form{margin:var(--home-s4) 0}
+.pa-person-acts{margin-top:var(--home-s3)}

@@ -21,6 +21,22 @@ service cloud.firestore {
         && !l.join('').matches('[\\s\\S]*\\n[\\s\\S]*')
         && l.join('\n').matches('[^\\n]{1,40}(\\n[^\\n]{1,40}){0,39}');
     }
+    // Names for the family (settings/people): at most 20, each a string of 1 to 40 characters on one line, keyed by an
+    // email (no spaces, one @). The same trick as placeNames: a string check per index, then one pattern over the
+    // values joined with newlines (none may hold one), and one over the keys. An empty map is fine (no names given).
+    function peopleNames(m) {
+      let v = m.values();
+      let n = v.size();
+      return n <= 20
+        && (n == 0 || (
+          (n <= 0 || v[0] is string) && (n <= 1 || v[1] is string) && (n <= 2 || v[2] is string) && (n <= 3 || v[3] is string) && (n <= 4 || v[4] is string)
+          && (n <= 5 || v[5] is string) && (n <= 6 || v[6] is string) && (n <= 7 || v[7] is string) && (n <= 8 || v[8] is string) && (n <= 9 || v[9] is string)
+          && (n <= 10 || v[10] is string) && (n <= 11 || v[11] is string) && (n <= 12 || v[12] is string) && (n <= 13 || v[13] is string) && (n <= 14 || v[14] is string)
+          && (n <= 15 || v[15] is string) && (n <= 16 || v[16] is string) && (n <= 17 || v[17] is string) && (n <= 18 || v[18] is string) && (n <= 19 || v[19] is string)
+          && !v.join('').matches('[\\s\\S]*\\n[\\s\\S]*')
+          && v.join('\n').matches('[^\\n]{1,40}(\\n[^\\n]{1,40}){0,19}')
+          && m.keys().join('\n').matches('[^\\s@]+@[^\\s@]+(\\n[^\\s@]+@[^\\s@]+){0,19}')));
+    }
     function member(hid) {
       return signedIn() && email() in get(/databases/$(database)/documents/households/$(hid)).data.members;
     }
@@ -55,14 +71,23 @@ service cloud.firestore {
           && (request.resource.data.get('photo', '') == ''
             || (resource != null && request.resource.data.photo == resource.data.get('photo', null)));
       }
-      // The family's list of places (16 Oct 2026): one document, settings/places = { id, list, updatedAt }, the list
-      // 1 to 40 names of 1 to 40 characters each. No other settings documents.
+      // Shared settings, one document each (no others): the family's list of places (16 Oct 2026), settings/places =
+      // { id, list, updatedAt }, the list 1 to 40 names of 1 to 40 characters; and the names members give each other
+      // (16 Oct 2026), settings/people = { id, names: { email: name }, updatedAt }, exactly those three fields.
       match /settings/{id} {
-        allow create, update: if member(hid) && id == 'places'
-          && request.resource.data.keys().hasOnly(['id', 'list', 'updatedAt'])
-          && request.resource.data.id == 'places'
-          && request.resource.data.list is list
-          && placeNames(request.resource.data.list);
+        allow create, update: if member(hid) && (
+          (id == 'places'
+            && request.resource.data.keys().hasOnly(['id', 'list', 'updatedAt'])
+            && request.resource.data.id == 'places'
+            && request.resource.data.list is list
+            && placeNames(request.resource.data.list))
+          || (id == 'people'
+            && request.resource.data.keys().hasAll(['id', 'names', 'updatedAt'])
+            && request.resource.data.keys().hasOnly(['id', 'names', 'updatedAt'])
+            && request.resource.data.id == 'people'
+            && request.resource.data.updatedAt is string
+            && request.resource.data.names is map
+            && peopleNames(request.resource.data.names)));
       }
       // One photo per item (same id), at most 150 KB, read only when the item is opened.
       match /photos/{id} {
