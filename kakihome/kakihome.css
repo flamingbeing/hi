@@ -89,3 +89,6 @@ label.ha-row:focus-within:has(.kh-file){outline:2px solid var(--home-focus);outl
 .kh-spot{outline:3px solid var(--home-accent);outline-offset:3px;animation:kh-spot 1.2s ease-in-out 3}
 @keyframes kh-spot{50%{outline-offset:7px}}
 @media (prefers-reduced-motion:reduce){.kh-spot{animation:none}}
+.kh-break{white-space:normal;overflow-wrap:anywhere}
+.kh-person-form{margin:var(--home-s4) 0}
+.kh-person-acts{margin-top:var(--home-s3)}

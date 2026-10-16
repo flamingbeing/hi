@@ -31,6 +31,14 @@ Lasting decisions and how to test. Now: [STATUS.md](STATUS.md). Setup: [SETUP.md
   ("What do you have?": everyday goods as chips, added with a rough best-before date) and a Getting started
   checklist on Home whose steps tick themselves off, each with Show me. Only for new users or when turned on in
   Settings → Help.
+- **Names for household members** (owner, 16 Oct, asked for the pantry and Kaki Home alike): tap a person in
+  Settings → Household sharing for their card: Gmail, a Name everyone in the household sees, Email an invite, Stop
+  sharing (not for whoever started it, nor yourself). The list shows the name with the email under it, or the email
+  alone. Names live with the household's data in Firestore, never in the repo:
+  `households/{hid}/settings/people` = `{ id: 'people', names: { email: name }, updatedAt }` (a new `settings` kind).
+  Rules: members only; writes only to `people`, only those fields, at most 20 names; the app trims names to 40
+  characters (rules can't loop over a map). The name the household gives you is also what your changes are signed
+  with ("added by", history, shopping list). No default places in Kaki Home (that's the pantry's).
 - Everything else as in `pantry/NOTES.md` (stock as batches, undo over confirm, a household member's change never
   wipes what someone is typing, sign-in on the app's own address, the service worker waits to take over, rules deploy
   on merge with the `KAKIHOME_FIREBASE_PROJECT` variable).
