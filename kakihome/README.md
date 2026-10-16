@@ -1,7 +1,7 @@
 # Kaki Home
 
 A household inventory at `kakihome.flamingbeing.com`: what's at home, what's expiring, what's low, who added what, and
-how much gets used before its date. Built to try out a product idea (a strategy-course proposal: "know what you have,
+how much gets used before its date. Built to try out a product idea ("know what you have,
 buy what you need, use what you own before it expires"), apart from the family pantry: its own address, data and
 Firebase project. A phone app (installable PWA) on the home design kit (`/homedesign/`), started as a copy of
 `pantry/`.
