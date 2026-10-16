@@ -12,8 +12,8 @@ Lasting decisions and how to test. What's going on now: [STATUS.md](STATUS.md). 
   opened + "keeps once opened" days. Taking out is first expiring first (opened ones first). The pace comes from
   "used up" events: (last − first finish) ÷ units after the first; run-out = last finish + stock × pace. The shopping
   list suggests anything out, at or below its "on the list when down to", or due to run out within a week.
-- **Photos** are shrunk to about 480px JPEG data URLs inside the item (fits Firestore's 1 MB document limit; no
-  Storage bucket to pay for or secure).
+- **Photos** are small JPEG data URLs in Firestore (no Storage bucket to pay for or secure). Since 16 Oct 2026 (owner,
+  see below) each one is kept twice: a thumbnail on the item and the photo in its own document.
 - **Shops:** items link to FairPrice, Sheng Siong, Cold Storage and Shopee search (`SHOPS` in `js/logic.js`; Cold Storage and Shopee added 16 Oct 2026 at the owner's request). FairPrice and Sheng Siong have no public product API and block cross-site requests, so the app has its own
   list of common Singapore goods (`js/catalogue.js`) and links to each shop's search. Barcodes: see below. iPhone has no built-in
   barcode reader, so a ZXing WebAssembly polyfill loads from jsDelivr on the first scan (then works offline).
@@ -99,6 +99,21 @@ Lasting decisions and how to test. What's going on now: [STATUS.md](STATUS.md). 
     motion). Only for people who start with this version (`pantry:tour` = 'on', set on the first welcome) or who turn
     it on in Settings → Help: families already using the pantry see nothing new. Hide puts it away for good.
 
+- **16 Oct 2026, thumbnails on items, photos only when opened** (owner): with the whole photo (30-60 KB) inside each
+  item, every app open downloaded every photo (the `items` listener), which for hundreds of photographed items and a
+  family opening the app often could pass Firestore's free 10 GB a month of downloads. Now an item holds only
+  `thumb` (96px JPEG, quality 0.6; measured about 1.5-3 KB, at most 10 KB after stepping down) and `hasPhoto: true`;
+  the photo (480px, quality 0.72; measured about 25-60 KB, at most 140 KB) is `photos/<item id>` = `{ id, data,
+  updatedAt }`. Lists, rows, suggestions and Home use the thumbnail; the item screen shows it at once and swaps in the
+  photo, fetched once (`get`, never a listener) and cached in memory by thumbnail. Taking, removing or deleting writes
+  or deletes both (photo first); backups carry `photos`; copying the phone's pantry into the family's copies them.
+  **Old-style items** (`photo` inside the item) still show, and `migratePhotos()` moves them quietly, about three a
+  second, on every load and family change: it writes the photo, and only once that is saved drops `photo` from the
+  item (local: omitted; Firestore: the item is rewritten without it). **Rules** (`firestore.rules`): `photos` is
+  members-only like the rest; `thumb` at most 12 KB; photo `data` at most 150 KB with only `id`, `data`, `updatedAt`;
+  no item may gain or change a `photo` (keeping it unchanged, removing it or an empty one from older versions is fine).
+  Older app versions still on a phone can't add photos until they update (their writes are refused).
+
 ## How to test
 
 ```
@@ -106,9 +121,11 @@ node pantry/test/logic.test.mjs        # logic, catalogue, backups (plain node; 
 node pantry/test/quick.test.mjs        # Say or type: dates, places, quantities, matching
 node pantry/test/tour.test.mjs         # first steps: quick-start list, checklist ticks
 node pantry/test/scan.test.mjs         # the barcode look-up chain with a stubbed fetch (plain node)
+node pantry/test/photo.test.mjs        # thumbnail and photo sizes, stepping down to fit the limits (plain node)
 node pantry/test/config.test.mjs       # set-config, sign-in choice, plain-word errors, sw.js rules
 node pantry/test/e2e.mjs               # phone browser test with axe; SHOTS=<dir> saves screenshots
-pantry/test/run-sync.sh                # family sharing and the rules in the local emulators (demo-pantry, fake accounts)
+pantry/test/run-sync.sh                # family sharing, the rules (photo size caps too) and moving old-style photos in the
+                                       # local emulators (demo-pantry, fake accounts)
 node tools/check.mjs && node tools/stamp-versions.mjs --check
 ```
 

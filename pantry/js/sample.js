@@ -7,7 +7,7 @@ export function sampleData(by = 'Sample') {
   const ago = d => new Date(now - d * 86400000).toISOString();
   const items = [], events = [];
   const add = (f, batches, history = []) => {
-    const it = { id: uid(), brand: '', size: '', lowAt: 0, barcode: '', photo: '', openDays: null, createdAt: ago(200), sample: true, ...f, batches: batches.map(b => ({ id: uid(), openedAt: null, addedAt: t, ...b })) };
+    const it = { id: uid(), brand: '', size: '', lowAt: 0, barcode: '', openDays: null, createdAt: ago(200), sample: true, ...f, batches: batches.map(b => ({ id: uid(), openedAt: null, addedAt: t, ...b })) };
     items.push(it);
     for (const [type, d, qty = 1] of history) events.push({ id: uid(), itemId: it.id, name: it.name, type, qty, at: ago(d), by });
   };

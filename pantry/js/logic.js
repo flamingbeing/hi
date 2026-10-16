@@ -314,9 +314,9 @@ export function shareText(lines) {
 // ---- backups ---------------------------------------------------------------------------------------------------
 
 export function backup(data, at = new Date().toISOString()) {
-  return { app: 'pantry', v: 1, at, items: data.items || [], events: data.events || [], shop: data.shop || [] };
+  return { app: 'pantry', v: 1, at, items: data.items || [], events: data.events || [], shop: data.shop || [], photos: data.photos || [] };
 }
-// Reads a backup file's text. Returns { items, events, shop } with only well-formed documents, or throws a plain
+// Reads a backup file's text. Returns { items, events, shop, photos } with only well-formed documents, or throws a plain
 // message when the file is not a pantry backup.
 export function parseBackup(text) {
   let j;
@@ -324,6 +324,7 @@ export function parseBackup(text) {
   if (!j || j.app !== 'pantry' || typeof j !== 'object') throw new Error('That file is not a pantry backup.');
   const ok = o => o && typeof o === 'object' && typeof o.id === 'string' && o.id && !o.id.includes('/');
   const out = {};
-  for (const k of ['items', 'events', 'shop']) out[k] = Array.isArray(j[k]) ? j[k].filter(ok) : [];
+  for (const k of ['items', 'events', 'shop', 'photos']) out[k] = Array.isArray(j[k]) ? j[k].filter(ok) : [];
+  out.photos = out.photos.filter(p => typeof p.data === 'string' && p.data.startsWith('data:image/'));
   return out;
 }
