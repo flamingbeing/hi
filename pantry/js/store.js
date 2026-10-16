@@ -1,5 +1,5 @@
 // Storage backends. All three give the same small interface, so the app doesn't care where data lives:
-//   load()                 -> { items: [], events: [], shop: [] }   (never the photos: see photo.js)
+//   load()                 -> { items: [], events: [], shop: [], settings: [] }   (never the photos: see photo.js)
 //   get(kind, id)          one document, or null (the full photo of an item, fetched when the item is opened)
 //   list(kind)             every document of one kind (backups and copying photos into the family pantry)
 //   put(kind, obj)         save one document (obj.id is its key); returns false when it was refused
@@ -9,9 +9,10 @@
 // The memory backend (demo mode, ?demo) keeps made-up items in memory only: nothing is saved anywhere.
 // The cloud backend (cloud.js) keeps the family's shared copy in Firestore.
 
-// KINDS are loaded in full and kept in memory; photos (one per item with a picture, photos/<item id>) are read one at
+// KINDS are loaded in full and kept in memory (settings holds one small document, `places`: the household's list of
+// places, places.js); photos (one per item with a picture, photos/<item id>) are read one at
 // a time, when their item is opened.
-export const KINDS = ['items', 'events', 'shop'];
+export const KINDS = ['items', 'events', 'shop', 'settings'];
 export const PHOTOS = 'photos';
 export const ALL_KINDS = [...KINDS, PHOTOS];
 const DB = 'pantry', STORE = 'docs', VER = 1;
@@ -44,7 +45,7 @@ export async function openLocal() {
         t.oncomplete = () => res(out);
         t.onerror = () => rej(t.error);
       });
-      const data = { items: [], events: [], shop: [] };
+      const data = Object.fromEntries(KINDS.map(k => [k, []]));
       for (const [k, v] of all) {
         const kind = String(k).split('/')[0];
         if (data[kind]) data[kind].push(v);

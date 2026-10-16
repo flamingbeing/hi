@@ -30,11 +30,13 @@ export function sampleData(by = 'Sample') {
     [{ qty: 1, expiry: addDays(t, 9), openedAt: addDays(t, -50) }], [['add', 100, 2], ['use', 95], ['use', 50]]);
   add({ name: 'Laundry liquid', brand: 'Dynamo', size: '2.7 kg', category: 'Laundry & cleaning', location: 'Laundry', lowAt: 1 },
     [{ qty: 1, expiry: null }], [['add', 120, 3], ['use', 100], ['use', 55]]);
-  add({ name: 'Bathroom tissue (10 rolls)', brand: 'Kleenex', size: '10 rolls', category: 'Kitchen & paper', location: 'Store room' },
+  add({ name: 'Bathroom tissue (10 rolls)', brand: 'Kleenex', size: '10 rolls', category: 'Kitchen & paper', location: 'Basement store' },
     [], [['add', 60, 2], ['use', 45], ['use', 15]]);
   add({ name: 'Paracetamol tablets', brand: 'Panadol', size: '20 tablets', category: 'Medicine & first aid', location: 'Medicine box' },
     [{ qty: 2, expiry: addDays(t, 25) }], [['add', 300, 2]]);
   add({ name: 'Eggs (10)', brand: 'Pasar', size: '10 eggs', category: 'Dairy & eggs', location: 'Fridge' },
     [{ qty: 1, expiry: addDays(t, 12) }], [['add', 20, 2], ['use', 14], ['add', 3]]);
+  add({ name: 'Frozen dumplings', brand: 'CJ Bibigo', size: '1 kg', category: 'Frozen', location: 'Level 1 freezer' },
+    [{ qty: 2, expiry: addDays(t, 120) }], [['add', 40, 3], ['use', 20]]);
   return { items, events };
 }

@@ -22,6 +22,10 @@
   items keep a ~2 KB thumbnail, the photo is read only when its item opens; old-style photos move by themselves; the
   rules cap thumbnails at 12 KB and photos at 150 KB (deploy on merge).
 
+- 16 Oct 2026: places (PR "Pantry: see, edit and add your own places"): Settings → Places lists each place with its
+  count; rename, reorder, remove (asks where items go) and add your own; defaults gain Level 1 fridge, Level 1 freezer
+  and Basement store; shared with the family through `settings/places` (rules change, deploys on merge).
+
 ## Waiting on the owner
 
 - Billing: waiting on the owner (Blaze), then the US$5 budget and daily backups.
@@ -37,6 +41,9 @@
   accepted on "add" events), receipt photo to items, more catalogue lines, share "use this week" to WhatsApp.
 
 ## Decisions
+
+- 16 Oct 2026: places are a per-household list in `settings/places`; items keep their place as text, so nothing is
+  lost when a place leaves the list (NOTES.md).
 
 - 16 Oct 2026: thumbnails on items, photos in `photos/<id>` read only when an item opens, to stay inside Firestore's
   free downloads (NOTES.md).

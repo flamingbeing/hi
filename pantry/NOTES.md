@@ -114,17 +114,34 @@ Lasting decisions and how to test. What's going on now: [STATUS.md](STATUS.md). 
   no item may gain or change a `photo` (keeping it unchanged, removing it or an empty one from older versions is fine).
   Older app versions still on a phone can't add photos until they update (their writes are refused).
 
+- **16 Oct 2026, places the family can edit** (owner: "add ability to see and edit locations? and make custom
+  locations", and default places Level 1 fridge, Level 1 freezer, Basement store): the places ("Kept in") are an ordered
+  list per household, `settings/places` = `{ id: 'places', list: [names], updatedAt }` (`js/places.js`), loaded and
+  listened to with the other kinds so the whole family shares it, kept on the phone too, in backups, and merged (theirs
+  first, then any only this phone had) when restoring or copying this phone's pantry into the family's. With nothing
+  saved the list is `DEFAULT_PLACES`: the catalogue's places with the owner's three next to their kind. Items keep their
+  place as plain text: the catalogue's generic place is kept as it is, and any place an item uses that isn't in the list
+  still shows in Add, Items and Places ("Not in your list"). **Settings → Places** (`#/places`): each place with its item
+  count; its sheet renames it (every item kept there moves in one batch, with Undo), moves it up or down (the order of
+  Add and Items), or removes it (with items: a sheet asks where they go first; never orphaned; at least one place
+  stays). Say or type matches the household's names first (multi-word, digits said as words, and a place the family
+  added without its last kind word: "basement"), then the everyday words, landing on a household place of that kind.
+  **Rules:** `settings` is members-only; only the id `places`, only `id`, `list`, `updatedAt`; `list` 1 to 40 strings of
+  1 to 40 characters (one `is string` check per index, then the names joined by newlines matched by one pattern: 40
+  separate length checks passed the 1000-expression limit).
+
 ## How to test
 
 ```
 node pantry/test/logic.test.mjs        # logic, catalogue, backups (plain node; also in the repo Checks)
 node pantry/test/quick.test.mjs        # Say or type: dates, places, quantities, matching
 node pantry/test/tour.test.mjs         # first steps: quick-start list, checklist ticks
+node pantry/test/places.test.mjs       # places: defaults, rename/move/remove, used-but-unlisted, Say or type matching
 node pantry/test/scan.test.mjs         # the barcode look-up chain with a stubbed fetch (plain node)
 node pantry/test/photo.test.mjs        # thumbnail and photo sizes, stepping down to fit the limits (plain node)
 node pantry/test/config.test.mjs       # set-config, sign-in choice, plain-word errors, sw.js rules
 node pantry/test/e2e.mjs               # phone browser test with axe; SHOTS=<dir> saves screenshots
-pantry/test/run-sync.sh                # family sharing, the rules (photo size caps too) and moving old-style photos in the
+pantry/test/run-sync.sh                # family sharing, the rules (photo size caps and places too) and moving old-style photos in the
                                        # local emulators (demo-pantry, fake accounts)
 node tools/check.mjs && node tools/stamp-versions.mjs --check
 ```

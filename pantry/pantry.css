@@ -89,3 +89,15 @@ label.ha-row:focus-within:has(.pa-file){outline:2px solid var(--home-focus);outl
 .pa-spot{outline:3px solid var(--home-accent);outline-offset:3px;animation:pa-spot 1.2s ease-in-out 3}
 @keyframes pa-spot{50%{outline-offset:7px}}
 @media (prefers-reduced-motion:reduce){.pa-spot{animation:none}}
+
+/* Places (Settings → Places): the add line's error, and the place sheet */
+.pa-place-add{margin-bottom:var(--home-s2)}
+.pa-place-err{margin:0 0 var(--home-s2)}
+.pa-pl-count{margin:var(--home-s4) 0;color:var(--home-ink-2)}
+.pa-pl-move{flex-wrap:wrap}
+.pa-pl-move>.ha-btn{flex:1 1 9em;min-height:44px}
+.pa-up{transform:rotate(90deg)}
+.pa-down{transform:rotate(-90deg)}
+.pa-pl-add{margin:0 0 var(--home-s5)}
+.pa-pl-del{margin:var(--home-s2) 0 0}
+.pa-mv-text{color:var(--home-ink-2)}

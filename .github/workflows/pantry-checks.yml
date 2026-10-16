@@ -27,6 +27,7 @@ jobs:
       - run: node pantry/test/config.test.mjs
       - run: node pantry/test/quick.test.mjs
       - run: node pantry/test/tour.test.mjs
+      - run: node pantry/test/places.test.mjs
       - run: node pantry/test/scan.test.mjs
       - run: node pantry/test/photo.test.mjs
       - name: Install Playwright and axe-core

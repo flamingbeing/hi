@@ -6,7 +6,8 @@
 // phone, never in plain ?demo, no home-screen card when installed, the short invite version) and the guide screen;
 // barcode look-ups (three databases routed to fake answers, a fake camera; the unknown-barcode sheet);
 // photos (a thumbnail on the item, the photo in photos/<id> read when the item opens, remove, delete, backup, an
-// old-style item moved by itself; prints the measured sizes);
+// old-style item moved by itself; prints the measured sizes); places (Settings → Places: the defaults with counts,
+// add, rename with Undo, reorder, remove with items asking where they go, not-in-your-list places, Say or type);
 // and at 390, 360 and 320px: no sideways scroll and axe clean on every screen, the welcome and the guide.
 // Needs Playwright (PLAYWRIGHT_PATH) and axe-core (AXE_PATH, or node_modules/axe-core found from the repo or cwd).
 const { chromium } = await import(process.env.PLAYWRIGHT_PATH || '/opt/node22/lib/node_modules/playwright/index.mjs');
@@ -521,6 +522,162 @@ try {
     ok(errors.length === 0, `demo ${w}: console errors ${errors.join('; ')}`);
     await ctx.close();
     console.log(`  demo ${w}: ok`);
+  }
+
+  // ---------- places: Settings → Places (the household's own list; demo) ----------
+  {
+    const { ctx, page, errors } = await open(390, 844, BASE + '?demo');
+    const S = () => page.evaluate(() => ({ list: [...window.__pantry.S.settings.values()].find(d => d.id === 'places')?.list || null, items: [...window.__pantry.S.items.values()].map(i => ({ id: i.id, name: i.name, location: i.location })) }));
+    const rows = () => page.locator('#pa-places .ha-row-title').allTextContents();
+    const count = async name => (await page.locator('#pa-places .ha-row, #pa-places-other .ha-row').filter({ has: page.locator('.ha-row-title', { hasText: new RegExp(`^${name}$`) }) }).locator('.ha-row-value').textContent()).replace(/\D+/g, '');
+    const sheet = page.locator('dialog.ha-sheet[open]');
+    const openPlace = async name => { await page.locator(`[data-act="place-open"][data-v="${name}"]`).click(); await settle(page); };
+    await go(page, '#/settings');
+    ok(await page.locator('#h-places').count() === 1, 'Settings has Where things are kept');
+    await page.click('#main a[href="#/places"]'); await settle(page);
+    ok(hash(page) === '#/places' && await page.locator('h1').textContent() === 'Places', 'Places opens from Settings');
+    ok(await page.locator('.ha-back span').textContent() === 'Settings' && await page.locator('.ha-tab[aria-current="page"]').getAttribute('href') === '#/settings', 'its back button names Settings, Settings stays the tab');
+    const defaults = ['Kitchen cabinet', 'Fridge', 'Level 1 fridge', 'Freezer', 'Level 1 freezer', 'Store room', 'Basement store', 'Bathroom', 'Laundry', 'Medicine box', 'Other'];
+    ok(JSON.stringify(await rows()) === JSON.stringify(defaults), 'the default places, the owner’s three included: ' + (await rows()).join(', '));
+    const st = await S();
+    for (const p of ['Fridge', 'Level 1 freezer', 'Basement store', 'Bathroom']) {
+      ok(await count(p) === String(st.items.filter(i => i.location === p).length), `${p}: its item count`);
+    }
+    ok(await count('Level 1 freezer') === '1' && await count('Basement store') === '1', 'the demo keeps one thing on Level 1 freezer and one in Basement store');
+    await axe(page, 'places');
+    if (SHOTS) await shot(page, 'places', true);
+
+    // add a place: tidy name, no duplicates (any case), not empty
+    await page.click('#pa-place-add button[type=submit]');
+    ok(await page.locator('#pa-place-err').isVisible() && await page.getAttribute('#pa-place-name', 'aria-invalid') === 'true', 'an empty name is refused');
+    await page.fill('#pa-place-name', ' FRIDGE ');
+    await page.click('#pa-place-add button[type=submit]');
+    ok((await page.locator('#pa-place-err').textContent()).includes('Fridge is already in your list'), 'a duplicate (any case) is refused');
+    ok(await page.getAttribute('#pa-place-name', 'maxlength') === '40', 'names stop at 40 characters');
+    await page.fill('#pa-place-name', '  Level 2   fridge ');
+    await page.press('#pa-place-name', 'Enter'); await settle(page);
+    ok((await rows()).at(-1) === 'Level 2 fridge' && await page.locator('#pa-place-err').isHidden(), 'a new place goes at the end, tidied');
+    ok(JSON.stringify((await S()).list) === JSON.stringify([...defaults, 'Level 2 fridge']), 'and is saved as the household’s list');
+    await axe(page, 'places with an error cleared');
+
+    // use it in Add
+    await go(page, '#/add');
+    const opts = await page.locator('#pa-form [name="location"] option').allTextContents();
+    ok(opts.at(-1) === 'Level 2 fridge' && opts.includes('Level 1 freezer') && opts.includes('Basement store'), 'Kept in offers the list: ' + opts.join(', '));
+    await page.fill('#pa-form [name="name"]', 'Homemade sambal');
+    await page.selectOption('#pa-form [name="location"]', 'Level 2 fridge');
+    await page.click('#pa-save'); await settle(page);
+    ok((await S()).items.find(i => i.name === 'Homemade sambal')?.location === 'Level 2 fridge', 'an item added in the new place');
+    await go(page, '#/places');
+    ok(await count('Level 2 fridge') === '1', 'its count shows on Places');
+
+    // rename: the sheet, every item moves with it, Undo
+    const fridgeIds = (await S()).items.filter(i => i.location === 'Fridge').map(i => i.id);
+    ok(fridgeIds.length >= 3, 'several things in the Fridge');
+    await openPlace('Fridge');
+    ok(await sheet.locator('.ha-sheet-title').textContent() === 'Fridge' && await sheet.locator('#pa-pl-pos').textContent() === '2 of 12 in your list', 'a place opens in a sheet with its position');
+    await axe(page, 'place sheet');
+    if (SHOTS) await shot(page, 'place-sheet');
+    await page.fill('#pa-pl-name', 'level 1 FRIDGE');
+    await sheet.locator('#pa-pl-form button[type=submit]').click();
+    ok((await sheet.locator('#pa-pl-err').textContent()).includes('Level 1 fridge is already in your list'), 'renaming to another place’s name is refused');
+    await page.fill('#pa-pl-name', 'Kitchen fridge');
+    await sheet.locator('#pa-pl-form button[type=submit]').click(); await settle(page);
+    let now = await S();
+    ok(now.list[1] === 'Kitchen fridge' && !now.list.includes('Fridge'), 'renamed in place in the list');
+    ok(fridgeIds.every(id => now.items.find(i => i.id === id).location === 'Kitchen fridge') && !now.items.some(i => i.location === 'Fridge'), 'every item in it moved with the new name');
+    ok(await sheet.count() === 0 && hash(page) === '#/places' && (await rows())[1] === 'Kitchen fridge', 'the sheet closes and the list shows the new name');
+    await toast(page).locator('.ha-toast-action').click(); await settle(page);
+    now = await S();
+    ok(now.list[1] === 'Fridge' && fridgeIds.every(id => now.items.find(i => i.id === id).location === 'Fridge'), 'Undo puts the name and the items back');
+    await go(page, '#/items');
+    ok(await page.locator('[data-act="place"][data-v="Fridge"]').count() === 1, 'Items filters by the place');
+
+    // reorder: up and down move it one place, the picker follows
+    await go(page, '#/places');
+    await openPlace('Level 2 fridge');
+    ok(await sheet.locator('[data-pl="down"]').isDisabled() && await sheet.locator('[data-pl="up"]').isEnabled(), 'the last one can only move up');
+    const box = await sheet.locator('[data-pl="up"]').boundingBox();
+    ok(box.height >= 44 && box.width >= 44, `move buttons are at least 44px (${Math.round(box.width)}x${Math.round(box.height)})`);
+    ok(await sheet.locator('[data-pl="up"]').getAttribute('aria-label') === 'Move up, Level 2 fridge', 'move buttons say which place');
+    for (let i = 0; i < 9; i++) await sheet.locator('[data-pl="up"]').click();
+    ok(await sheet.locator('#pa-pl-pos').textContent() === '3 of 12 in your list', 'nine steps up: third');
+    await page.goBack(); await settle(page);
+    ok(await sheet.count() === 0 && hash(page) === '#/places', 'back closes the place sheet');
+    ok((await rows()).slice(0, 4).join(', ') === 'Kitchen cabinet, Fridge, Level 2 fridge, Level 1 fridge', 'the list shows the new order');
+    await go(page, '#/add');
+    ok((await page.locator('#pa-form [name="location"] option').allTextContents()).slice(0, 3).join(', ') === 'Kitchen cabinet, Fridge, Level 2 fridge', 'and so does Kept in');
+    await go(page, '#/items');
+    const chips = await page.locator('[data-act="place"]').evaluateAll(b => b.map(x => x.dataset.v).filter(Boolean));
+    ok(chips.indexOf('Level 2 fridge') < chips.indexOf('Level 1 freezer') && chips.indexOf('Fridge') < chips.indexOf('Level 2 fridge'), 'and the Items filter: ' + chips.join(', '));
+
+    // remove: with items, it asks where they go first; without, at once; Undo either way
+    await go(page, '#/places');
+    await openPlace('Basement store');
+    await sheet.locator('[data-pl="remove"]').click(); await settle(page);
+    ok(await sheet.locator('.ha-sheet-title').textContent() === 'Remove Basement store', 'removing a place with items asks where they go');
+    ok(!(await sheet.locator('#pa-mv-to option').allTextContents()).includes('Basement store'), 'not back into itself');
+    await axe(page, 'remove a place with items');
+    if (SHOTS) await shot(page, 'place-remove-with-items');
+    await page.goBack(); await settle(page);
+    ok(await sheet.count() === 0 && (await S()).list.includes('Basement store'), 'back cancels: nothing removed');
+    await openPlace('Basement store');
+    await sheet.locator('[data-pl="remove"]').click(); await settle(page);
+    const moving = (await S()).items.filter(i => i.location === 'Basement store').map(i => i.id);
+    const listBefore = (await S()).list;
+    await page.selectOption('#pa-mv-to', 'Store room');
+    await sheet.locator('#pa-mv-go').click(); await settle(page);
+    now = await S();
+    ok(!now.list.includes('Basement store') && moving.every(id => now.items.find(i => i.id === id).location === 'Store room') && !now.items.some(i => i.location === 'Basement store'), 'removed, and its items moved to Store room');
+    await toast(page).locator('.ha-toast-action').click(); await settle(page);
+    now = await S();
+    ok(JSON.stringify(now.list) === JSON.stringify(listBefore) && moving.every(id => now.items.find(i => i.id === id).location === 'Basement store'), 'Undo brings the place and its items back');
+    await openPlace('Bathroom');
+    await sheet.locator('[data-pl="remove"]').click(); await settle(page);
+    ok(await sheet.count() === 0 && !(await S()).list.includes('Bathroom') && !(await rows()).includes('Bathroom'), 'an empty place goes at once');
+
+    // a place an item uses that isn't in the list (a family member's older phone, a backup): still shown everywhere
+    const sid = (await S()).items.find(i => i.name === 'Kaya').id;
+    await page.evaluate(id => { const S = window.__pantry.S; S.items.set(id, { ...S.items.get(id), location: 'Shed' }); }, sid);
+    await go(page, '#/settings'); await go(page, '#/places');
+    ok(await page.locator('#h-places-other').count() === 1 && await count('Shed') === '1', 'Not in your list shows Shed with its count');
+    await go(page, '#/edit/' + sid);
+    ok(await page.inputValue('#pa-form [name="location"]') === 'Shed' && await page.locator('#pa-form optgroup[label="Not in your list"] option', { hasText: 'Shed' }).count() === 1, 'the item keeps Shed, shown as not in your list');
+    await go(page, '#/items');
+    ok(await page.locator('[data-act="place"][data-v="Shed"]').count() === 1, 'and Items can filter by it');
+    await go(page, '#/places');
+    await openPlace('Shed');
+    await sheet.locator('[data-pl="list"]').click(); await settle(page);
+    ok((await S()).list.at(-1) === 'Shed' && await page.locator('#h-places-other').count() === 0, 'Add to your list');
+    await noSideways(page, 'places 390');
+    await page.evaluate(() => { document.documentElement.style.fontSize = '212.5%'; }); await settle(page);
+    await noSideways(page, 'places 200%'); await barApart(page, 'places 200%');
+    await openPlace('Fridge');
+    const r = await sheet.evaluate(d => ({ sw: d.querySelector('.ha-sheet-body').scrollWidth, cw: d.querySelector('.ha-sheet-body').clientWidth }));
+    ok(r.sw <= r.cw, 'place sheet at 200%: no sideways scroll');
+    await page.goBack(); await settle(page);
+    await page.evaluate(() => { document.documentElement.style.fontSize = ''; }); await settle(page);
+
+    // Say or type knows the household's places
+    await go(page, '#/');
+    await page.click('[data-act="quick"]'); await settle(page);
+    await page.fill('#pa-quick-text', '2 jars of jam in the level 2 fridge and tissue in the basement');
+    const said = await page.locator('#pa-quick-list .ha-row-sub').allTextContents();
+    ok(said[0].includes('Level 2 fridge') && said[1].includes('Basement store'), 'Say or type finds Level 2 fridge and the basement: ' + said.join(' | '));
+    await page.goBack(); await settle(page);
+
+    for (const [w, h] of [[360, 780], [320, 640]]) {
+      await page.setViewportSize({ width: w, height: h });
+      await go(page, '#/places');
+      await noSideways(page, `places ${w}`); await axe(page, `places ${w}`);
+      await openPlace('Level 1 freezer');
+      const r2 = await sheet.evaluate(d => ({ sw: d.querySelector('.ha-sheet-body').scrollWidth, cw: d.querySelector('.ha-sheet-body').clientWidth }));
+      ok(r2.sw <= r2.cw, `place sheet ${w}: no sideways scroll`);
+      await page.goBack(); await settle(page);
+    }
+    ok(errors.length === 0, `places: console errors ${errors.join('; ')}`);
+    await ctx.close();
+    console.log('  places: ok');
   }
 
   // ---------- photos: a tiny thumbnail on the item, the photo itself read only when the item opens (this phone) ----------

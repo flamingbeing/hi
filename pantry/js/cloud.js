@@ -9,6 +9,7 @@
 //                                    so opening the app downloads thumbnails, not photos (photo.js)
 //   households/{hid}/events/{id}     bought / opened / used up / thrown away, for the consumption pattern
 //   households/{hid}/shop/{id}       things added to the shopping list by hand
+//   households/{hid}/settings/places the family's list of places ({ id: 'places', list: [names], updatedAt }; places.js)
 //
 // Sign-in happens on the app's own address: authDomain is pantry.flamingbeing.com (config.js, written by
 // tools/set-config.mjs), and the Worker serves Firebase's helper pages at /__/auth/ and the project's init.json at
@@ -16,6 +17,7 @@
 // (the anawj.com logbook's fix for "missing initial state").
 
 import { firebaseConfig } from '../config.js';
+import { KINDS } from './store.js';
 
 const SDK = 'https://www.gstatic.com/firebasejs/10.14.1/';
 export const APP_HOST = 'pantry.flamingbeing.com';
@@ -155,7 +157,7 @@ export async function openCloud(hid, onError = () => {}) {
     kind: 'cloud',
     async load() {
       const out = {};
-      for (const k of ['items', 'events', 'shop']) {
+      for (const k of KINDS) {
         const s = await F.getDocs(col(k));
         out[k] = s.docs.map(d => d.data());
       }
@@ -186,7 +188,7 @@ export async function openCloud(hid, onError = () => {}) {
       if (b) await b.commit();
     },
     listen(cb) {
-      for (const k of ['items', 'events', 'shop']) {
+      for (const k of KINDS) {
         unsubs.push(F.onSnapshot(col(k), s => {
           const docs = [], removed = [];
           for (const c of s.docChanges()) (c.type === 'removed' ? removed.push(c.doc.id) : docs.push(c.doc.data()));

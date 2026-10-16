@@ -161,6 +161,7 @@ export function viewGuide() {
       row('mic', 'Say or type a list', 'Tap the microphone on Home, or Say or type a list on Add. Say “2 Meiji milk in the fridge expires 25 Oct and 3 tins of sardines”, check the list it makes, then Add.'),
       row('barcode', 'Scan a barcode', 'Tap Scan barcode and point the camera at it. Food, household goods and toiletries are looked up in open product lists. If no one knows the barcode yet, pick the product or type its name once, and scanning finds it next time.'),
       row('camera', 'Add a photo', 'So everyone knows which one it is.'),
+      row('home', 'Places', 'Where things are kept, like Fridge or Level 1 freezer. In Settings, then Places: rename them, change their order, or add your own. The family shares one list.'),
       row('plus', 'How many', 'How many you have now. Tap + or − to change it.'),
       row('calendar', 'Best before', 'Type the date on the pack, or tap 1 week, 1 month… for a rough one.'),
       row('clock', 'Keeps once opened', 'How many days it lasts after opening, like 5 for milk. Leave it empty for things that don’t go off.'),

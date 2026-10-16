@@ -5,6 +5,22 @@ service cloud.firestore {
   match /databases/{database}/documents {
     function email() { return request.auth.token.email.lower(); }
     function signedIn() { return request.auth != null && request.auth.token.email_verified == true; }
+    // 1 to 40 names, each a string of 1 to 40 characters. Rules have no loops, so: each one is a string (one check
+    // per index), then the names joined with newlines (none may hold one) fit one pattern of 1 to 40 characters each.
+    function placeNames(l) {
+      let n = l.size();
+      return n >= 1 && n <= 40
+        && (n <= 0 || l[0] is string) && (n <= 1 || l[1] is string) && (n <= 2 || l[2] is string) && (n <= 3 || l[3] is string) && (n <= 4 || l[4] is string)
+        && (n <= 5 || l[5] is string) && (n <= 6 || l[6] is string) && (n <= 7 || l[7] is string) && (n <= 8 || l[8] is string) && (n <= 9 || l[9] is string)
+        && (n <= 10 || l[10] is string) && (n <= 11 || l[11] is string) && (n <= 12 || l[12] is string) && (n <= 13 || l[13] is string) && (n <= 14 || l[14] is string)
+        && (n <= 15 || l[15] is string) && (n <= 16 || l[16] is string) && (n <= 17 || l[17] is string) && (n <= 18 || l[18] is string) && (n <= 19 || l[19] is string)
+        && (n <= 20 || l[20] is string) && (n <= 21 || l[21] is string) && (n <= 22 || l[22] is string) && (n <= 23 || l[23] is string) && (n <= 24 || l[24] is string)
+        && (n <= 25 || l[25] is string) && (n <= 26 || l[26] is string) && (n <= 27 || l[27] is string) && (n <= 28 || l[28] is string) && (n <= 29 || l[29] is string)
+        && (n <= 30 || l[30] is string) && (n <= 31 || l[31] is string) && (n <= 32 || l[32] is string) && (n <= 33 || l[33] is string) && (n <= 34 || l[34] is string)
+        && (n <= 35 || l[35] is string) && (n <= 36 || l[36] is string) && (n <= 37 || l[37] is string) && (n <= 38 || l[38] is string) && (n <= 39 || l[39] is string)
+        && !l.join('').matches('[\\s\\S]*\\n[\\s\\S]*')
+        && l.join('\n').matches('[^\\n]{1,40}(\\n[^\\n]{1,40}){0,39}');
+    }
     function member(hid) {
       return signedIn() && email() in get(/databases/$(database)/documents/households/$(hid)).data.members;
     }
@@ -24,9 +40,9 @@ service cloud.firestore {
         && request.resource.data.keys().hasOnly(['name', 'owner', 'members', 'createdAt']);
       allow delete: if signedIn() && email() == resource.data.owner;
 
-      // reading and deleting: every kind; writing items and photos has size limits (below)
+      // reading and deleting: every kind; writing items, photos and settings has limits (below)
       match /{kind}/{id} {
-        allow read, delete: if kind in ['items', 'events', 'shop', 'photos'] && member(hid);
+        allow read, delete: if kind in ['items', 'events', 'shop', 'photos', 'settings'] && member(hid);
         allow create, update: if kind in ['events', 'shop'] && member(hid);
       }
       // An item carries only a small thumbnail (`thumb`, at most 12 KB); its photo is in photos/{id}. Items from
@@ -38,6 +54,15 @@ service cloud.firestore {
           && request.resource.data.get('thumb', '').size() <= 12288
           && (request.resource.data.get('photo', '') == ''
             || (resource != null && request.resource.data.photo == resource.data.get('photo', null)));
+      }
+      // The family's list of places (16 Oct 2026): one document, settings/places = { id, list, updatedAt }, the list
+      // 1 to 40 names of 1 to 40 characters each. No other settings documents.
+      match /settings/{id} {
+        allow create, update: if member(hid) && id == 'places'
+          && request.resource.data.keys().hasOnly(['id', 'list', 'updatedAt'])
+          && request.resource.data.id == 'places'
+          && request.resource.data.list is list
+          && placeNames(request.resource.data.list);
       }
       // One photo per item (same id), at most 150 KB, read only when the item is opened.
       match /photos/{id} {
