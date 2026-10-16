@@ -1,6 +1,6 @@
 // Unit tests for the barcode look-up chain in js/scan.js (a stubbed fetch, no network): node pantry/test/scan.test.mjs
 import assert from 'node:assert/strict';
-import { lookup, DATABASES } from '../js/scan.js';
+import { lookup, DATABASES, cleanName } from '../js/scan.js';
 
 const CODE = '8888888000017';
 const json = (body, status = 200) => ({ ok: status >= 200 && status < 300, status, json: async () => body });
@@ -87,5 +87,14 @@ assert.deepEqual(DATABASES.map(d => d.source), ['food', 'products', 'beauty']);
   assert.equal(await lookup('123', { fetch: get }), null);
   assert.equal(asked.length, 0);
 }
+
+
+// names lose article numbers and the barcode, but keep numbers that belong to the name
+assert.equal(cleanName('17000466 Lays Lime Flavour Potato Chips'), 'Lays Lime Flavour Potato Chips');
+assert.equal(cleanName('Milo 3-in-1 Activ-Go 9556001234567', '9556001234567'), 'Milo 3-in-1 Activ-Go');
+assert.equal(cleanName('100PLUS Original 325ml'), '100PLUS Original 325ml');
+assert.equal(cleanName('Gardenia 400 g'), 'Gardenia 400 g');
+assert.equal(cleanName('Kaya - 123456'), 'Kaya');
+assert.equal(cleanName('12345678'), '12345678');
 
 console.log('pantry scan look-up: ok');

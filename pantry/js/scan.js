@@ -60,6 +60,17 @@ export const DATABASES = [
 ];
 const FIELDS = 'product_name,product_name_en,brands,quantity,image_front_small_url,image_front_url';
 
+// Product names in the open databases sometimes carry a shop's article number or the barcode itself
+// ("17000466 Lays Lime Flavour Potato Chips"). Drop the barcode anywhere, and runs of 4+ digits at either end;
+// numbers that are part of the name ("100PLUS", "3-in-1", "70 g") stay.
+export function cleanName(name, code = '') {
+  let s = String(name || '');
+  if (code) s = s.split(String(code)).join(' ');
+  s = s.replace(/^[\s\-–:#.,]*(\d{4,}[\s\-–:#.,]+)+/, '').replace(/([\s\-–:#.,]+\d{4,})+[\s\-–:#.,]*$/, '');
+  s = s.replace(/\s+/g, ' ').trim();
+  return s || String(name || '').trim();
+}
+
 // One database: { name, brand, size, image, source, category?, location? } or null (not known, an error, no signal
 // or too slow). Never throws.
 async function ask(db, code, { fetch: get, timeout, signal }) {
@@ -73,7 +84,7 @@ async function ask(db, code, { fetch: get, timeout, signal }) {
     const j = await r.json();
     if (j.status !== 1 || !j.product) return null;
     const p = j.product;
-    const name = String(p.product_name_en || p.product_name || '').trim();
+    const name = cleanName(p.product_name_en || p.product_name, code);
     if (!name) return null;
     const out = { name, brand: String(p.brands || '').split(',')[0].trim(), size: String(p.quantity || '').trim(), image: p.image_front_small_url || p.image_front_url || '', source: db.source };
     if (db.category) Object.assign(out, { category: db.category, location: db.location });
