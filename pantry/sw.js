@@ -23,6 +23,7 @@ const SHELL = [
   'js/sample.js',
   'js/cloud.js',
   'js/scan.js',
+  'js/guide.js',
   'js/photo.js',
   'icons/icon.svg',
   'icons/apple-touch-icon.png',

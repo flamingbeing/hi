@@ -13,6 +13,7 @@ happening now is [STATUS.md](STATUS.md).
 | `js/catalogue.js` | About 190 common Singapore supermarket goods to pick from |
 | `js/store.js` | This phone's pantry (IndexedDB), the demo's (memory) and small per-phone settings |
 | `js/cloud.js` | Family sharing: Google sign-in and the household in Firestore (only with a config) |
+| `js/guide.js` | Help for first-time users: the welcome on first open (once per phone) and the guide screen `#/guide` |
 | `js/scan.js`, `js/photo.js`, `js/sample.js` | Barcode scanning and Open Food Facts look-up, photos shrunk into the item, made-up sample items |
 | `config.js` | The Firebase web config (null until set up: on-phone only); written by `tools/set-config.mjs` |
 | `auth/firebase/init.json` | Served at `/__/firebase/init.json` for Firebase's sign-in pages (written by `tools/set-config.mjs`) |
