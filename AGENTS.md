@@ -9,6 +9,8 @@ This **public** repo holds two things:
   - `homedesign/`: the home design system (web and phone app kit), shared by every home app at
     `/homedesign/`; its own guide at `design.flamingbeing.com`. Start with `homedesign/README.md`.
   - `pantry/`: the family's household inventory at `pantry.flamingbeing.com`. Start with `pantry/NOTES.md`.
+  - `kakihome/`: Kaki Home, a household inventory built to try out a product idea, apart from the pantry (own data
+    and Firebase project), at `kakihome.flamingbeing.com`. Start with `kakihome/NOTES.md`.
 
 Accounts, settings and costs: [OPERATIONS.md](OPERATIONS.md). Site-wide work in progress: [STATUS.md](STATUS.md).
 

@@ -45,3 +45,4 @@
   are equal); a back label truncates and, when its column is under 4.5em, shows only the chevron (label kept as the
   accessible name, 44px target). Looks the same at normal sizes. `e2e.mjs` (and the pantry's) check the lead, title
   and trail boxes stay apart at 390 and 320px, at normal and 200% text.
+- 16 Oct 2026: **Mic icon** (`i-mic`, 47 in all) for Kaki Home's "Say or type" quick entry.

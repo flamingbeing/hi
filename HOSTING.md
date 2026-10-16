@@ -9,6 +9,7 @@ Worker. `flamingbeing.com` itself (the owner's server page) is not served by it.
 |---|---|---|
 | `design.flamingbeing.com` | `homedesign/` | The design system's guide pages |
 | `pantry.flamingbeing.com` | `pantry/` (+ `/__/auth/`) | Household inventory (custom domain: owner, `pantry/SETUP.md` step 1) |
+| `kakihome.flamingbeing.com` | `kakihome/` (+ `/__/auth/`) | Kaki Home, a household inventory to try out a product idea (own data and Firebase project) |
 
 - **Previews:** `https://<branch>-flamingbeing-home.<account>.workers.dev/`. A preview serves the whole repo; try a
   host's view at `<preview>/_sites/pantry.flamingbeing.com/?demo`. Sign-in never works on previews (on purpose).
