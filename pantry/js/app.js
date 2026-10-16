@@ -13,7 +13,7 @@ import { openWelcome, viewGuide, welcomed, markWelcomed, installed } from './gui
 import { starterChoices, tourTasks } from './tour.js';
 import { firebaseConfig } from '../config.js';
 import {
-  haRouter, haGo, haBack, haSheet, haCloseSheet, haSheetOpen, haConfirm, haToast, haHideToast, haStepper, haVersion,
+  haRouter, haGo, haBack, haSheet, haCloseSheet, haSheetOpen, haConfirm, haToast, haHideToast, haStepper, haVersion, haHaptic,
   haIcon, haEsc as esc, haAnnounce, haLargeTitle,
 } from '/homedesign/app.js';
 
@@ -321,7 +321,7 @@ function viewHome() {
   const listed = new Set(exp.map(x => x.item.id));
   const opened = all.filter(it => !listed.has(it.id) && (it.batches || []).some(b => b.openedAt && b.qty > 0));
   const m = L.monthStats([...S.events.values()], t.slice(0, 7));
-  h += `<div class="ha-btn-row pa-quickrow"><button type="button" class="ha-btn ha-btn--secondary ha-btn--compact" data-act="leftovers">${icon('bowl')}Leftovers</button></div>`;
+  h += `<div class="ha-btn-row pa-quickrow"><button type="button" class="ha-btn ha-btn--secondary ha-btn--compact" data-act="leftovers">${icon('bowl')}Leftovers</button><button type="button" class="ha-btn ha-btn--secondary ha-btn--compact" data-act="scan-many">${icon('barcode')}Scan many</button></div>`;
   h += `<div class="ha-stats pa-stats" aria-label="Summary">
     <div class="ha-stat"><span class="ha-stat-value">${expired.length}</span><span class="ha-stat-label">Expired</span></div>
     <div class="ha-stat"><span class="ha-stat-value">${soon.length}</span><span class="ha-stat-label">Use soon</span></div>
@@ -873,6 +873,91 @@ function openUnknown(code) {
     const n = $('#pa-form [name="name"]');
     n?.focus(); n?.scrollIntoView({ block: 'center' });
   });
+}
+
+// ---- scan many in a row: the camera stays open, a mode says what each scan does, a running tally, one Done -------
+
+const SCAN_MODES = { add: 'Bought', use: 'Used up', list: 'Add to list' };
+function openScanMany(mode = 'add') {
+  const ops = [], tally = new Map(), unknown = new Set();
+  let run = null;
+  const s = haSheet({
+    title: 'Scan many', closeLabel: 'Done',
+    body: `<fieldset class="ha-segmented pa-sm-mode"><legend>Each scan</legend>${Object.entries(SCAN_MODES).map(([v, l]) =>
+        `<label class="ha-seg"><input type="radio" name="pa-sm-mode" value="${v}"${v === mode ? ' checked' : ''}><span>${l}</span></label>`).join('')}</fieldset>
+      <div class="pa-scan pa-sm-video"><video muted playsinline aria-label="Camera view"></video></div>
+      <p class="ha-text pa-scan-msg" id="pa-sm-msg" role="status">Point the camera at each barcode in turn. Each counts once.</p>
+      <section class="ha-section" aria-labelledby="pa-sm-h"><h3 class="ha-section-header" id="pa-sm-h"><span>Scanned</span><span class="ha-num" id="pa-sm-n">0</span></h3>
+        <ul class="ha-list" id="pa-sm-tally"><li><div class="ha-row"><span class="ha-row-body"><span class="ha-row-sub">Nothing yet.</span></span></div></li></ul></section>
+      <label class="ha-btn ha-btn--secondary ha-btn--block pa-file-btn">${icon('camera')}Use a photo instead<input type="file" accept="image/*" class="pa-file" id="pa-sm-file"></label>`,
+    footer: `<button type="button" class="ha-btn ha-btn--primary ha-btn--block" data-ha-close>Done</button>`,
+    onClose: () => {
+      run?.cancel(); run = null;
+      afterSheet(); redraw();
+      if (ops.length) haToast(`Saved ${plural(ops.length, 'scan')}`, { action: 'Undo', onAction: () => {
+        for (const o of ops.reverse()) { if (o.before) save('items', o.before); if (o.ev) remove('events', o.ev); if (o.line) remove('shop', o.line); }
+        redraw(); haAnnounce('Undone');
+      } });
+    },
+  });
+  const el = s.el, msg = $('#pa-sm-msg', el), ul = $('#pa-sm-tally', el);
+  const modeNow = () => el.querySelector('[name="pa-sm-mode"]:checked')?.value || 'add';
+  const draw = () => {
+    $('#pa-sm-n', el).textContent = [...tally.values()].reduce((n, t) => n + t.n, 0) + unknown.size;
+    ul.innerHTML = [...tally.values()].reverse().map(t => `<li><div class="ha-row"><span class="ha-row-body"><span class="ha-row-title">${esc(t.name)}</span><span class="ha-row-sub">${esc(SCAN_MODES[t.mode])}</span></span><span class="ha-row-value">× ${t.n}</span></div></li>`).join('')
+      + [...unknown].map(c => `<li><div class="ha-row"><span class="ha-row-body"><span class="ha-row-title">New barcode</span><span class="ha-row-sub pa-unk-code">${esc(c)}</span></span><span class="ha-row-trail"><button type="button" class="ha-btn ha-btn--small" data-sm-new="${esc(c)}">Add it</button></span></div></li>`).join('')
+      || `<li><div class="ha-row"><span class="ha-row-body"><span class="ha-row-sub">Nothing yet.</span></span></div></li>`;
+  };
+  const got = code => {
+    const m = modeNow(), it = items().find(i => i.barcode === code);
+    if (!it) { unknown.add(code); draw(); msg.textContent = `Not in the pantry yet: ${code}. Add it when you’re done.`; return; }
+    let op = null, say = '';
+    if (m === 'list') {
+      const line = addToList(it, { quiet: true });
+      if (!line) { msg.textContent = `${it.name} is already on the shopping list.`; return; }
+      op = { line: line.id }; say = `${it.name} is on the shopping list`;
+    } else {
+      const res = m === 'add' ? restock(it, { qty: 1, expiry: guessFor(it)?.date || null })
+        : L.isStaple(it) ? L.setLevel(it, { level: 'out', by: who() }) : L.takeOut(it, { type: 'use', by: who() });
+      if (!res.event) { msg.textContent = `No ${it.name} left to use.`; return; }
+      save('items', res.item);
+      op = { before: it, ev: save('events', res.event).id };
+      if (m === 'use' && L.isStaple(it)) { const line = addToList(res.item, { quiet: true }); if (line) op.line = line.id; }
+      say = m === 'add' ? `Added 1 ${it.name}` : L.isStaple(it) ? `${it.name}: out, on the shopping list` : `Used 1 ${it.name}`;
+    }
+    ops.push(op);
+    const k = `${m}:${it.id}`, t = tally.get(k) || { name: it.name, mode: m, n: 0 };
+    t.n++; tally.delete(k); tally.set(k, t);
+    draw(); msg.textContent = say; haHaptic();
+  };
+  el.addEventListener('click', async e => {
+    const b = e.target.closest('[data-sm-new]'); if (!b) return;
+    const code = b.dataset.smNew;
+    await haCloseSheet(el);
+    gotBarcode(code);
+  });
+  $('#pa-sm-file', el).addEventListener('change', async e => {
+    const file = e.target.files[0]; if (!file) return;
+    try {
+      const { scanFile } = await import('./scan.js');
+      const code = await scanFile(file);
+      if (code) got(code); else msg.textContent = 'No barcode found in that photo. Try closer, flat and in focus.';
+    } catch { msg.textContent = 'This phone can’t read barcodes.'; }
+    e.target.value = '';
+  });
+  (async () => {
+    try {
+      const { scanMany } = await import('./scan.js');
+      if (!el.open) return;
+      run = scanMany($('video', el), got);
+      await run.done;
+    } catch (err) {
+      msg.textContent = /Permission|NotAllowed/i.test(`${err?.name} ${err?.message}`)
+        ? 'The camera is blocked. Allow it in the browser’s settings, or use a photo of each barcode.'
+        : 'No live camera here. Use a photo of each barcode instead.';
+    }
+  })();
+  return s;
 }
 
 // ---- the "bought more" sheet ----------------------------------------------------------------------------------
@@ -1602,6 +1687,7 @@ async function onClick(e) {
       return apply(L.thawBatch(it, { batchId: b.dataset.b, days: THAW_DAYS, place, by: who() }), `Thawed: moved to ${place}, use within ${plural(THAW_DAYS, 'day')}`);
     }
     case 'leftovers': return openLeftovers();
+    case 'scan-many': return openScanMany();
     case 'since-ok': { looked(); redraw(); return haAnnounce('Cleared'); }
     case 'bought': return openBought(it);
     case 'to-list': return addToList(it);

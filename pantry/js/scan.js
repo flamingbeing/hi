@@ -42,6 +42,28 @@ export function scanVideo(video) {
   return { done, cancel() { stop = true; } };
 }
 
+// Scan many in a row: keeps the camera open and calls onCode(code) for each barcode it sees, once (the same barcode
+// again counts only after `gap` ms off it, so holding one in view doesn't count it twice). cancel() ends it.
+export function scanMany(video, onCode, { gap = 2500 } = {}) {
+  let stop = false, stream = null, last = '', lastAt = 0;
+  const done = (async () => {
+    const d = await detector();
+    stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment', width: { ideal: 1280 } }, audio: false });
+    video.srcObject = stream;
+    video.setAttribute('playsinline', '');
+    await video.play();
+    while (!stop) {
+      let code = null;
+      try { code = (await d.detect(video))[0]?.rawValue || null; } catch { /* frame not ready */ }
+      const now = Date.now();
+      if (code && (code !== last || now - lastAt > gap) && !stop) { onCode(code); }
+      if (code) { last = code; lastAt = now; }
+      await new Promise(r => setTimeout(r, 200));
+    }
+  })().finally(() => { stream?.getTracks().forEach(t => t.stop()); video.srcObject = null; });
+  return { done, cancel() { stop = true; } };
+}
+
 // Scan a still photo instead (works everywhere a file picker does).
 export async function scanFile(file) {
   const d = await detector();

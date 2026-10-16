@@ -129,3 +129,6 @@ label.ha-row:focus-within:has(.pa-file){outline:2px solid var(--home-focus);outl
 .pa-pa-fields .ha-field{margin:0}
 .pa-pa>.ha-field-hint{padding:0 var(--home-s4)}
 .pa-pa-qty .ha-input{max-width:6em}
+/* scan many: the mode on top, a shorter camera, the tally under it */
+.pa-sm-mode{margin:0 0 var(--home-s3)}
+.pa-sm-video{aspect-ratio:16/9}
