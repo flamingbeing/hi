@@ -186,6 +186,7 @@ const OK_GET = [
   /S\.items\.get\(it\.id\)\?\.location/,                          // moving the items of a renamed place
   /\(\[id, at\]\) => S\.items\.get\(id\)/,                       // the items a note is about (then checked removed)
   /use: \(id, batchId|add: \(id, qty|open: \(id, batchId/,         // the emulator tests' own actions
+  /const now = S\.items\.get\(x\.id\)/,                          // Undo of a batch: the item as it is now (one removed since counts as changed, except undoing a delete)
 ];
 const strayGet = byId.filter(([, t]) => !OK_GET.some(re => re.test(t)));
 assert.deepEqual(strayGet, [], 'screens that look an item up by id without skipping removed ones: ' + JSON.stringify(strayGet));

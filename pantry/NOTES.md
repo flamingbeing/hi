@@ -466,6 +466,34 @@ Lasting decisions and how to test. What's going on now: [STATUS.md](STATUS.md). 
     only after the family's own copy has come from the server, so it never overwrites a name from a stale cache. The field stays in
     local-only and demo mode, `who()` keeps its order (family name, this phone's name, Google first name), and the welcome check
     (`maybeWelcome`: "already using the app on this phone") still reads `prefs 'name'`.
+- **16 Oct 2026, selecting items on the Items list (commit 2 of the combined PR; owner's decisions: "My order" per category only, every
+  drag starts from the grip, Bulk edit in the same PR, plain words, phone first, a keyboard and screen-reader way for every drag):**
+  - **Three ways in, so nobody is stuck behind a gesture:** the Select button above the list (the way for keyboards and screen
+    readers), a press and hold on a row, and, once selecting, a tap anywhere on a row. `js/select.js` holds the selection as plain
+    state (by item id, so it survives redraws from other phones; what another phone deletes drops out) and `holdToSelect`, written
+    once: 500 ms with the finger still; more than 10 px of movement, a scroll or a cancelled pointer (a scroll starting on a touch
+    screen) cancels; a small buzz through the kit's `haHaptic` (Android only, never with reduced motion), a visible cue (the row is
+    shaded while it is held, then the bar and ticks appear) and a spoken one ("Selecting. 1 selected"); the click that comes with
+    lifting the finger is swallowed (the row is a link); Android's `contextmenu` counts as the hold. The guard excludes only the
+    grip, buttons and inputs, never the row's own link. Delegated on `#main`, so rows drawn later work.
+  - **Rows while selecting** are `<label>` around a real checkbox (kit `.ha-row` style; the whole row is the target, no link to
+    open); Space ticks, Enter too (a checkbox only does Space by itself). The **selection bar** sticks above the tab bar: "N selected"
+    (a live region; "(M not shown)" for ticked items the search or place chip hides: a filter never silently changes what an action
+    will touch), Select all (the whole filtered result), Select none, Done, and Move to… / Shopping list / Delete. Under a heading,
+    "Select these N" ticks that group (also when it is folded), "Unselect these N" takes them off. **Back, the iPhone swipe and
+    Escape leave selecting**: it is a history entry shaped like a sheet (`haSheet: 'pa-select'`), so `haGo` replaces it when a link
+    is followed and no dead entry is left. Leaving the screen ends it.
+  - **The actions end selecting and are each ONE batch and ONE toast with Undo.** Move to… opens a place picker sheet (radio list,
+    the button names the count and the place); Shopping list adds one line per item not already on the list (one `putMany`; says how
+    many were already there); Delete is the same removal marker as the item screen's (Recently removed). The word is **Delete**,
+    not "Bin", on purpose: "Bin 1" on an item already means "throw one unit away" (a history entry counted as waste), and a bar
+    button called Bin would suggest that. Undo (`undoBatch`) sends each item the inverse of what was done to it
+    (`invertOps` with the item as it is now), so a field another phone changed since is left alone, and says "N changed since, left
+    as they are" (an item removed since counts as changed, except when undoing a delete).
+  - **Group by Place** is a fourth choice next to Use by, Name and Category (the default sort and look are unchanged): a heading per
+    place in the household's order, with its count; a heading folds (the chevron button, `aria-expanded`; kept per phone in
+    `pantry:folded`). Each place section carries `data-place`, which is what the drag in the next commit looks for.
+  - Rows are now `<li data-id>` and the row `<a>` has `draggable="false"` (a link drags as a native ghost otherwise).
 
 ## How to test
 
@@ -480,10 +508,12 @@ node pantry/test/merge.test.mjs        # merging duplicate pantries: members, wh
 node pantry/test/scan.test.mjs         # the barcode look-up chain with a stubbed fetch (plain node)
 node pantry/test/photo.test.mjs        # thumbnail and photo sizes, stepping down to fit the limits (plain node)
 node pantry/test/ops.test.mjs          # both shapes of batches, changes as instructions and their inverse, the chip text (plain node)
+node pantry/test/select.test.mjs       # selecting: the selection state and the press and hold with a fake pointer (plain node)
 node pantry/test/syncnow.test.mjs      # Sync now: each waiting change in words, last heard, what it says (plain node)
 node pantry/test/removed.test.mjs      # removed markers, Restore, days left, the sweep's choice, backups and merging, every list skips removed (plain node)
 node pantry/test/config.test.mjs       # set-config, sign-in choice, plain-word errors, sw.js rules
 node pantry/test/e2e.mjs               # phone browser test with axe; SHOTS=<dir> saves screenshots
+node pantry/test/items.e2e.mjs         # the Items list with real touch (CDP): selecting, press and hold, the actions and their Undo, group by place, axe
 pantry/test/run-sync.sh                # two phones and the stock rules (sync.e2e.mjs), the randomised three-phone run (multidevice.e2e.mjs), sign-in by email link and password (signin.e2e.mjs), family sharing, the rules (photo size caps, places and names too) and moving old-style photos in the
                                        # local emulators (demo-pantry, fake accounts)
 node tools/check.mjs && node tools/stamp-versions.mjs --check

@@ -59,7 +59,8 @@
   merged away under an open phone (the phone moves to the one left, or says "Your pantry changed" with Try again); Sync now in
   Settings → Saving to the family (waiting changes in words, last heard from the family); the "Waiting for signal" chip no longer
   reads an acknowledged change as waiting (reproduced in the emulator); no "Your name" field in a family pantry (adopted once as
-  the family name). Next in the PR: select mode and bulk bar, drag by grip and My order, Bulk edit.
+  the family name). Commit 2: select mode on Items (Select button, press and hold, checkboxes, a bar with Move to… / Shopping list /
+  Delete and one Undo each) and Group by place. Next in the PR: drag by grip and My order, Bulk edit.
 
 ## Waiting on the owner
 

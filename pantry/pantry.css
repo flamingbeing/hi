@@ -166,3 +166,27 @@ label.ha-row:focus-within:has(.pa-file){outline:2px solid var(--home-focus);outl
 .pa-heard{margin:0 0 var(--home-s2);padding:0 var(--home-s4);color:var(--home-muted);font-size:var(--home-t-small)}
 /* your family pantry went away */
 .pa-lost .ha-btn{display:flex;margin-top:var(--home-s2)}
+
+/* Items: selecting (press and hold, checkboxes, the bar above the tab bar), place headings that fold */
+.pa-item{-webkit-touch-callout:none;-webkit-user-select:none;user-select:none}
+.pa-item.is-holding{background:var(--home-pressed)}
+.pa-item--sel.is-selected{background:var(--home-accent-soft)}
+.pa-grouphead{justify-content:flex-start;align-items:center}
+.pa-grouphead .ha-num{margin-left:var(--home-s2)}
+.pa-grouphead .pa-fold{display:inline-flex;align-items:center;gap:2px;min-height:44px;margin-left:-6px;padding:0 6px;border-radius:var(--home-r-sm);color:inherit;font:inherit;letter-spacing:inherit;text-transform:inherit}
+.pa-fold-icon{flex:none;width:18px;height:18px;transform:rotate(0deg)}
+.pa-fold[aria-expanded="true"] .pa-fold-icon{transform:rotate(90deg)}
+@media (prefers-reduced-motion:no-preference){.pa-fold-icon{transition:transform var(--home-d-fast) var(--home-ease)}}
+.pa-grouphead .pa-selthese{margin-left:auto;min-height:44px;padding:0 var(--home-s2)}
+.pa-selbar{position:fixed;z-index:29;left:0;right:0;bottom:calc(var(--ha-tab-h) + var(--ha-safe-b));padding:var(--home-s1) calc(var(--home-gutter) + var(--ha-safe-r)) var(--home-s2) calc(var(--home-gutter) + var(--ha-safe-l));
+  background:var(--home-bar);box-shadow:0 -.5px 0 var(--home-line);-webkit-backdrop-filter:var(--ha-blur);backdrop-filter:var(--ha-blur)}
+.pa-selbar-inner{max-width:680px;margin:0 auto}
+.pa-selbar-row{display:flex;align-items:center;justify-content:space-between;gap:var(--home-s2);flex-wrap:wrap}
+.pa-selcount{font-weight:600;font-size:var(--home-t-small)}
+.pa-selbar-links{display:flex;gap:0;margin-right:calc(-1 * var(--home-s3))}
+.pa-selbar-links .ha-btn{padding-inline:var(--home-s3)}
+.pa-selbar-acts{display:grid;grid-template-columns:repeat(3,1fr);gap:var(--home-s2)}
+.pa-selbar-acts .ha-btn{min-width:0;padding-inline:var(--home-s1);line-height:1.15}
+.pa-selecting .ha-main{padding-bottom:calc(var(--ha-tab-h) + var(--ha-safe-b) + 150px)}
+@media (min-width:1024px){.pa-selbar{left:var(--ha-rail,96px);bottom:0}.pa-selecting .ha-main{padding-bottom:180px}}
+.pa-moveto{margin:0;padding:0;border:0}

@@ -179,6 +179,8 @@ export function viewGuide() {
       row('cart', 'Bought more', 'On the item, add what you bought and its date.'),
       row('snowflake', 'Freeze and Thaw', 'Freeze moves it to the freezer and keeps it about 3 months. Thaw moves it to the fridge: use within 2 days.'),
       row('barcode', 'Scan many', 'On Home: choose Bought, Used up or Add to list, then scan one barcode after another. Done saves them all, with one Undo.'),
+      row('check', 'Select several', 'On Items, tap Select (or press and hold a row), tick items, then Move to…, Shopping list or Delete. One Undo for the lot.'),
+      row('home', 'Group by place', 'On Items, choose Place under Sort by: a heading for each place, with how many. Tap a heading to fold it.'),
     ])}
     ${section('soon', 'Use soon and expired', [
       plainRow('Past its date', 'Use it today or throw it away.', badge('Expired', 'bad')),

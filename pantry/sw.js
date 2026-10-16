@@ -31,6 +31,7 @@ const SHELL = [
   'js/people.js',
   'js/merge.js',
   'js/sync.js',
+  'js/select.js',
   'icons/icon.svg',
   'icons/apple-touch-icon.png',
   'icons/icon-192.png',

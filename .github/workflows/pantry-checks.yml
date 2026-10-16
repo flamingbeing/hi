@@ -33,6 +33,7 @@ jobs:
       - run: node pantry/test/ops.test.mjs
       - run: node pantry/test/removed.test.mjs
       - run: node pantry/test/syncnow.test.mjs
+      - run: node pantry/test/select.test.mjs
       - name: Install Playwright and axe-core
         run: |
           npm install --no-save playwright@1.56.1 axe-core
@@ -42,6 +43,11 @@ jobs:
           PLAYWRIGHT_PATH: ${{ github.workspace }}/node_modules/playwright/index.mjs
           SHOTS: ${{ runner.temp }}/pantry-shots
         run: node pantry/test/e2e.mjs
+      - name: Items list (touch)
+        env:
+          PLAYWRIGHT_PATH: ${{ github.workspace }}/node_modules/playwright/index.mjs
+          SHOTS: ${{ runner.temp }}/pantry-shots
+        run: node pantry/test/items.e2e.mjs
       - name: Family sharing (local emulators)
         env:
           PLAYWRIGHT_PATH: ${{ github.workspace }}/node_modules/playwright/index.mjs
