@@ -157,7 +157,7 @@ export function viewGuide() {
     ${section('adding', 'Adding things', [
       row('search', 'Search the list', 'Tap + and type a name, like soy sauce or Milo. Picking a common Singapore product fills in the brand, size and where it’s kept.'),
       row('mic', 'Say or type a list', 'Tap the microphone on Home, or Say or type a list on Add. Say “2 Meiji milk in the fridge expires 25 Oct and 3 tins of sardines”, check the list it makes, then Add.'),
-      row('barcode', 'Scan a barcode', 'Tap Scan barcode and point the camera at it. Once something is named, its barcode finds it next time.'),
+      row('barcode', 'Scan a barcode', 'Tap Scan barcode and point the camera at it. Food, household goods and toiletries are looked up in open product lists. If no one knows the barcode yet, pick the product or type its name once, and scanning finds it next time.'),
       row('camera', 'Add a photo', 'So everyone knows which one it is.'),
       row('plus', 'How many', 'How many you have now. Tap + or − to change it.'),
       row('calendar', 'Best before', 'Type the date on the pack, or tap 1 week, 1 month… for a rough one.'),

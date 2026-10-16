@@ -4,6 +4,7 @@
 // sample items, back returns from an item and closes sheets, version lines, backup JSON, demo mode, offline reload
 // through the service worker; the welcome on first open (Skip, Next through every card, Add my first item, once per
 // phone, never in plain ?demo, no home-screen card when installed, the short invite version) and the guide screen;
+// barcode look-ups (three databases routed to fake answers, a fake camera; the unknown-barcode sheet);
 // and at 390, 360 and 320px: no sideways scroll and axe clean on every screen, the welcome and the guide.
 // Needs Playwright (PLAYWRIGHT_PATH) and axe-core (AXE_PATH, or node_modules/axe-core found from the repo or cwd).
 const { chromium } = await import(process.env.PLAYWRIGHT_PATH || '/opt/node22/lib/node_modules/playwright/index.mjs');
@@ -453,6 +454,122 @@ try {
     ok(errors.length === 0, `demo ${w}: console errors ${errors.join('; ')}`);
     await ctx.close();
     console.log(`  demo ${w}: ok`);
+  }
+
+  // ---------- barcode look-ups: three databases, and naming an unknown barcode (demo, no real camera or network) ----------
+  {
+    // a fake camera and barcode reader: the reader "sees" whatever the test puts in window.__scanCode
+    const init = () => {
+      window.__scanCode = null;
+      globalThis.BarcodeDetector = class {
+        static async getSupportedFormats() { return ['ean_13']; }
+        async detect() { const c = window.__scanCode; window.__scanCode = null; return c ? [{ rawValue: c }] : []; }
+      };
+      navigator.mediaDevices.getUserMedia = async () => {
+        const c = document.createElement('canvas'); c.width = c.height = 16; c.getContext('2d').fillRect(0, 0, 16, 16);
+        return c.captureStream();
+      };
+    };
+    const { ctx, page, errors } = await open(390, 844, BASE + '?demo', { init });
+    const HOUSEHOLD = '1111111111116', UNKNOWN = '2222222222222', UNKNOWN2 = '3333333333333';
+    const asked = [];
+    const answer = (host, hits) => ctx.route(`https://${host}/**`, route => {
+      const code = (new URL(route.request().url()).pathname.match(/product\/(\d+)\.json/) || [])[1];
+      asked.push(`${host} ${code}`);
+      if (hits[code]) return route.fulfill({ status: 200, contentType: 'application/json', headers: { 'access-control-allow-origin': '*' }, body: JSON.stringify({ status: 1, product: hits[code] }) });
+      if (host.includes('beauty')) return route.fulfill({ status: 500, headers: { 'access-control-allow-origin': '*' }, body: 'oops' });
+      return route.fulfill({ status: 404, contentType: 'application/json', headers: { 'access-control-allow-origin': '*' }, body: '{"status":0}' });
+    });
+    await answer('world.openfoodfacts.org', {});
+    await answer('world.openproductsfacts.org', { [HOUSEHOLD]: { product_name: 'Laundry liquid test', brands: 'Testbrand', quantity: '3 L' } });
+    await answer('world.openbeautyfacts.org', {});
+    const scan = async code => {
+      await page.evaluate(c => { window.__scanCode = c; }, code);
+      await page.click('[data-act="scan"]');
+    };
+    const unknown = page.locator('dialog.ha-sheet[open]', { has: page.locator('#pa-unk-find') });
+
+    // a household-products hit fills the name and guesses the category and place
+    await go(page, '#/add');
+    await scan(HOUSEHOLD);
+    await page.waitForFunction(() => document.querySelector('#pa-form [name="name"]')?.value === 'Laundry liquid test', null, { timeout: 8000 }); await settle(page);
+    ok(asked.some(a => a.startsWith('world.openfoodfacts.org')) && asked.some(a => a.startsWith('world.openproductsfacts.org')) && asked.some(a => a.startsWith('world.openbeautyfacts.org')), 'all three databases asked');
+    ok(await page.inputValue('#pa-form [name="brand"]') === 'Testbrand' && await page.inputValue('#pa-form [name="size"]') === '3 L', 'products database fills brand and size');
+    ok(await page.inputValue('#pa-form [name="category"]') === 'Laundry & cleaning' && await page.inputValue('#pa-form [name="location"]') === 'Store room', 'and guesses Laundry & cleaning, Store room');
+    ok(await page.inputValue('#pa-form [name="barcode"]') === HOUSEHOLD, 'the barcode is kept');
+    // a category already chosen is not overridden
+    await go(page, '#/'); await go(page, '#/add');
+    await page.selectOption('#pa-form [name="category"]', 'Pet');
+    await scan(HOUSEHOLD);
+    await page.waitForFunction(() => document.querySelector('#pa-form [name="name"]')?.value === 'Laundry liquid test', null, { timeout: 8000 }); await settle(page);
+    ok(await page.inputValue('#pa-form [name="category"]') === 'Pet' && await page.inputValue('#pa-form [name="location"]') === 'Store room', 'a chosen category stays; the place is still guessed');
+
+    // an unknown barcode opens the sheet, search field focused, barcode already in the form
+    await go(page, '#/'); await go(page, '#/add');
+    await scan(UNKNOWN);
+    await unknown.waitFor({ timeout: 8000 }); await settle(page);
+    ok(await unknown.locator('.ha-sheet-title').textContent() === 'We don’t know this barcode yet', 'unknown barcode: the sheet says so');
+    ok(await page.evaluate(() => document.activeElement?.id) === 'pa-unk-find', 'the search field has focus');
+    ok((await unknown.locator('.pa-unk-code').textContent()) === UNKNOWN, 'the sheet shows the barcode');
+    ok(await page.inputValue('#pa-form [name="barcode"]') === UNKNOWN, 'the barcode is already in the form');
+    ok(await unknown.locator('#pa-unk-list').isHidden(), 'no list before typing');
+    const targets = await unknown.locator('.ha-row, .ha-sheet-head button').evaluateAll(els => els.filter(e => e.getClientRects().length).map(e => e.getBoundingClientRect().height));
+    ok(targets.every(h => h >= 43.5), `sheet targets are 44px (${targets.join(', ')})`);
+    await axe(page, 'unknown barcode sheet');
+    await noSideways(page, 'unknown barcode sheet');
+    await shot(page, '20-unknown-barcode');
+    // back closes it and stays on Add with the barcode
+    await page.goBack(); await settle(page);
+    ok(await unknown.count() === 0 && hash(page) === '#/add', 'back closes the sheet and stays on Add');
+    ok(await page.inputValue('#pa-form [name="barcode"]') === UNKNOWN, 'the barcode stays after closing');
+
+    // picking a catalogue product fills the form with the barcode
+    await scan(UNKNOWN);
+    await unknown.waitFor({ timeout: 8000 }); await settle(page);
+    await page.fill('#pa-unk-find', 'laundry liquid');
+    await unknown.locator('#pa-unk-list [data-act="unk-cat"]').first().waitFor();
+    const subs = await unknown.locator('#pa-unk-list .ha-row-sub').allTextContents();
+    ok(subs.filter(t => t.startsWith('Dynamo')).length === 1 && await unknown.locator('#pa-unk-list [data-act="unk-mine"] .ha-row-sub').first().textContent().then(t => t.startsWith('Dynamo')), 'a product already in the pantry is offered once, as the pantry item');
+    await axe(page, 'unknown barcode sheet with a search');
+    await noSideways(page, 'unknown barcode sheet with a search');
+    await shot(page, '21-unknown-barcode-search');
+    await page.fill('#pa-unk-find', 'breeze');
+    await unknown.locator('#pa-unk-list [data-act="unk-cat"]').first().click(); await settle(page);
+    ok(await unknown.count() === 0 && hash(page) === '#/add', 'picking closes the sheet, still on Add');
+    ok(await page.inputValue('#pa-form [name="name"]') === 'Laundry liquid' && await page.inputValue('#pa-form [name="brand"]') === 'Breeze', 'the catalogue product fills name and brand');
+    ok(await page.inputValue('#pa-form [name="size"]') === '3.6 kg' && await page.inputValue('#pa-form [name="category"]') === 'Laundry & cleaning' && await page.inputValue('#pa-form [name="location"]') === 'Laundry', 'and size, category and place');
+    ok(await page.inputValue('#pa-form [name="barcode"]') === UNKNOWN, 'with the barcode attached');
+
+    // Type a new name: closes and focuses Name, starting with what was typed
+    await go(page, '#/'); await go(page, '#/add');
+    await scan(UNKNOWN2);
+    await unknown.waitFor({ timeout: 8000 }); await settle(page);
+    await page.fill('#pa-unk-find', 'Grandma’s chilli oil');
+    await unknown.locator('[data-act="unk-new"]').click(); await settle(page);
+    ok(await unknown.count() === 0 && await page.evaluate(() => document.activeElement?.name) === 'name', 'Type a new name focuses Name');
+    ok(await page.inputValue('#pa-form [name="name"]') === 'Grandma’s chilli oil' && await page.inputValue('#pa-form [name="barcode"]') === UNKNOWN2, 'it starts with the search text and keeps the barcode');
+
+    // picking an item already in the pantry attaches the barcode to it and opens Bought more
+    await go(page, '#/'); await go(page, '#/add');
+    await scan(UNKNOWN2);
+    await unknown.waitFor({ timeout: 8000 }); await settle(page);
+    await page.fill('#pa-unk-find', 'kaya');
+    await unknown.locator('#pa-unk-list [data-act="unk-mine"]').first().click(); await settle(page);
+    const kaya = await page.evaluate(() => [...window.__pantry.S.items.values()].find(i => i.name === 'Kaya'));
+    ok(kaya.barcode === UNKNOWN2, 'the barcode is saved on the pantry item');
+    ok(hash(page) === '#/item/' + kaya.id && await page.locator('dialog.ha-sheet[open] .ha-sheet-title').textContent() === 'Bought more', 'its item opens with Bought more');
+    await page.goBack(); await settle(page);
+    ok(hash(page) === '#/item/' + kaya.id && await page.locator('dialog.ha-sheet[open]').count() === 0, 'back closes Bought more');
+    // and scanning it again finds it straight away (no look-up)
+    const before = asked.length;
+    await go(page, '#/add');
+    await scan(UNKNOWN2);
+    await page.locator('dialog.ha-sheet[open] .ha-sheet-title', { hasText: 'Bought more' }).waitFor({ timeout: 8000 }); await settle(page);
+    ok(hash(page) === '#/item/' + kaya.id && asked.length === before, 'the next scan finds the item without asking online');
+
+    ok(errors.length === 0, `barcode: console errors ${errors.join('; ')}`);
+    await ctx.close();
+    console.log('  barcode look-ups: ok');
   }
   console.log(`pantry e2e: ok (${checks} checks)`);
 } finally {

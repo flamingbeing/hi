@@ -1,8 +1,8 @@
 // Barcode scanning with the phone camera. Chrome on Android has a built-in barcode reader (BarcodeDetector);
 // on iPhone the same reader is loaded from a CDN the first time (a WebAssembly build of ZXing).
-// Then the barcode is looked up: first in the family's own pantry, then in Open Food Facts (a free, open
-// product database with pictures; coverage of Singapore shelves is patchy, so the app asks for a name when it
-// doesn't know one and remembers it for next time).
+// Then the barcode is looked up: first in the family's own pantry, then in Open Food Facts and its sister databases
+// for household goods and toiletries (free, open, with pictures; coverage of Singapore shelves is patchy, so when none
+// knows a barcode the app asks which product it is and remembers it for next time).
 
 const POLYFILL = 'https://cdn.jsdelivr.net/npm/barcode-detector@2.3.1/dist/es/pure.min.js';
 const FORMATS = ['ean_13', 'ean_8', 'upc_a', 'upc_e', 'code_128', 'code_39', 'itf', 'qr_code'];
@@ -50,17 +50,46 @@ export async function scanFile(file) {
   return codes[0]?.rawValue || null;
 }
 
-// Open Food Facts lookup: { name, brand, size, image } or null.
-export async function lookup(code) {
-  if (!/^\d{6,14}$/.test(code)) return null;
+// Product databases, asked in this order: food first, then household goods, then toiletries. All three are run by
+// the same open project with the same API and send `access-control-allow-origin: *`. A household or toiletry hit
+// also guesses a category and a place (the form only uses them if nobody has picked one).
+export const DATABASES = [
+  { source: 'food', host: 'world.openfoodfacts.org' },
+  { source: 'products', host: 'world.openproductsfacts.org', category: 'Laundry & cleaning', location: 'Store room' },
+  { source: 'beauty', host: 'world.openbeautyfacts.org', category: 'Toiletries', location: 'Bathroom' },
+];
+const FIELDS = 'product_name,product_name_en,brands,quantity,image_front_small_url,image_front_url';
+
+// One database: { name, brand, size, image, source, category?, location? } or null (not known, an error, no signal
+// or too slow). Never throws.
+async function ask(db, code, { fetch: get, timeout, signal }) {
+  const ctl = new AbortController();
+  const stop = () => ctl.abort();
+  const timer = setTimeout(stop, timeout);
+  signal?.addEventListener('abort', stop, { once: true });
   try {
-    const r = await fetch(`https://world.openfoodfacts.org/api/v2/product/${code}.json?fields=product_name,product_name_en,brands,quantity,image_front_small_url,image_front_url`, { signal: AbortSignal.timeout(8000) });
+    const r = await get(`https://${db.host}/api/v2/product/${code}.json?fields=${FIELDS}`, { signal: ctl.signal });
     if (!r.ok) return null;
     const j = await r.json();
     if (j.status !== 1 || !j.product) return null;
     const p = j.product;
-    const name = p.product_name_en || p.product_name || '';
+    const name = String(p.product_name_en || p.product_name || '').trim();
     if (!name) return null;
-    return { name, brand: (p.brands || '').split(',')[0].trim(), size: p.quantity || '', image: p.image_front_small_url || p.image_front_url || '' };
-  } catch { return null; }
+    const out = { name, brand: String(p.brands || '').split(',')[0].trim(), size: String(p.quantity || '').trim(), image: p.image_front_small_url || p.image_front_url || '', source: db.source };
+    if (db.category) Object.assign(out, { category: db.category, location: db.location });
+    return out;
+  } catch { return null; } finally { clearTimeout(timer); signal?.removeEventListener('abort', stop); }
+}
+
+// Look a barcode up in all three databases at once (each with its own time limit) and take the first that knows it,
+// in the order above, so a food hit never waits for the others. Resolves null when none knows it, or offline.
+export async function lookup(code, { fetch: get = globalThis.fetch, timeout = 6000 } = {}) {
+  code = String(code || '').trim();
+  if (!/^\d{6,14}$/.test(code) || typeof get !== 'function') return null;
+  const ctl = new AbortController();
+  const asks = DATABASES.map(db => ask(db, code, { fetch: get, timeout, signal: ctl.signal }));
+  try {
+    for (const a of asks) { const hit = await a; if (hit) return hit; }
+    return null;
+  } finally { ctl.abort(); }   // stop the slower ones once there's an answer
 }
