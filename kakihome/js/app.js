@@ -7,7 +7,8 @@ import * as L from './logic.js';
 import { CATALOGUE, CATEGORIES, LOCATIONS } from './catalogue.js';
 import { openLocal, openMemory, prefs, KINDS } from './store.js';
 import { sampleData } from './sample.js';
-import { openWelcome, viewGuide, welcomed, markWelcomed } from './guide.js';
+import { openWelcome, viewGuide, welcomed, markWelcomed, installed } from './guide.js';
+import { starterChoices, tourTasks } from './tour.js';
 import { firebaseConfig } from '../config.js';
 import {
   haRouter, haGo, haBack, haSheet, haCloseSheet, haSheetOpen, haConfirm, haToast, haHideToast, haStepper, haVersion,
@@ -142,12 +143,14 @@ function viewHome() {
   const all = items();
   let h = `<h1 class="ha-large-title">Kaki Home</h1><p class="ha-large-sub">${esc(statusLine())}</p>`;
   if (S.syncError) h += `<div class="ha-panel kh-alert" role="status">${icon('alert')}<span>Some changes didn’t reach the household. ${esc(S.syncError)}</span></div>`;
+  h += viewTour();
   if (!all.length) {
     return h + `<div class="ha-card ha-empty">
       <span class="ha-empty-icon">${icon('box')}</span>
       <p class="ha-empty-title">Nothing here yet</p>
       <p class="ha-empty-text">Add what’s in the fridge and cupboards. Kaki Home then shows what to use first and what to buy.</p>
-      <button type="button" class="ha-btn ha-btn--primary" data-act="go-add">Add an item</button>
+      <button type="button" class="ha-btn ha-btn--primary" data-act="start">Pick what you have</button>
+      <button type="button" class="ha-btn ha-btn--secondary" data-act="go-add">Add one item</button>
       <button type="button" class="ha-btn ha-btn--plain" data-act="sample">Try it with sample items</button>
       <a class="ha-btn ha-btn--plain" href="#/guide">How to use Kaki Home</a>
     </div>`;
@@ -194,6 +197,110 @@ function viewHome() {
     ${mrow('trash', ' ha-row-icon--bad', 'Thrown away (all)', m.wasted)}
   </ul>`, { id: 'month', footer: 'Binning something past its date counts as expired.' });
   return h;
+}
+
+// ---- first steps (tour.js): the Getting started checklist and the quick start --------------------------------------
+
+const tourOn = () => prefs.get('tour') === 'on';
+const flags = () => prefs.get('tourFlags', {}) || {};
+function flag(k) { if (!tourOn() || flags()[k]) return; prefs.set('tourFlags', { ...flags(), [k]: true }); }
+function tasks() {
+  const sharing = !S.cloud?.configured ? 'none' : (S.household?.members?.length || 0) > 1 ? 'in' : 'out';
+  return tourTasks({ items: items(), events: [...S.events.values()], flags: flags(), installed: installed(), sharing });
+}
+function viewTour() {
+  if (!tourOn()) return '';
+  const list = tasks(), done = list.filter(t => t.done).length;
+  if (done === list.length) {
+    return section('Getting started', `<div class="ha-card kh-tour-done"><p class="ha-card-title">All set</p>
+      <p class="ha-card-text">You know your way around. The guide in Settings has the rest.</p>
+      <button type="button" class="ha-btn ha-btn--secondary" data-act="tour-hide">Hide this</button></div>`, { id: 'tour' });
+  }
+  const row = t => `<li><div class="ha-row kh-tour-row${t.done ? ' is-done' : ''}">
+      <span class="kh-tour-mark" aria-hidden="true">${t.done ? icon('check') : ''}</span>
+      <span class="ha-row-body"><span class="ha-row-title">${esc(t.title)}<span class="ha-sr">${t.done ? ', done' : ', to do'}</span></span><span class="ha-row-sub">${esc(t.sub)}</span></span>
+      ${t.done ? '' : `<span class="ha-row-trail"><button type="button" class="ha-btn ha-btn--small" data-act="tour-show" data-task="${t.id}" aria-label="Show me: ${esc(t.title)}">Show me</button></span>`}
+    </div></li>`;
+  return section('Getting started', `<ul class="ha-list kh-tour">${list.map(row).join('')}</ul>
+    <p class="kh-tour-foot"><button type="button" class="ha-btn ha-btn--plain ha-btn--compact" data-act="tour-hide">Hide this list</button></p>`,
+    { id: 'tour', count: `${done} of ${list.length}` });
+}
+// Point at a button on the screen just drawn: scroll it into view, ring it for a few seconds, focus it.
+function spotlight(sel) {
+  setTimeout(() => {
+    const el = $(sel); if (!el) return;
+    el.scrollIntoView({ block: 'center', behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
+    el.classList.add('kh-spot');
+    el.focus({ preventScroll: true });
+    setTimeout(() => el.classList.remove('kh-spot'), 4500);
+  }, 400);
+}
+function showMe(task) {
+  if (task === 'stock') return openStarter();
+  if (task === 'say') return openQuick();
+  if (task === 'use') {
+    const all = items().filter(it => L.totalQty(it) > 0);
+    const first = L.expiring(all, { days: 3650 })[0]?.item || all[0];
+    if (!first) { haToast('Add something first'); return openStarter(); }
+    haGo('#/item/' + first.id);
+    return spotlight('[data-act="use"]');
+  }
+  if (task === 'shop') { haGo('#/shop'); return spotlight('#kh-shop-text'); }
+  if (task === 'install') {
+    return haSheet({
+      title: 'On your home screen', closeLabel: 'Done', grey: true,
+      body: `<ul class="ha-list">
+        <li><div class="ha-row"><span class="ha-row-icon">${icon('share')}</span><span class="ha-row-body"><span class="ha-row-title">iPhone</span><span class="ha-row-sub">In Safari, tap Share (the square with an arrow), then Add to Home Screen.</span></span></div></li>
+        <li><div class="ha-row"><span class="ha-row-icon">${icon('plus')}</span><span class="ha-row-body"><span class="ha-row-title">Android</span><span class="ha-row-sub">In Chrome, tap the menu (three dots), then Add to home screen or Install app.</span></span></div></li>
+      </ul><p class="ha-section-footer">It then opens like an app, full screen, and works without signal.</p>`,
+      onClose: () => { flag('installSeen'); afterSheet(); redraw(); },
+    });
+  }
+  if (task === 'family') {
+    haGo('#/settings');
+    return spotlight('[data-act="signin"], [data-act="hh-create"], #kh-member-email');
+  }
+}
+function openStarter() {
+  const choices = starterChoices();
+  const have = new Set(items().map(it => L.norm(`${it.brand} ${it.name}`)));
+  const groups = [...new Set(choices.map(c => c.group))];
+  const chip = c => {
+    const at = have.has(L.norm(`${c.cat.brand} ${c.cat.name}`));
+    return `<button type="button" class="ha-chip" aria-pressed="false" data-k="${esc(c.key)}"${at ? ' disabled' : ''}>${esc(c.cat.name.replace(/ \(.*\)$/, ''))}${at ? ' <span class="ha-chip-count">at home</span>' : ''}</button>`;
+  };
+  const s = haSheet({
+    title: 'What do you have?', closeLabel: 'Cancel', grey: true, detent: 'large',
+    body: `<p class="ha-text kh-start-intro">Tap the everyday things you have at home. Each goes in with a rough best-before date, which you can change on the item.</p>
+      ${groups.map((g, i) => `<section class="ha-section" aria-labelledby="kh-sg-${i}"><h3 class="ha-section-header" id="kh-sg-${i}">${esc(g)}</h3>
+        <div class="ha-chips ha-chips--wrap kh-start-chips" role="group" aria-labelledby="kh-sg-${i}">${choices.filter(c => c.group === g).map(chip).join('')}</div></section>`).join('')}
+      <p class="ha-section-footer">Not here? Add it afterwards with + or the microphone.</p>`,
+    footer: `<button type="button" class="ha-btn ha-btn--primary ha-btn--block" id="kh-start-go" disabled>Add items</button>`,
+    onClose: afterSheet,
+  });
+  const go = $('#kh-start-go', s.el);
+  const picked = () => [...s.el.querySelectorAll('.kh-start-chips [aria-pressed="true"]')].map(b => choices.find(c => c.key === b.dataset.k));
+  s.el.addEventListener('click', e => {
+    const b = e.target.closest('.kh-start-chips .ha-chip');
+    if (!b || b.disabled) return;
+    b.setAttribute('aria-pressed', String(b.getAttribute('aria-pressed') !== 'true'));
+    const n = picked().length;
+    go.disabled = !n; go.textContent = n ? `Add ${plural(n, 'item')}` : 'Add items';
+  });
+  go.addEventListener('click', async () => {
+    const list = picked(); if (!list.length) return;
+    const added = [];
+    for (const { cat, days } of list) {
+      const base = { id: L.uid(), batches: [], createdAt: new Date().toISOString(), createdBy: who(), name: cat.name, brand: cat.brand, size: cat.size,
+        category: cat.category, location: cat.location, openDays: cat.openDays ?? null, lowAt: 0, barcode: '', photo: '' };
+      const res = L.addStock(base, { qty: 1, expiry: days ? L.addDays(today(), days) : null, by: who() });
+      save('items', res.item); added.push({ id: base.id, ev: save('events', res.event).id });
+    }
+    await haCloseSheet(s.el);
+    if (screen() !== 'home') haGo('#/', { replace: screen() === 'add' }); else redraw();
+    haToast(`Added ${plural(added.length, 'item')}`, { action: 'Undo', onAction: () => { for (const a of added) { remove('items', a.id); remove('events', a.ev); } redraw(); haAnnounce('Undone'); } });
+  });
+  return s;
 }
 
 // ---- Items ------------------------------------------------------------------------------------------------------
@@ -591,6 +698,7 @@ async function openQuick() {
       undo.push({ before: mine || null, id: base.id, ev: save('events', res.event).id });
       save('items', res.item);
     }
+    flag('said');
     await haCloseSheet(s.el);
     if (screen() === 'add') { S.draft = null; S.dirty = false; haGo('#/', { replace: true }); } else redraw();
     haToast(`Added ${plural(picked.length, 'item')}`, { action: 'Undo', onAction: () => {
@@ -687,6 +795,7 @@ function viewSettings() {
     ${section('Help', `<ul class="ha-list">
       <li><a class="ha-row" href="#/guide"><span class="ha-row-icon">${icon('info')}</span><span class="ha-row-body"><span class="ha-row-title">How to use Kaki Home</span></span>${chevron()}</a></li>
       ${btnRow('welcome', 'Show the welcome again', { iconName: 'home' })}
+      ${tourOn() ? '' : btnRow('tour-on', 'Show the getting-started list', { iconName: 'list' })}
     </ul>`, { id: 'help' })}
     ${section('You', `<ul class="ha-list"><li><label class="ha-row"><span class="ha-row-body"><span class="ha-row-title">Your name</span></span>
       <input class="ha-input ha-input--inline" id="kh-name" value="${esc(prefs.get('name') || '')}" placeholder="${esc(S.user?.name?.split(' ')[0] || 'For example, Mum')}" autocomplete="off"></label></li></ul>`,
@@ -743,7 +852,7 @@ function draw(r, { keep = false } = {}) {
     setBar({ title, lead: textBtn('Cancel', 'back') });
     $('#kh-save').textContent = name === 'add' ? 'Add item' : 'Save';
     wireForm();
-  } else if (name === 'shop') { main.innerHTML = viewShop(); setBar({ title, trail: iconBtn('share', 'Share the list', 'share') }); }
+  } else if (name === 'shop') { flag('shopped'); main.innerHTML = viewShop(); setBar({ title, trail: iconBtn('share', 'Share the list', 'share') }); }
   else if (name === 'guide') { title = GUIDE; main.innerHTML = viewGuide(); setBar({ title: 'How to use it', lead: backBtn(S.backLabel) }); }
   else if (name === 'settings') {
     main.innerHTML = viewSettings(); setBar({ title });
@@ -798,6 +907,10 @@ async function onClick(e) {
       return apply(res, res.event?.type === 'expired' ? `Binned 1 ${it.name} (expired)` : `Binned 1 ${it.name}`);
     }
     case 'quick': return openQuick();
+    case 'start': return openStarter();
+    case 'tour-show': return showMe(b.dataset.task);
+    case 'tour-hide': { prefs.set('tour', 'off'); redraw(); return haToast('Hidden. Settings → Help can show it again.'); }
+    case 'tour-on': { prefs.set('tour', 'on'); haGo('#/'); return haToast('The getting-started list is on Home'); }
     case 'soon': { prefs.set('soonDays', Number(b.dataset.v)); redraw(); return haToast(`Expiring soon: within ${SOON[b.dataset.v]}`); }
     case 'open': return apply(L.openOne(it, { by: who(), batchId: b.dataset.b || null }), `Opened 1 ${it.name}`);
     case 'bought': return openBought(it);
@@ -1104,6 +1217,8 @@ function maybeWelcome() {
     if (S.items.size || prefs.get('household') || prefs.get('name')) { markWelcomed(); return; }
   }
   if (haSheetOpen() || ['add', 'edit'].includes(screen())) return;
+  // a first-time user: the Getting started checklist goes on Home too (never for anyone already using the app)
+  if (!DEMO && prefs.get('tour') == null) { prefs.set('tour', 'on'); redraw(); }
   showWelcome({ invited: INVITED && !S.user, save: !DEMO });
 }
 function showWelcome({ invited = false, save = true } = {}) {
@@ -1112,6 +1227,7 @@ function showWelcome({ invited = false, save = true } = {}) {
     onDone: v => {
       afterSheet();
       if (v === 'add') haGo('#/add');
+      else if (v === 'start') openStarter();
       else if (v === 'signin') {
         if (screen() !== 'settings') haGo('#/settings');
         requestAnimationFrame(() => $('[data-act="signin"]')?.focus());
