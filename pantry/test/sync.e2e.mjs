@@ -38,6 +38,7 @@ const unval = v => 'stringValue' in v ? v.stringValue : 'booleanValue' in v ? v.
 const unfields = f => Object.fromEntries(Object.entries(f).map(([k, v]) => [k, unval(v)]));
 const admin = {
   async put(path, o) { const r = await fetch(FS + path, { method: 'PATCH', headers: { Authorization: 'Bearer owner', 'content-type': 'application/json' }, body: JSON.stringify({ fields: fields(o) }) }); assert.ok(r.ok, 'seed ' + path); },
+  async del(path) { const r = await fetch(FS + path, { method: 'DELETE', headers: { Authorization: 'Bearer owner' } }); assert.ok(r.ok, 'delete ' + path); },
   async get(path) { const r = await fetch(FS + path, { headers: { Authorization: 'Bearer owner' } }); return r.ok ? unfields((await r.json()).fields || {}) : null; },
 };
 const go = async (p, h) => { await p.evaluate(x => { location.hash = x; }, h); await settle(p); };
@@ -275,6 +276,53 @@ try {
   const saved = await admin.get(`households/${hid}/settings/places`);
   assert.equal(saved.list[1], 'Kitchen fridge');
   assert.deepEqual(Object.keys(saved).sort(), ['id', 'list', 'updatedAt']);
+
+  // ---- names never hide anyone (owner report: after saving a name "the list of my family members disappeared") ----
+  // three members on three phones each name themselves; after every save and after a reload each phone still lists
+  // all three, with the right names
+  const listed = p => p.$$eval('#main [data-act="person"]', bs => bs.map(b => b.dataset.v));
+  const everyone = ['mum@example.com', 'dad@example.com', 'gran@example.com'];
+  await go(mum, '#/settings');
+  await mum.fill('#pa-member-email', 'Gran@Example.com');
+  await mum.click('#pa-member-add button[type=submit]');
+  await mum.locator('#main [data-act="person"][data-v="gran@example.com"]').waitFor();
+  const gran = await person('gran@example.com');
+  await gran.locator('#main [data-act="person"][data-v="mum@example.com"]').waitFor();
+  const nameSelf = async (p, email, n) => {
+    await p.click(`#main [data-act="person"][data-v="${email}"]`); await settle(p);
+    await p.fill('#pa-person-name', n);
+    await p.locator('dialog.ha-sheet[open] button[type=submit]').click(); await settle(p);
+    await p.locator('.ha-toast', { hasText: `Saved: ${n}` }).waitFor();
+  };
+  await nameSelf(mum, 'mum@example.com', 'Jun');
+  assert.deepEqual(await listed(mum), everyone, 'mum still lists everyone right after saving her own name');
+  await go(dad, '#/settings');
+  await nameSelf(dad, 'dad@example.com', 'Dad');
+  await nameSelf(gran, 'gran@example.com', 'Gran');
+  const rowsOf = p => p.$$eval('#main [data-act="person"]', bs => bs.map(b => `${b.dataset.v}=${b.querySelector('.ha-row-title').textContent}`));
+  for (const [who, p] of [['mum', mum], ['dad', dad], ['gran', gran]]) {
+    await go(p, '#/settings');
+    await p.waitForFunction(() => document.querySelectorAll('#main [data-act="person"][data-v="gran@example.com"] .ha-row-title')[0]?.textContent === 'Gran');
+    assert.deepEqual(await rowsOf(p), ['mum@example.com=Jun', 'dad@example.com=Dad', 'gran@example.com=Gran'], `${who} lists everyone with names`);
+    await p.reload();
+    await p.waitForFunction(() => window.__pantry?.S.household?.members?.length === 3);
+    await go(p, '#/settings');
+    await p.waitForFunction(() => document.querySelector('#main [data-act="person"][data-v="gran@example.com"] .ha-row-title')?.textContent === 'Gran');
+    assert.deepEqual(await listed(p), everyone, `${who} lists everyone after a reload`);
+  }
+  // a second, one-person pantry for Mum (what a second "Start our family pantry" leaves behind) that sorts first must
+  // not hide the family: the phone keeps its own, and starting a pantry again opens the existing one
+  await admin.put('households/0000stray', { name: 'Our pantry', owner: 'mum@example.com', members: ['mum@example.com'] });
+  await mum.reload();
+  await mum.waitForFunction(() => window.__pantry?.S.household);
+  await go(mum, '#/settings');
+  assert.equal(await mum.evaluate(() => window.__pantry.S.household.id), hid, 'a stray pantry did not take over');
+  assert.deepEqual(await listed(mum), everyone, 'mum still lists everyone with a stray pantry around');
+  await mum.evaluate(() => { localStorage.removeItem('pantry:household'); });
+  await mum.reload();
+  await mum.waitForFunction(() => window.__pantry?.S.household);
+  assert.equal(await mum.evaluate(() => window.__pantry.S.household.id), hid, 'with nothing remembered, the pantry with the most people wins');
+  await admin.del('households/0000stray');
 
   // mum signs out: back to this phone's own (empty) pantry
   await go(mum, '#/settings');

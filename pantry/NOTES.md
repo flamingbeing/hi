@@ -177,6 +177,13 @@ Lasting decisions and how to test. What's going on now: [STATUS.md](STATUS.md). 
     "Add it" (opens Add with the look-up), Done gives one toast with one Undo for every scan.
   - Data cost: nothing new is listened to or read in full; all of it is the existing items, events, shop and settings.
 
+- **16 Oct 2026, which family pantry opens** (owner report: after saving a name, "the list of my family members
+  disappeared"; saving names itself never hides anyone, tested with three members on three phones, with reloads): an
+  account can be in more than one household (a second "Start our family pantry" when the first lookup failed), and
+  the lookup's first match is arbitrary, so a one-person duplicate could open instead of the family's. `findHousehold`
+  now takes the one this phone last used (`pantry:household`), else the one with most members, else the oldest
+  (`pickHousehold`); "Start our family pantry" first looks for an existing one.
+
 ## How to test
 
 ```

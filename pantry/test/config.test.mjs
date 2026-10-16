@@ -2,7 +2,7 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import { parseConfig, files } from '../tools/set-config.mjs';
-import { redirectFirst, explain, configured } from '../js/cloud.js';
+import { redirectFirst, explain, configured, pickHousehold } from '../js/cloud.js';
 import { firebaseConfig } from '../config.js';
 
 // set-config reads Firebase's snippet as shown (unquoted keys, single quotes, trailing comma) and pins authDomain
@@ -50,3 +50,15 @@ assert.ok(!/addEventListener\('install'[\s\S]*?skipWaiting[\s\S]*?\}\);/.test(sw
 assert.match(sw, /'take-over'\) self\.skipWaiting\(\)/);
 for (const f of ['/homedesign/tokens.css', '/homedesign/app.css', '/homedesign/app.js', '/homedesign/icons.svg']) assert.ok(sw.includes(`'${f}'`), f);
 console.log('pantry config: ok');
+
+// which family pantry opens when an account is in more than one: the remembered one, else the one with most people
+{
+  const a = { id: 'a', members: ['x@e.com'], createdAt: '2026-10-01' }, b = { id: 'b', members: ['x@e.com', 'y@e.com', 'z@e.com'], createdAt: '2026-10-05' };
+  assert.equal(pickHousehold([]), null);
+  assert.equal(pickHousehold([a]).id, 'a');
+  assert.equal(pickHousehold([a, b]).id, 'b', 'most people');
+  assert.equal(pickHousehold([b, a], 'a').id, 'a', 'the remembered one');
+  assert.equal(pickHousehold([a, b], 'gone').id, 'b', 'a remembered one that is gone');
+  assert.equal(pickHousehold([{ ...a, id: 'q' }, a]).id, 'a', 'same size: the oldest, then the lower id');
+}
+console.log('pickHousehold ok');

@@ -124,12 +124,17 @@ export async function signOut() {
   await A.signOut(auth);
 }
 
-// The household this account belongs to (the owner adds family members by their Google email).
-export async function findHousehold(email) {
+// The household this account belongs to (the owner adds family members by their Google email). An account can end up
+// in more than one (a second "Start our family pantry" tapped when the first couldn't be found), and a query's
+// first match is arbitrary: so pick the one this phone used last (`prefer`), else the one with the most members,
+// else the oldest.
+export const pickHousehold = (list, prefer = '') => list.length < 2 ? (list[0] || null)
+  : list.find(h => h.id === prefer) || [...list].sort((a, b) => (b.members?.length || 0) - (a.members?.length || 0) || String(a.createdAt || '').localeCompare(String(b.createdAt || '')) || (a.id < b.id ? -1 : 1))[0];
+export async function findHousehold(email, prefer = '') {
   const { F, db } = await sdk();
-  const q = F.query(F.collection(db, 'households'), F.where('members', 'array-contains', lc(email)), F.limit(1));
+  const q = F.query(F.collection(db, 'households'), F.where('members', 'array-contains', lc(email)), F.limit(10));
   const s = await F.getDocs(q);
-  return s.empty ? null : { id: s.docs[0].id, ...s.docs[0].data() };
+  return pickHousehold(s.docs.map(d => ({ id: d.id, ...d.data() })), prefer);
 }
 export async function createHousehold(email, name = 'Our pantry') {
   const { F, db } = await sdk();

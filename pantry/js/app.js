@@ -1793,12 +1793,18 @@ async function onClick(e) {
       return;
     }
     case 'hh-create': {
-      try { await useHousehold(await S.cloud.createHousehold(S.user.email, 'Our pantry')); haToast('Family pantry started. Add the family below.'); } catch (err) { haToast(S.cloud.explain(err, 'Starting the family pantry')); }
+      try {
+        // never a second pantry for someone already in one (the first lookup may have failed on a bad signal)
+        const had = await S.cloud.findHousehold(S.user.email, prefs.get('household') || '');
+        if (had) { await useHousehold(had); return haToast('You’re already in a family pantry; it’s open now.'); }
+        await useHousehold(await S.cloud.createHousehold(S.user.email, 'Our pantry'));
+        haToast('Family pantry started. Add the family below.');
+      } catch (err) { haToast(S.cloud.explain(err, 'Starting the family pantry')); }
       return;
     }
     case 'hh-check': {
       try {
-        const h = await S.cloud.findHousehold(S.user.email);
+        const h = await S.cloud.findHousehold(S.user.email, prefs.get('household') || '');
         if (!h) return haToast('Not added yet. Ask whoever started it to add you.');
         await useHousehold(h);
       } catch (err) { haToast(S.cloud.explain(err, 'Checking')); }
@@ -2021,7 +2027,7 @@ async function start() {
           S.user = u;
           if (!u) { if (S.mode !== 'local') await useLocal(); else redraw(); return; }
           let h = null;
-          try { h = await S.cloud.findHousehold(u.email); } catch (e) { console.warn('household', e?.code); }
+          try { h = await S.cloud.findHousehold(u.email, prefs.get('household') || ''); } catch (e) { console.warn('household', e?.code); }
           if (h) await useHousehold(h); else redraw();
         }).catch(() => { /* no signal on the very first open: stays on this phone's pantry */ });
       }
