@@ -5,10 +5,13 @@
 // (listen() below, or the keyboard's microphone where the browser has no speech recognition).
 // Pure functions apart from listen(), so test/quick.test.mjs runs them in Node.
 import { ymd, addDays, parseYmd, score } from './logic.js';
+import { DEFAULT_PLACES } from './places.js';
+import { LOCATIONS } from './catalogue.js';
 
 const NUM = { a: 1, an: 1, one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10, eleven: 11, twelve: 12, dozen: 12 };
 const MONTHS = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec'];
-// Words that say where something is kept -> the app's places (catalogue.js LOCATIONS)
+// Everyday words for the catalogue's generic places (catalogue.js LOCATIONS). The household's own list (places.js)
+// is matched first, by its names ("level 1 fridge", "basement store", or "basement" for a place the family added).
 const PLACES = [
   [/\b(freezer|frozen)\b/, 'Freezer'],
   [/\b(fridge|refrigerator|chiller)\b/, 'Fridge'],
@@ -20,6 +23,44 @@ const PLACES = [
 ];
 const UNITS = /\b(packs?|packets?|bottles?|cartons?|cans?|tins?|boxes|box|bags?|jars?|tubs?|loaf|loaves|rolls?|bars?|sachets?|pieces?|pcs|units?|trays?|bunch(es)?|kg|g|ml|l)\b(\s+of\b)?/g;
 const FILLER = /\b(i|we|bought|got|have|added|add|put|some|the|and|also|plus|in|into|inside|at|on|to|of|with|please)\b/g;
+
+const DIGIT = ['zero', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten'];
+const reEsc = s => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+// The last word of a place that only says what kind of place it is: "Basement store" can be said as "basement".
+const KIND_WORDS = new Set(['store', 'storeroom', 'room', 'cabinet', 'cupboard', 'box', 'shelf', 'shelves', 'area', 'rack', 'drawer']);
+const GENERIC = new Set(LOCATIONS.map(p => p.toLowerCase()));
+// One pattern per way of saying each place: [regex, place], longest first. Digits match their word ("level one").
+export function placeMatchers(places = DEFAULT_PLACES) {
+  const words = n => n.toLowerCase().replace(/[‘’]/g, "'").replace(/[^\p{L}\p{N}' ]+/gu, ' ').split(/\s+/).filter(Boolean);
+  const pat = ws => ws.map(w => (/^\d+$/.test(w) && DIGIT[+w] ? `(?:${w}|${DIGIT[+w]})` : reEsc(w))).join('\\s+');
+  const out = [];
+  for (const p of places) {
+    if (!p || /^other$/i.test(p)) continue;
+    const ws = words(p);
+    if (!ws.length) continue;
+    out.push([ws.join(' ').length, ws, p]);
+    // a place the family added, said without its last word ("basement" for "Basement store")
+    if (!GENERIC.has(p.toLowerCase()) && ws.length > 1 && KIND_WORDS.has(ws.at(-1))) {
+      const short = ws.slice(0, -1);
+      if (!short.every(w => KIND_WORDS.has(w))) out.push([short.join(' ').length, short, p]);
+    }
+  }
+  return out.sort((a, b) => b[0] - a[0]).map(([, ws, p]) => [new RegExp(`(?<![\\p{L}\\p{N}])${pat(ws)}(?![\\p{L}\\p{N}])`, 'u'), p]);
+}
+// Where something is kept, from the words said: { place, re } or null. The household's own names win; then the
+// everyday words, landing on the generic place if the household has it, else on one of its places of that kind
+// ("fridge" -> "Level 1 fridge" when there is no plain Fridge), else the generic name.
+export function findPlace(text, places = DEFAULT_PLACES) {
+  for (const [re, place] of placeMatchers(places)) if (re.test(text)) return { place, re };
+  for (const [re, generic] of PLACES) {
+    if (!re.test(text)) continue;
+    const g = generic.toLowerCase();
+    const kind = g.split(' ').at(-1) === 'cabinet' ? 'cabinet' : g.split(' ')[0];
+    const place = places.find(p => p.toLowerCase() === g) || places.find(p => p.toLowerCase().split(/\s+/).includes(kind)) || generic;
+    return { place, re };
+  }
+  return null;
+}
 
 const pad = n => String(n).padStart(2, '0');
 // A day and month (no year): this year, or next year if that date is more than two months gone (a best-before date
@@ -87,12 +128,14 @@ const title = s => s.replace(/\b\w/g, c => c.toUpperCase());
 
 // One piece -> { name, qty, location, expiry, match } where match is { mine } (an item already at home: adds stock)
 // or { cat } (a catalogue product: fills in its details) or null (a new item with just the name).
-export function parseOne(piece, { today = ymd(), items = [], catalogue = [] } = {}) {
+// places: the household's list (places.js), defaults when not given.
+export function parseOne(piece, { today = ymd(), items = [], catalogue = [], places = DEFAULT_PLACES } = {}) {
   let t = ` ${piece.toLowerCase()} `;
   const d = findDate(t, today);
   if (d) t = t.replace(d.text.toLowerCase(), ' ');
   let location = '';
-  for (const [re, place] of PLACES) if (re.test(t)) { location = place; t = t.replace(re, ' '); break; }
+  const pl = findPlace(t.replace(/[‘’]/g, "'"), places);
+  if (pl) { location = pl.place; t = t.replace(/[‘’]/g, "'").replace(pl.re, ' '); }
   let qty = 1;
   const q = /(?:^|\s)(?:x\s*)?(\d{1,3})\s*x?(?=\s)|\b(a dozen|a|an|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|dozen)\b/.exec(t);
   if (q) { qty = q[1] ? Math.max(1, +q[1]) : NUM[q[2].replace('a dozen', 'dozen')]; t = t.replace(q[0], ' '); }

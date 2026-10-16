@@ -27,6 +27,7 @@ const SHELL = [
   'js/photo.js',
   'js/quick.js',
   'js/tour.js',
+  'js/places.js',
   'icons/icon.svg',
   'icons/apple-touch-icon.png',
   'icons/icon-192.png',

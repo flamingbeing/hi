@@ -3,6 +3,8 @@
 // can't be removed, and signing out goes back to the phone's own pantry. Photos: members read and write photos/<id>,
 // outsiders can't; thumbnails over 12 KB and photos over 150 KB are refused; no item may gain or change an old-style
 // `photo` (keeping or removing one is fine); and an old-style item in the family pantry is moved by the app itself.
+// Places: settings/places for members only (that id and fields only, at most 40 names of 1-40 characters), and a
+// rename on one phone shows on the other, items included.
 // Run: pantry/test/run-sync.sh
 import assert from 'node:assert/strict';
 import { serve } from './serve.mjs';
@@ -166,6 +168,62 @@ try {
   // deleting an item in the app deletes its photo
   await dad.click('[data-act="delete"]'); await settle(dad); await settle(dad);
   assert.equal(await admin.get(`households/${hid}/photos/old2`), null, 'deleting the item deleted its photo');
+
+  // ---- places: settings/places is members-only, only that id, only id/list/updatedAt, at most 40 names of 1-40 characters ----
+  const placeRules = await mum.evaluate(async hid => {
+    const F = await import('https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js');
+    const db = F.getFirestore(), d = id => F.doc(db, 'households', hid, 'settings', id);
+    const out = {};
+    const tryIt = async (name, fn) => { try { await fn(); out[name] = 'ok'; } catch (e) { out[name] = e.code; } };
+    const doc = list => ({ id: 'places', list, updatedAt: 'x' });
+    await tryIt('40 places of 40 characters', () => F.setDoc(d('places'), doc(Array.from({ length: 40 }, (_, i) => String(i).padEnd(40, 'x')))));
+    await tryIt('read', async () => { if (!(await F.getDoc(d('places'))).exists()) throw { code: 'missing' }; });
+    await tryIt('41 places', () => F.setDoc(d('places'), doc(Array.from({ length: 41 }, (_, i) => 'P' + i))));
+    await tryIt('a 41-character name', () => F.setDoc(d('places'), doc(['Fridge', 'x'.repeat(41)])));
+    await tryIt('a long name at the end', () => F.setDoc(d('places'), doc([...Array.from({ length: 39 }, (_, i) => 'P' + i), 'x'.repeat(41)])));
+    await tryIt('an empty name', () => F.setDoc(d('places'), doc(['Fridge', ''])));
+    await tryIt('a name with a newline', () => F.setDoc(d('places'), doc(['x'.repeat(30) + '\n' + 'x'.repeat(30)])));
+    await tryIt('a number', () => F.setDoc(d('places'), doc(['Fridge', 3])));
+    await tryIt('no places', () => F.setDoc(d('places'), doc([])));
+    await tryIt('not a list', () => F.setDoc(d('places'), doc('Fridge')));
+    await tryIt('another field', () => F.setDoc(d('places'), { ...doc(['Fridge']), colour: 'red' }));
+    await tryIt('another id', () => F.setDoc(d('theme'), { id: 'places', list: ['Fridge'], updatedAt: 'x' }));
+    await tryIt('a mismatched id field', () => F.setDoc(d('places'), { id: 'theme', list: ['Fridge'], updatedAt: 'x' }));
+    return out;
+  }, hid);
+  assert.deepEqual(placeRules, {
+    '40 places of 40 characters': 'ok', read: 'ok', '41 places': 'permission-denied', 'a 41-character name': 'permission-denied',
+    'a long name at the end': 'permission-denied', 'an empty name': 'permission-denied', 'a name with a newline': 'permission-denied', 'a number': 'permission-denied',
+    'no places': 'permission-denied', 'not a list': 'permission-denied', 'another field': 'permission-denied',
+    'another id': 'permission-denied', 'a mismatched id field': 'permission-denied',
+  });
+  const outsiderPlaces = await stranger.evaluate(async hid => {
+    const F = await import('https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js');
+    const db = F.getFirestore(), out = [];
+    try { await F.getDoc(F.doc(db, 'households', hid, 'settings', 'places')); out.push('read'); } catch (e) { out.push(e.code); }
+    try { await F.setDoc(F.doc(db, 'households', hid, 'settings', 'places'), { id: 'places', list: ['Mine'], updatedAt: 'x' }); out.push('wrote'); } catch (e) { out.push(e.code); }
+    try { await F.deleteDoc(F.doc(db, 'households', hid, 'settings', 'places')); out.push('deleted'); } catch (e) { out.push(e.code); }
+    return out;
+  }, hid);
+  assert.deepEqual(outsiderPlaces, Array(3).fill('permission-denied'), 'outsider and places: ' + outsiderPlaces.join(', '));
+  // back to a real list, then mum renames a place in the app and dad's phone follows (list and items)
+  await mum.evaluate(async hid => {
+    const F = await import('https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js');
+    await F.deleteDoc(F.doc(F.getFirestore(), 'households', hid, 'settings', 'places'));
+  }, hid);
+  await settle(mum); await settle(dad);
+  await go(mum, '#/places');
+  await mum.locator('[data-act="place-open"][data-v="Fridge"]').click(); await settle(mum);
+  await mum.fill('#pa-pl-name', 'Kitchen fridge');
+  await mum.locator('#pa-pl-form button[type=submit]').click(); await settle(mum);
+  await go(dad, '#/places');
+  await dad.locator('[data-act="place-open"][data-v="Kitchen fridge"]').waitFor();
+  assert.equal(await dad.locator('[data-act="place-open"][data-v="Fridge"]').count(), 0, 'dad sees the rename');
+  const dadSees = await dad.evaluate(() => [...window.__pantry.S.items.values()].filter(i => /fridge/i.test(i.location || '')).map(i => i.location));
+  assert.ok(dadSees.length && dadSees.every(l => l === 'Kitchen fridge'), 'and his items moved with it: ' + dadSees.join(', '));
+  const saved = await admin.get(`households/${hid}/settings/places`);
+  assert.equal(saved.list[1], 'Kitchen fridge');
+  assert.deepEqual(Object.keys(saved).sort(), ['id', 'list', 'updatedAt']);
 
   // mum signs out: back to this phone's own (empty) pantry
   await go(mum, '#/settings');

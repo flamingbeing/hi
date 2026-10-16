@@ -4,7 +4,8 @@
 // reading data-act attributes. Data lives in one of three backends (store.js, cloud.js): this phone (IndexedDB),
 // the family's shared pantry (Firestore), or memory only (demo mode, ?demo).
 import * as L from './logic.js';
-import { CATALOGUE, CATEGORIES, LOCATIONS } from './catalogue.js';
+import { CATALOGUE, CATEGORIES } from './catalogue.js';
+import * as P from './places.js';
 import { openLocal, openMemory, prefs, KINDS, PHOTOS } from './store.js';
 import { sampleData } from './sample.js';
 import { openWelcome, viewGuide, welcomed, markWelcomed, installed } from './guide.js';
@@ -22,7 +23,7 @@ const EMULATOR = params.has('emulator') && /^(localhost|127\.0\.0\.1)$/.test(loc
 const WELCOME = params.has('welcome');   // show the welcome even in the demo, or again
 
 const S = {
-  items: new Map(), events: new Map(), shop: new Map(), pics: new Map(),
+  items: new Map(), events: new Map(), shop: new Map(), settings: new Map(), pics: new Map(),
   backend: null, local: null, mode: DEMO ? 'demo' : 'local', cloud: null, user: null, household: null, localCount: 0,
   q: '', place: '', sort: prefs.get('sort', 'expiry'),
   draft: null, dirty: false, pendingRender: false, syncError: false,
@@ -70,6 +71,34 @@ function save(kind, obj) {
 function remove(kind, id) {
   S[kind].delete(id);
   S.backend.del(kind, id);
+}
+// Many at once (moving every item from one place to another): one batch to the family pantry.
+function saveMany(kind, list) {
+  const at = new Date().toISOString(), by = who();
+  const out = list.map(o => {
+    if (kind !== 'items') return o;
+    const x = { ...o, updatedAt: at, updatedBy: by };
+    if (x.photo === '') delete x.photo;
+    return x;
+  });
+  for (const o of out) S[kind].set(o.id, o);
+  if (S.backend.putMany) S.backend.putMany(kind, out).catch(err => { S.syncError = S.cloud.explain(err, 'Saving'); redraw(); });
+  else for (const o of out) S.backend.put(kind, o);
+  return out;
+}
+
+// ---- places (places.js): the household's own ordered list, shared with the family ----------------------------------
+
+const placeNames = () => P.placeList(S.settings.get(P.PLACES_ID));
+// Every place to offer, the list's order first, then places items still use that aren't in it.
+const placeChoices = (extra = '') => P.allPlaces(placeNames(), items(), extra);
+const defaultPlace = () => { const l = placeNames(); return l.includes('Kitchen cabinet') ? 'Kitchen cabinet' : l[0]; };
+const savePlaces = list => save('settings', P.placesDoc(list));
+// A <select>'s options: the list, then "Not in your list" for any other place in use (or the form's own value).
+function placeOptions(value) {
+  const { listed, unlisted } = placeChoices(value);
+  const opt = x => `<option${x === value ? ' selected' : ''}>${esc(x)}</option>`;
+  return listed.map(opt).join('') + (unlisted.length ? `<optgroup label="Not in your list">${unlisted.map(opt).join('')}</optgroup>` : '');
 }
 // ---- photos (photo.js): a tiny `thumb` on the item for every list; the photo itself in photos/<item id>, read only
 // when the item is opened (cached here, keyed by the thumb it belongs to, so a family member's new photo is fetched).
@@ -390,7 +419,8 @@ function openStarter() {
 
 function viewItems() {
   const all = items();
-  const places = LOCATIONS.filter(l => all.some(i => i.location === l));
+  const { listed, unlisted } = placeChoices();
+  const places = [...listed, ...unlisted].filter(l => all.some(i => i.location === l));
   if (S.place && !places.includes(S.place)) S.place = '';
   const chip = (v, label, n) => `<button type="button" class="ha-chip" aria-pressed="${S.place === v}" data-act="place" data-v="${esc(v)}">${esc(label)} <span class="ha-chip-count">${n}</span></button>`;
   const seg = (v, label) => `<label class="ha-seg"><input type="radio" name="pa-sort" value="${v}"${S.sort === v ? ' checked' : ''}><span>${label}</span></label>`;
@@ -494,7 +524,7 @@ function viewItem(it) {
 // ---- Add and edit -----------------------------------------------------------------------------------------------
 
 function blank() {
-  return { id: null, name: '', brand: '', size: '', category: 'Other', location: 'Kitchen cabinet', qty: 1, expiry: '', openDays: '', lowAt: 0, barcode: '', pic: '' };
+  return { id: null, name: '', brand: '', size: '', category: 'Other', location: defaultPlace(), qty: 1, expiry: '', openDays: '', lowAt: 0, barcode: '', pic: '' };
 }
 // The form's picture: `pic` is what it shows (a thumbnail); `_pics` is { photo, thumb } for a new picture, null when
 // removed, and absent when unchanged.
@@ -534,7 +564,7 @@ function viewForm(id) {
       <div class="pa-two">${field('brand', 'Brand', 'autocomplete="off" placeholder="Kikkoman"')}${field('size', 'Size', 'autocomplete="off" placeholder="500 ml"')}</div>
       <div class="pa-two">
         <label class="ha-field"><span class="ha-field-label">Category</span><select class="ha-select" name="category">${opt(CATEGORIES, d.category)}</select></label>
-        <label class="ha-field"><span class="ha-field-label">Kept in</span><select class="ha-select" name="location">${opt(LOCATIONS, d.location)}</select></label>
+        <label class="ha-field"><span class="ha-field-label">Kept in</span><select class="ha-select" name="location">${placeOptions(d.location)}</select></label>
       </div>
     </section>`;
   if (!editing) {
@@ -813,7 +843,8 @@ async function openQuick() {
   const describe = x => [x.brand, plural(x.qty, 'unit'), x.location, x.expiry ? `use by ${fmt(x.expiry)}` : 'no date',
     x.match?.mine ? 'adds to the one at home' : x.match?.cat ? '' : 'new item'].filter(Boolean).join(' · ');
   const show = () => {
-    found = Q.parseQuick(ta.value, { today: today(), items: items(), catalogue: CATALOGUE });
+    const pc = placeChoices();
+    found = Q.parseQuick(ta.value, { today: today(), items: items(), catalogue: CATALOGUE, places: [...pc.listed, ...pc.unlisted] });
     ul.innerHTML = found.map((x, i) => `<li><label class="ha-row"><input type="checkbox" data-q="${i}" checked>
       <span class="ha-row-body"><span class="ha-row-title">${esc(x.name)}</span><span class="ha-row-sub">${esc(describe(x))}</span></span></label></li>`).join('');
     count();
@@ -852,7 +883,7 @@ async function openQuick() {
       const base = mine || {
         id: L.uid(), batches: [], createdAt: new Date().toISOString(), createdBy: who(),
         name: x.name, brand: x.brand || '', size: c?.size || '', category: c?.category || 'Other',
-        location: x.location || c?.location || 'Kitchen cabinet', openDays: c?.openDays ?? null, lowAt: 0, barcode: '',
+        location: x.location || c?.location || defaultPlace(), openDays: c?.openDays ?? null, lowAt: 0, barcode: '',
       };
       const res = L.addStock(base, { qty: x.qty, expiry: x.expiry || null, by: who() });
       undo.push({ before: mine || null, id: base.id, ev: save('events', res.event).id });
@@ -915,6 +946,165 @@ function addToList(it) {
   haToast(`${it.name} is on the shopping list`, { action: 'Undo', onAction: () => { remove('shop', m.id); redraw(); } });
 }
 
+// ---- Places (Settings → Places, #/places) -------------------------------------------------------------------------
+
+function viewPlaces() {
+  const { listed, unlisted } = placeChoices();
+  const counts = P.placeCounts(items());
+  const row = p => { const n = counts.get(p) || 0; return `<li><button type="button" class="ha-row pa-place" data-act="place-open" data-v="${esc(p)}">
+      <span class="ha-row-body"><span class="ha-row-title">${esc(p)}</span></span>
+      <span class="ha-row-value">${n}<span class="ha-sr"> ${n === 1 ? 'item' : 'items'}</span></span>${chevron()}</button></li>`; };
+  let h = `<h1 class="ha-large-title">Places</h1><p class="ha-large-sub">Where things are kept${S.mode === 'cloud' ? ', shared with the family' : ''}</p>`;
+  h += section('Your places', `<ul class="ha-list" id="pa-places">${listed.map(row).join('')}</ul>`,
+    { id: 'places-list', count: listed.length, footer: 'Tap a place to rename it, move it up or down, or remove it. Add and Items show them in this order.' });
+  if (unlisted.length) {
+    h += section('Not in your list', `<ul class="ha-list" id="pa-places-other">${unlisted.map(row).join('')}</ul>`,
+      { id: 'places-other', footer: 'Items are still kept here. Tap one to add it to your list or move its items.' });
+  }
+  h += section('Add a place', `<form class="pa-addline pa-place-add" id="pa-place-add" novalidate><label class="ha-sr" for="pa-place-name">Name of the new place</label>
+      <input class="ha-input" id="pa-place-name" maxlength="${P.MAX_NAME}" placeholder="Level 2 fridge" autocomplete="off" aria-describedby="pa-place-err">
+      <button class="ha-btn ha-btn--compact" type="submit">Add</button></form>
+    <p class="ha-field-error pa-place-err" id="pa-place-err" aria-live="polite" hidden></p>`,
+  { id: 'places-add', footer: `Up to ${P.MAX_NAME} letters, like Level 2 fridge or Mum’s room.` });
+  return h;
+}
+function addPlaceFromForm() {
+  const inp = $('#pa-place-name'), err = $('#pa-place-err'), list = placeNames();
+  const problem = P.placeProblem(list, inp.value);
+  if (problem) {
+    err.innerHTML = `${icon('alert')}${esc(problem)}`; err.hidden = false;
+    inp.setAttribute('aria-invalid', 'true'); inp.focus();
+    return;
+  }
+  const name = P.cleanPlace(inp.value);
+  savePlaces(P.addPlace(list, name));
+  inp.value = ''; inp.removeAttribute('aria-invalid'); err.hidden = true;
+  redraw();
+  $('#pa-place-name')?.focus();
+  haToast(`Added ${name}`);
+}
+// A place's sheet: rename it, move it up or down, add it to the list, or remove it.
+function openPlace(name) {
+  const listed = () => placeNames().includes(name);
+  const n = P.placeCounts(items()).get(name) || 0;
+  const pos = () => { const l = placeNames(); return `${l.indexOf(name) + 1} of ${l.length} in your list`; };
+  const only = listed() && placeNames().length === 1;
+  const s = haSheet({
+    title: name, closeLabel: 'Done', grey: true,
+    body: `<form id="pa-pl-form" novalidate>
+        <label class="ha-field"><span class="ha-field-label">Name</span><input class="ha-input" name="name" id="pa-pl-name" value="${esc(name)}" maxlength="${P.MAX_NAME}" autocomplete="off" aria-describedby="pa-pl-err"></label>
+        <p class="ha-field-error" id="pa-pl-err" aria-live="polite" hidden></p>
+        <button type="submit" class="ha-btn ha-btn--secondary ha-btn--block">Rename</button>
+      </form>
+      <p class="ha-text pa-pl-count">${n ? `${esc(plural(n, 'item'))} kept here. Renaming moves ${n === 1 ? 'it' : 'them'} too.` : 'No items kept here.'}</p>
+      ${listed()
+        ? `<section class="ha-section" aria-labelledby="pa-pl-order"><h3 class="ha-section-header" id="pa-pl-order">Order</h3>
+          <div class="ha-btn-row pa-pl-move"><button type="button" class="ha-btn ha-btn--secondary" data-pl="up" aria-label="Move up, ${esc(name)}">${icon('chevron-left', { cls: 'pa-up' })}Move up</button><button type="button" class="ha-btn ha-btn--secondary" data-pl="down" aria-label="Move down, ${esc(name)}">${icon('chevron-left', { cls: 'pa-down' })}Move down</button></div>
+          <p class="ha-section-footer" id="pa-pl-pos" role="status">${esc(pos())}</p></section>`
+        : `<div class="ha-btn-stack pa-pl-add"><button type="button" class="ha-btn ha-btn--secondary ha-btn--block" data-pl="list">${icon('plus')}Add to your list</button></div>`}
+      <ul class="ha-list pa-pl-del"><li><button type="button" class="ha-row ha-row--danger ha-row--center" data-pl="remove"${only ? ' aria-disabled="true" aria-describedby="pa-pl-only"' : ''}><span class="ha-row-body"><span class="ha-row-title">${listed() ? 'Remove place' : 'Move its items'}</span></span></button></li></ul>
+      ${only ? '<p class="ha-section-footer" id="pa-pl-only">Keep at least one place.</p>' : ''}`,
+    onClose: afterSheet,
+  });
+  const el = s.el;
+  const moveBtns = () => {
+    const l = placeNames(), i = l.indexOf(name);
+    const up = $('[data-pl="up"]', el), down = $('[data-pl="down"]', el);
+    if (!up) return;
+    const was = document.activeElement;
+    up.disabled = i <= 0; down.disabled = i < 0 || i >= l.length - 1;
+    if (was?.disabled) (was === up ? down : up).focus();
+    $('#pa-pl-pos', el).textContent = pos();
+  };
+  moveBtns();
+  // someone in the family changed it meanwhile: say so instead of acting on an old name
+  const stillThere = () => {
+    if (listed() || P.placeCounts(items()).get(name)) return true;
+    haToast(`${name} was changed on another phone`); haCloseSheet(el); return false;
+  };
+  $('#pa-pl-form', el).addEventListener('submit', async e => {
+    e.preventDefault();
+    if (!stillThere()) return;
+    const inp = $('#pa-pl-name', el), err = $('#pa-pl-err', el);
+    const to = P.cleanPlace(inp.value);
+    if (to === name) return haCloseSheet(el);
+    const problem = P.placeProblem(placeNames(), inp.value, name);
+    if (problem) { err.innerHTML = `${icon('alert')}${esc(problem)}`; err.hidden = false; inp.setAttribute('aria-invalid', 'true'); inp.focus(); return; }
+    await haCloseSheet(el);
+    renamePlace(name, to);
+  });
+  el.addEventListener('click', async e => {
+    const b = e.target.closest('[data-pl]');
+    if (!b || b.disabled || b.getAttribute('aria-disabled') === 'true' || !stillThere()) return;
+    const a = b.dataset.pl;
+    if (a === 'up' || a === 'down') {
+      savePlaces(P.movePlace(placeNames(), name, a === 'up' ? -1 : 1));
+      S.pendingRender = true;
+      moveBtns();
+      haAnnounce(`${name} moved ${a}, ${pos()}`);
+    } else if (a === 'list') {
+      const problem = P.placeProblem(placeNames(), name);
+      if (problem) return haToast(problem);
+      savePlaces(P.addPlace(placeNames(), name));
+      await haCloseSheet(el);
+      redraw();
+      haToast(`${name} is in your list`);
+    } else if (a === 'remove') {
+      const count = P.placeCounts(items()).get(name) || 0;
+      await haCloseSheet(el);
+      if (count) return openMovePlace(name);
+      const before = placeNames();
+      savePlaces(P.removeFromList(before, name));
+      redraw();
+      haToast(`Removed ${name}`, { action: 'Undo', onAction: () => { savePlaces(before); redraw(); haAnnounce('Undone'); } });
+    }
+  });
+  return s;
+}
+// Renames a place in the list and on every item kept there (one batch), with Undo.
+function renamePlace(from, to) {
+  const before = placeNames(), moved = items().filter(it => it.location === from);
+  if (before.includes(from)) savePlaces(P.renameInList(before, from, to));
+  saveMany('items', P.moveItems(moved, from, to));
+  if (S.place === from) S.place = to;
+  redraw();
+  haToast(`Renamed to ${to}`, { action: 'Undo', onAction: () => {
+    savePlaces(before);
+    saveMany('items', moved.filter(it => S.items.get(it.id)?.location === to).map(it => ({ ...S.items.get(it.id), location: from })));
+    if (S.place === to) S.place = from;
+    redraw(); haAnnounce('Undone');
+  } });
+}
+// Removing a place that items use: first ask where they go (never leaves items pointing at a removed place).
+function openMovePlace(name) {
+  const listed = placeNames().includes(name);
+  const n = P.placeCounts(items()).get(name) || 0;
+  const { listed: l, unlisted } = placeChoices();
+  const others = [...l, ...unlisted].filter(p => p !== name);
+  const s = haSheet({
+    title: listed ? `Remove ${name}` : `Move items from ${name}`, closeLabel: 'Cancel', grey: true,
+    body: `<p class="ha-text pa-mv-text">${esc(plural(n, 'item'))} ${n === 1 ? 'is' : 'are'} kept in ${esc(name)}. Choose where ${n === 1 ? 'it goes' : 'they go'}${listed ? ' before the place is removed' : ''}.</p>
+      <label class="ha-field"><span class="ha-field-label">Move ${n === 1 ? 'it' : 'them'} to</span><select class="ha-select" id="pa-mv-to">${others.map(p => `<option>${esc(p)}</option>`).join('')}</select></label>`,
+    footer: `<button type="button" class="ha-btn ha-btn--primary ha-btn--block" id="pa-mv-go">${listed ? 'Move and remove' : `Move ${esc(plural(n, 'item'))}`}</button>`,
+    onClose: afterSheet,
+  });
+  $('#pa-mv-go', s.el).addEventListener('click', async () => {
+    const to = $('#pa-mv-to', s.el).value;
+    const before = placeNames(), moved = items().filter(it => it.location === name);
+    await haCloseSheet(s.el);
+    saveMany('items', P.moveItems(moved, name, to));
+    if (before.includes(name)) savePlaces(P.removeFromList(before, name));
+    if (S.place === name) S.place = '';
+    redraw();
+    haToast(listed ? `Removed ${name}; ${plural(moved.length, 'item')} moved to ${to}` : `${plural(moved.length, 'item')} moved to ${to}`, { action: 'Undo', onAction: () => {
+      if (before.includes(name)) savePlaces(before);
+      saveMany('items', moved.filter(it => S.items.get(it.id)?.location === to).map(it => ({ ...S.items.get(it.id), location: name })));
+      redraw(); haAnnounce('Undone');
+    } });
+  });
+  return s;
+}
+
 // ---- Settings ---------------------------------------------------------------------------------------------------
 
 function viewSettings() {
@@ -949,6 +1139,8 @@ function viewSettings() {
   }
   return `<h1 class="ha-large-title">Settings</h1>
     ${section('Family sharing', fam, { id: 'family', footer: famFoot })}
+    ${section('Where things are kept', `<ul class="ha-list"><li><a class="ha-row" href="#/places"><span class="ha-row-icon">${icon('home')}</span><span class="ha-row-body"><span class="ha-row-title">Places</span><span class="ha-row-sub">${esc(plural(placeNames().length, 'place'))}: ${esc(placeNames().slice(0, 3).join(', '))}${placeNames().length > 3 ? '…' : ''}</span></span>${chevron()}</a></li></ul>`,
+      { id: 'places', footer: `Rename, reorder or add your own places.${S.mode === 'cloud' ? ' Shared with the family.' : ''}` })}
     ${section('Reminders', `<div class="ha-chips ha-chips--wrap" role="group" aria-label="Use soon means within">${Object.entries(SOON).map(([v, l]) =>
       `<button type="button" class="ha-chip" aria-pressed="${soonDays() === Number(v)}" data-act="soon" data-v="${v}">${l}</button>`).join('')}</div>`,
       { id: 'remind', footer: 'How far ahead “Use soon” looks, on Home. Kept on this phone.' })}
@@ -991,7 +1183,7 @@ function draw(r, { keep = false } = {}) {
       return;
     }
   }
-  if (!['home', 'items', 'item', 'add', 'edit', 'shop', 'settings', 'guide'].includes(name)) name = 'home';
+  if (!['home', 'items', 'item', 'add', 'edit', 'shop', 'settings', 'guide', 'places'].includes(name)) name = 'home';
   if (TOP[name]) { S.originTab = name === 'home' ? '#/' : '#/' + name; S.backLabel = TOP[name]; }
 
   document.body.classList.toggle('ha-has-tabbar', !task);
@@ -1013,6 +1205,7 @@ function draw(r, { keep = false } = {}) {
     $('#pa-save').textContent = name === 'add' ? 'Add to pantry' : 'Save';
     wireForm();
   } else if (name === 'shop') { flag('shopped'); main.innerHTML = viewShop(); setBar({ title, trail: iconBtn('share', 'Share the list', 'share') }); }
+  else if (name === 'places') { title = 'Places'; main.innerHTML = viewPlaces(); setBar({ title, lead: backBtn(S.backLabel) }); }
   else if (name === 'guide') { title = GUIDE; main.innerHTML = viewGuide(); setBar({ title: 'How to use it', lead: backBtn(S.backLabel) }); }
   else if (name === 'settings') {
     main.innerHTML = viewSettings(); setBar({ title });
@@ -1093,6 +1286,7 @@ async function onClick(e) {
       for (const c of document.querySelectorAll('[data-act="place"]')) c.setAttribute('aria-pressed', String(c === b));
       return drawItemsList();
     }
+    case 'place-open': return openPlace(b.dataset.v);
     case 'q-clear': { S.q = ''; const q = $('#pa-q'); q.value = ''; drawItemsList(); return q.focus(); }
     case 'find-clear': { const f = $('#pa-find'); f.value = ''; showSugg(); return f.focus(); }
     case 'sample': {
@@ -1151,7 +1345,7 @@ async function onClick(e) {
     case 'backup': {
       let photos;
       try { photos = await S.backend.list(PHOTOS); } catch (err) { return haToast(S.cloud ? S.cloud.explain(err, 'The backup') : 'The backup didn’t work. Try again.'); }
-      return download(`pantry-backup-${today()}.json`, JSON.stringify(L.backup({ items: [...S.items.values()], events: [...S.events.values()], shop: [...S.shop.values()], photos })), 'application/json');
+      return download(`pantry-backup-${today()}.json`, JSON.stringify(L.backup({ items: [...S.items.values()], events: [...S.events.values()], shop: [...S.shop.values()], settings: [...S.settings.values()], photos })), 'application/json');
     }
     case 'wipe': {
       if (!(await haConfirm({ title: 'Delete everything?', text: 'Every item, its history and the shopping list on this phone are deleted. This can’t be undone. A backup first keeps a copy.', ok: 'Delete everything', danger: true }))) return;
@@ -1192,6 +1386,7 @@ async function onClick(e) {
     case 'copy-up': {
       try {
         const data = await splitAll({ ...(await S.local.load()), photos: await S.local.list(PHOTOS) });
+        data.settings = mergedPlaces(data.settings);   // the family's places first, then any only this phone had
         await S.backend.putMany(PHOTOS, data.photos);   // photos first, so no item points at a missing photo
         for (const k of KINDS) await S.backend.putMany(k, data[k]);
         for (const k of KINDS) for (const o of data[k]) S[k].set(o.id, o);
@@ -1202,6 +1397,14 @@ async function onClick(e) {
       return;
     }
   }
+}
+
+// Places from a backup or this phone, added after the pantry's own: [] when there is nothing new to save.
+function mergedPlaces(settings = []) {
+  const doc = settings.find(P.isPlacesDoc);
+  if (!doc) return [];
+  const mine = placeNames(), merged = P.mergePlaces(S.settings.has(P.PLACES_ID) ? mine : [], doc.list);
+  return merged.join('\n') === mine.join('\n') && S.settings.has(P.PLACES_ID) ? [] : [P.placesDoc(merged)];
 }
 
 function download(name, text, type) {
@@ -1232,6 +1435,7 @@ async function onChange(e) {
   if (t.id === 'pa-restore' && t.files[0]) {
     try {
       const data = L.parseBackup(await t.files[0].text());
+      data.settings = mergedPlaces(data.settings);
       S.pics.clear();
       if (S.backend.putMany) {
         await splitAll(data);   // the family pantry takes only thumbnails on items
@@ -1250,6 +1454,7 @@ function onInput(e) {
   if (e.target.id === 'pa-find') showSugg();
 }
 async function onSubmit(e) {
+  if (e.target.id === 'pa-place-add') { e.preventDefault(); return addPlaceFromForm(); }
   if (e.target.id === 'pa-shop-add') {
     e.preventDefault();
     const inp = $('#pa-shop-text'), v = inp.value.trim();
@@ -1363,7 +1568,7 @@ async function start() {
   addEventListener('offline', redraw);
   R = haRouter({
     render: r => draw(r),
-    tabOf: r => ['item', 'edit', 'add', 'guide'].includes(r.parts[0]) ? S.originTab : r.hash,
+    tabOf: r => ['item', 'edit', 'add', 'guide', 'places'].includes(r.parts[0]) ? S.originTab : r.hash,
   });
   // family sharing, only when a Firebase project is set up (config.js) or in the emulator tests
   if (!DEMO && (firebaseConfig || EMULATOR)) {

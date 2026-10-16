@@ -1,6 +1,8 @@
 // Pure logic for the pantry: dates, expiry, stock, consumption patterns and the shopping list.
 // No DOM and no storage here, so the unit tests (test/logic.test.mjs) can run it in Node.
 
+import { isPlacesDoc } from './places.js';
+
 export const DAY = 86400000;
 
 // Local calendar dates as 'YYYY-MM-DD' (expiry dates are calendar days, not instants).
@@ -314,9 +316,9 @@ export function shareText(lines) {
 // ---- backups ---------------------------------------------------------------------------------------------------
 
 export function backup(data, at = new Date().toISOString()) {
-  return { app: 'pantry', v: 1, at, items: data.items || [], events: data.events || [], shop: data.shop || [], photos: data.photos || [] };
+  return { app: 'pantry', v: 1, at, items: data.items || [], events: data.events || [], shop: data.shop || [], settings: data.settings || [], photos: data.photos || [] };
 }
-// Reads a backup file's text. Returns { items, events, shop, photos } with only well-formed documents, or throws a plain
+// Reads a backup file's text. Returns { items, events, shop, settings, photos } with only well-formed documents, or throws a plain
 // message when the file is not a pantry backup.
 export function parseBackup(text) {
   let j;
@@ -324,7 +326,8 @@ export function parseBackup(text) {
   if (!j || j.app !== 'pantry' || typeof j !== 'object') throw new Error('That file is not a pantry backup.');
   const ok = o => o && typeof o === 'object' && typeof o.id === 'string' && o.id && !o.id.includes('/');
   const out = {};
-  for (const k of ['items', 'events', 'shop', 'photos']) out[k] = Array.isArray(j[k]) ? j[k].filter(ok) : [];
+  for (const k of ['items', 'events', 'shop', 'settings', 'photos']) out[k] = Array.isArray(j[k]) ? j[k].filter(ok) : [];
+  out.settings = out.settings.filter(isPlacesDoc);   // only the list of places (older backups have none)
   out.photos = out.photos.filter(p => typeof p.data === 'string' && p.data.startsWith('data:image/'));
   return out;
 }
