@@ -1,4 +1,4 @@
-import { applyOps, toStored } from './logic.js';
+import { applyOps, applyFieldOps, toStored } from './logic.js';
 
 // Storage backends. All three give the same small interface, so the app doesn't care where data lives:
 //   load()                 -> { items: [], events: [], shop: [], settings: [] }   (never the photos: see photo.js)
@@ -9,6 +9,9 @@ import { applyOps, toStored } from './logic.js';
 //   patch(kind, id, ops)   change one item by instructions (logic.js applyOps: set a field, add to a number, remove a
 //                          field or batch), never by rewriting it from a copy; the same result on all three backends
 //   patchMany(kind, list)  [{ id, ops }] at once
+//   purge(kind, id, cutoff) delete an item or shopping line for good, only if it is still removed (removedAt before the
+//                          ISO time `cutoff`); true when deleted (the sweep: logic.js sweepDue)
+//   delMany(kind, ids)     delete several documents (the history of a purged item)
 //   listen(cb)             cb(kind, docs, removedIds) when another device changes something (cloud only)
 // Items go in as the map shape of batches (logic.js toStored) and come out as they were stored (either shape): the app
 // runs every item through normalizeItem when it loads or hears of one.
@@ -23,6 +26,9 @@ export const KINDS = ['items', 'events', 'shop', 'settings'];
 export const PHOTOS = 'photos';
 export const ALL_KINDS = [...KINDS, PHOTOS];
 const DB = 'pantry', STORE = 'docs', VER = 1;
+
+// A document after instructions: an item with batches (stored as the map), anything else (a shopping line) field by field.
+const changed = (kind, doc, ops) => (kind === 'items' ? toStored(applyOps(doc, ops)) : applyFieldOps(doc, ops));
 
 function idb() {
   return new Promise((res, rej) => {
@@ -74,12 +80,20 @@ export async function openLocal() {
     // read, change, write in one transaction (nothing else can slip in between)
     patch: (kind, id, ops) => new Promise((res, rej) => {
       const t = db.transaction(STORE, 'readwrite'), st = t.objectStore(STORE), r = st.get(`${kind}/${id}`);
-      r.onsuccess = () => { st.put(toStored(applyOps(r.result || { id }, ops)), `${kind}/${id}`); };
+      r.onsuccess = () => { st.put(changed(kind, r.result || { id }, ops), `${kind}/${id}`); };
       t.oncomplete = () => res(true);
       t.onerror = () => rej(t.error);
     }),
     async patchMany(kind, list) { for (const x of list) await this.patch(kind, x.id, x.ops); },
     del: (kind, id) => tx(db, 'readwrite', s => s.delete(`${kind}/${id}`)),
+    delMany(kind, ids) { return Promise.all(ids.map(id => this.del(kind, id))); },
+    purge: (kind, id, cutoff) => new Promise((res, rej) => {
+      const t = db.transaction(STORE, 'readwrite'), st = t.objectStore(STORE), r = st.get(`${kind}/${id}`);
+      let gone = false;
+      r.onsuccess = () => { const d = r.result; if (d && typeof d.removedAt === 'string' && d.removedAt < cutoff) { st.delete(`${kind}/${id}`); gone = true; } };
+      t.oncomplete = () => res(gone);
+      t.onerror = () => rej(t.error);
+    }),
     clear: () => tx(db, 'readwrite', s => s.clear()),
     listen() {},
   };
@@ -94,9 +108,11 @@ export function openMemory(seed = {}) {
     async get(kind, id) { return data[kind].get(id) ?? null; },
     async list(kind) { return [...data[kind].values()]; },
     put(kind, obj) { data[kind].set(obj.id, kind === 'items' ? toStored(obj) : obj); },
-    patch(kind, id, ops) { data[kind].set(id, toStored(applyOps(data[kind].get(id) || { id }, ops))); return true; },
+    patch(kind, id, ops) { data[kind].set(id, changed(kind, data[kind].get(id) || { id }, ops)); return true; },
     patchMany(kind, list) { for (const x of list) this.patch(kind, x.id, x.ops); },
     del(kind, id) { data[kind].delete(id); },
+    delMany(kind, ids) { for (const id of ids) data[kind].delete(id); },
+    async purge(kind, id, cutoff) { const d = data[kind].get(id); if (d && typeof d.removedAt === 'string' && d.removedAt < cutoff) { data[kind].delete(id); return true; } return false; },
     async clear() { for (const k of ALL_KINDS) data[k].clear(); },
     listen() {},
   };

@@ -41,6 +41,12 @@
   Needs attention chip with Retry and Discard in Settings, history write-once in the rules (rules change, deploys on merge).
   Next: PR-B (deletes as markers, Recently removed 30 days, shopping list as field updates), PR-C (names by field, one record per place).
 
+- 16 Oct 2026: sync safety, PR-B of three (branch, PR to follow): deleting an item or shopping line is a marker (`removedAt`,
+  `removedBy`) that every list skips; Settings → Recently removed (30 days, Restore); a change that lands on a removed item
+  never brings it back, and Home says so when it was yours; a daily sweep deletes what is over 30 days old; shopping ticks,
+  renames and removals are field changes; shopping lines now have rules (fields and lengths; rules change, deploys on merge).
+  Next: PR-C (names by field, one record per place).
+
 ## Waiting on the owner
 
 - Billing: waiting on the owner (Blaze), then the US$5 budget and daily backups.
@@ -61,6 +67,10 @@
   reminders (push, needs a Worker cron), money saved or wasted, recipe-idea links, pasting an online order.
 
 ## Decisions
+
+- 16 Oct 2026: a delete is a marker, never a document delete (except the daily sweep of things removed over 30 days ago, and
+  merging pantries); Undo is Restore; Recently removed keeps 30 days (owner's yes); shopping lines are fields with caps in the
+  rules (NOTES.md).
 
 - 16 Oct 2026: never save a whole item from a stale copy: changes travel as instructions (no transactions); batches are a map;
   spent batches linger at 0 until 40; history is write-once; refused writes are kept and shown, not dropped (NOTES.md).

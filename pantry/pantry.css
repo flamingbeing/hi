@@ -7,6 +7,11 @@
 .pa-alert{display:flex;gap:var(--home-s2);align-items:flex-start;margin:0 0 var(--home-s4);background:var(--home-bad-bg);color:var(--home-bad)}
 .pa-alert .ha-icon{flex:none;width:20px;height:20px}
 
+/* a plain heads-up (a change of yours landed on an item another phone removed) */
+.pa-note{display:flex;gap:var(--home-s2);align-items:flex-start;margin:0 0 var(--home-s4);background:var(--home-fill);color:var(--home-ink-2);text-decoration:none}
+.pa-note .ha-icon{flex:none;width:20px;height:20px}
+.pa-removed{flex-wrap:wrap;row-gap:var(--home-s2)}
+
 /* item screen */
 .pa-hero{display:block;width:100%;max-height:240px;margin:0 0 var(--home-s5);border-radius:var(--home-r-lg);object-fit:cover;background:var(--home-fill)}
 .pa-batch{row-gap:var(--home-s2)}

@@ -33,6 +33,7 @@ const S = {
   refused: prefs.get('refused', []) || [],   // changes the family pantry refused, kept here until retried or discarded (sync.js)
   sync: { pending: 0, cache: false, since: 0 },   // changes this phone made that the server hasn't confirmed yet
   lastUndo: null,
+  removedNotes: prefs.get('removedNotes', {}) || {},   // items another phone removed that this phone had changes on: id -> removedAt (until Recently removed is opened)
   since: null,   // when this phone last looked (Since you last looked), an ISO time
   originTab: '#/', backLabel: 'Pantry',
 };
@@ -55,7 +56,12 @@ const me = () => S.user?.email || (DEMO ? DEMO_ME : '');
 const nameOf = by => PP.label(names(), by);
 // The name this phone signs changes with: the family's name for me, this phone's own, or my Google first name.
 const who = () => (me() && names()[me()]) || prefs.get('name') || S.user?.name?.split(' ')[0] || '';
-const items = () => [...S.items.values()].filter(i => !i.archived);
+// What every list shows: items and shopping lines that are not removed (logic.js isRemoved). Removed ones stay in S.items /
+// S.shop (so a change that lands on one is applied to it, and Recently removed can list it) but nowhere else.
+const items = () => L.live(S.items.values()).filter(i => !i.archived);
+const itemById = id => { const it = id && S.items.get(id); return it && !L.isRemoved(it) ? it : null; };
+const shopLines = () => L.live(S.shop.values());
+const liveEvents = () => L.liveEvents([...S.events.values()], [...S.items.values()]);
 const eventsFor = id => [...S.events.values()].filter(e => e.itemId === id);
 function eventsByItem() {
   const m = new Map();
@@ -95,6 +101,7 @@ function patchItem(id, ops, { stamp = true } = {}) {
   const before = S.items.get(id);
   if (!before) return null;
   const sent = stamp ? L.mergeOps(ops, { set: { updatedAt: new Date().toISOString(), updatedBy: who() } }) : ops;
+  if (stamp) touch(id);
   S.items.set(id, L.applyOps(before, sent));
   S.backend.patch('items', id, sent, { before });
   return sent;
@@ -111,6 +118,64 @@ function patchMany(list) {
   if (S.backend.patchMany) Promise.resolve(S.backend.patchMany('items', sent)).catch(err => { S.syncError = S.cloud ? S.cloud.explain(err, 'Saving') : 'Saving didn’t work.'; redraw(); });
   return sent;
 }
+// ---- removing without losing (logic.js): a marker, never a delete; Recently removed puts it back ------------------------
+
+// Remove an item (or shopping line): `removedAt` and `removedBy`, as instructions, so a use or an edit another phone sends
+// meanwhile still lands on it, hidden, and never brings it back. Put it back = clear both. Neither stamps the item
+// (`removedBy` already says who).
+const removeItem = id => patchItem(id, L.removeOps(who()), { stamp: false });
+const restoreItem = id => patchItem(id, L.restoreOps(), { stamp: false });
+// A shopping line is changed the same way, by field (never rewritten whole from a copy that may be a moment out of date).
+function patchLine(id, ops) {
+  const before = S.shop.get(id);
+  if (!before) return null;
+  S.shop.set(id, L.applyFieldOps(before, ops));
+  S.backend.patch('shop', id, ops, { before });
+  return ops;
+}
+function patchLines(list) {
+  const sent = [];
+  for (const { id, ops } of list) {
+    const before = S.shop.get(id); if (!before) continue;
+    S.shop.set(id, L.applyFieldOps(before, ops));
+    sent.push({ id, ops, before });
+  }
+  if (S.backend.patchMany) Promise.resolve(S.backend.patchMany('shop', sent)).catch(err => { S.syncError = S.cloud ? S.cloud.explain(err, 'Saving') : 'Saving didn’t work.'; redraw(); });
+  return sent;
+}
+const removeLine = id => patchLine(id, L.removeOps(who()));
+const restoreLine = id => patchLine(id, L.restoreOps());
+// A new line: whole, under a new random id (so two phones adding the same words make two lines; duplicates are tolerated).
+const LINE_MAX = 80;   // the rules' limit on a line's text
+const newLine = (name, itemId) => save('shop', { id: L.uid(), name: String(name).slice(0, LINE_MAX), itemId: itemId || null, done: false, at: new Date().toISOString(), by: who().slice(0, 100) });
+
+// This phone's own changes to an item, kept on the phone (item id -> when), to tell "my change landed on something another
+// phone had already removed" from "someone removed it after I used it".
+const touched = () => prefs.get('touched', {}) || {};
+function touch(id) {
+  if (S.mode !== 'cloud') return;
+  const t = { ...touched(), [id]: new Date().toISOString() }, keys = Object.keys(t);
+  if (keys.length > 200) for (const k of keys.sort((a, b) => (t[a] < t[b] ? -1 : 1)).slice(0, keys.length - 200)) delete t[k];
+  prefs.set('touched', t);
+}
+// An item turned up removed (another phone removed it) and this phone has changes on it that came at or after the removal,
+// or still waiting to be sent: say so on Home until Recently removed is opened.
+function noteLanded(it, pending = false) {
+  if (S.mode !== 'cloud' || !L.isRemoved(it)) return;
+  if (S.removedNotes[it.id] === it.removedAt || (prefs.get('removedSeen', {}) || {})[it.id] === it.removedAt) return;
+  const t = touched()[it.id];
+  if (!pending && !(t && t >= it.removedAt)) return;
+  S.removedNotes = { ...S.removedNotes, [it.id]: it.removedAt };
+  prefs.set('removedNotes', S.removedNotes);
+}
+// The notes still true: the item is still removed, and since the same removal.
+const landedItems = () => Object.entries(S.removedNotes).map(([id, at]) => S.items.get(id)).filter(it => it && L.isRemoved(it) && S.removedNotes[it.id] === it.removedAt);
+function noteSeen() {
+  if (!Object.keys(S.removedNotes).length) return;
+  prefs.set('removedSeen', { ...(prefs.get('removedSeen', {}) || {}), ...S.removedNotes });
+  S.removedNotes = {}; prefs.del('removedNotes');
+}
+
 // Many whole documents at once (restore, copying): one batch to the family pantry.
 function saveMany(kind, list) {
   const at = new Date().toISOString(), by = who();
@@ -312,7 +377,7 @@ const dateChips = (name, value, guess = null) => `<div class="pa-datebox"><div c
   `<button type="button" class="ha-chip" aria-pressed="${v === value}" data-act="date" data-v="${v}">${l}</button>`).join('')}<button type="button" class="ha-chip" aria-pressed="false" data-act="date" data-v="">No date</button></div>${
   guess ? `<p class="ha-field-hint pa-guess-hint">${esc(guess.label)} is a guess from how long it usually keeps. Change it to the date on the pack.</p>` : ''}</div>`;
 const shopQuery = it => [it.brand, it.name].filter(Boolean).join(' ').replace(/\(.*?\)/g, '').trim();
-const onList = id => [...S.shop.values()].some(m => m.itemId === id && !m.done);
+const onList = id => shopLines().some(m => m.itemId === id && !m.done);
 
 // ---- the bar ----------------------------------------------------------------------------------------------------
 
@@ -342,6 +407,7 @@ function viewHome() {
   let h = `<h1 class="ha-large-title">Pantry</h1><p class="ha-large-sub">${esc(statusLine())}</p>${syncChip()}`;
   if (S.syncError) h += `<div class="ha-panel pa-alert" role="status">${icon('alert')}<span>Some changes didn’t reach the family pantry. ${esc(S.syncError)}</span></div>`;
   if (S.mode === 'cloud' && S.pantries.length > 1) h += `<a class="ha-panel pa-alert" href="#/settings">${icon('alert')}<span>You’re in more than one family pantry. Merge them in Settings.</span></a>`;
+  h += viewLanded();
   h += viewTour();
   h += viewSince();
   if (!all.length) {
@@ -361,7 +427,7 @@ function viewHome() {
   const buy = L.toBuy(all, eventsByItem());
   const listed = new Set(exp.map(x => x.item.id));
   const opened = all.filter(it => !listed.has(it.id) && (it.batches || []).some(b => b.openedAt && b.qty > 0));
-  const m = L.monthStats([...S.events.values()], t.slice(0, 7));
+  const m = L.monthStats(liveEvents(), t.slice(0, 7));
   h += `<div class="ha-btn-row pa-quickrow"><button type="button" class="ha-btn ha-btn--secondary ha-btn--compact" data-act="leftovers">${icon('bowl')}Leftovers</button><button type="button" class="ha-btn ha-btn--secondary ha-btn--compact" data-act="scan-many">${icon('barcode')}Scan many</button></div>`;
   h += `<div class="ha-stats pa-stats" aria-label="Summary">
     <div class="ha-stat"><span class="ha-stat-value">${expired.length}</span><span class="ha-stat-label">Expired</span></div>
@@ -388,12 +454,21 @@ function viewHome() {
   return h;
 }
 
+// This phone's change landed on an item another phone had removed: it is kept, hidden, and Recently removed has it.
+function viewLanded() {
+  const list = landedItems();
+  if (!list.length) return '';
+  const text = list.length === 1 ? `${list[0].name}: this was removed on another phone; find it in Recently removed. Your change is kept.`
+    : `${plural(list.length, 'item')} you changed were removed on another phone; find them in Recently removed. Your changes are kept.`;
+  return `<a class="ha-panel pa-note" id="pa-landed" href="#/removed">${icon('info')}<span>${esc(text)}</span></a>`;
+}
+
 // ---- since you last looked: what the rest of the family did since this phone last opened the pantry ----------------
 
 function viewSince() {
   if (S.mode === 'local') return '';   // on this phone only, everything is this phone's
   const mine = who();
-  const list = L.sinceLast({ events: [...S.events.values()], shop: [...S.shop.values()], since: S.since, isMe: by => nameOf(by) === mine });
+  const list = L.sinceLast({ events: liveEvents(), shop: shopLines(), since: S.since, isMe: by => nameOf(by) === mine });
   if (!list.length) return '';
   const row = x => `<li><div class="ha-row"><span class="ha-row-icon ha-row-icon--grey">${icon('user')}</span><span class="ha-row-body"><span class="ha-row-title">${esc(nameOf(x.by))} ${esc(L.sinceText(x))}</span><span class="ha-row-sub">${esc(L.agoText(x.at))}</span></span></div></li>`;
   return section('Since you last looked', `<ul class="ha-list pa-since">${list.slice(0, 5).map(row).join('')}</ul>`,
@@ -501,7 +576,7 @@ function openStarter() {
     }
     await haCloseSheet(s.el);
     if (screen() !== 'home') haGo('#/', { replace: screen() === 'add' }); else redraw();
-    haToast(`Added ${plural(added.length, 'item')}`, { action: 'Undo', onAction: () => { for (const a of added) { remove('items', a.id); remove('events', a.ev); } redraw(); haAnnounce('Undone'); } });
+    haToast(`Added ${plural(added.length, 'item')}`, { action: 'Undo', onAction: () => { for (const a of added) { removeItem(a.id); remove('events', a.ev); } redraw(); haAnnounce('Undone'); } });
   });
   return s;
 }
@@ -634,7 +709,7 @@ function viewForm(id) {
   const editing = !!id;
   const key = id || 'new';
   if (!S.draft || S.draft._for !== key) {
-    const it = id && S.items.get(id);
+    const it = itemById(id);
     S.draft = it ? { ...blank(), ...it, openDays: it.openDays ?? '', pic: thumbSrc(it), _for: key, _base: it } : { ...blank(), _for: key };   // _base: the item as the form opened it (Save sends only what changed from it)
     S.dirty = false;
   }
@@ -768,7 +843,8 @@ function submitForm(e) {
   e.preventDefault();
   const d = S.draft;
   if (!d || !validName()) return;
-  const base = d._for !== 'new' ? S.items.get(d._for) : null;
+  const base = d._for !== 'new' ? itemById(d._for) : null;
+  if (d._for !== 'new' && !base) { S.draft = null; S.dirty = false; haGo(S.originTab, { replace: true }); return haToast('That item was removed on another phone. Find it in Settings, Recently removed.'); }
   const num = v => Math.max(0, parseInt(v, 10) || 0);
   const fields = {
     name: d.name.trim(), brand: String(d.brand || '').trim(), size: String(d.size || '').trim(), category: d.category, location: d.location,
@@ -812,7 +888,7 @@ function submitForm(e) {
     save('items', res.item); ev = save('events', res.event);
   } else save('items', it);
   haGo('#/item/' + it.id, { replace: true });
-  haToast(`${it.name} added`, { action: 'Undo', onAction: () => { remove('items', it.id); if (ev) remove('events', ev.id); if (it.hasPhoto) delPhoto(it.id); redraw(); } });
+  haToast(`${it.name} added`, { action: 'Undo', onAction: () => { removeItem(it.id); if (ev) remove('events', ev.id); redraw(); } });
 }
 
 // ---- barcode scanning -------------------------------------------------------------------------------------------
@@ -909,7 +985,7 @@ function openUnknown(code) {
     const q = input.value.trim();
     await haCloseSheet(s.el);
     if (act === 'unk-mine') {
-      const mine = S.items.get(b.dataset.id); if (!mine) return;
+      const mine = itemById(b.dataset.id); if (!mine) return;
       patchItem(mine.id, { set: { barcode: code }, inc: {}, del: [] });
       const it = S.items.get(mine.id);
       S.draft = null; S.dirty = false;
@@ -952,7 +1028,7 @@ function openScanMany(mode = 'add') {
       run?.cancel(); run = null;
       afterSheet(); redraw();
       if (ops.length) haToast(`Saved ${plural(ops.length, 'scan')}`, { action: 'Undo', onAction: () => {
-        for (const o of ops.reverse()) { if (o.sent) undoItem(o.id, o.sent, o.before); if (o.ev) remove('events', o.ev); if (o.line) remove('shop', o.line); }
+        for (const o of ops.reverse()) { if (o.sent) undoItem(o.id, o.sent, o.before); if (o.ev) remove('events', o.ev); if (o.line) removeLine(o.line); }
         redraw(); haAnnounce('Undone');
       } });
     },
@@ -1037,11 +1113,11 @@ function openBought(it, { shopId = null } = {}) {
   f.addEventListener('input', e => { if (e.target.name === 'expiry') for (const c of s.el.querySelectorAll('.pa-dates .ha-chip')) c.setAttribute('aria-pressed', 'false'); });
   f.addEventListener('submit', async e => {
     e.preventDefault();
-    const n = qty.get(), cur = S.items.get(it.id);
+    const n = qty.get(), cur = itemById(it.id);
     if (!cur) { haCloseSheet(s.el); return; }
     const res = restock(cur, { qty: n, expiry: f.expiry.value || null });
-    const ticked = [...S.shop.values()].filter(m => m.itemId === it.id && !m.done && m.id !== shopId);
-    for (const m of ticked) save('shop', { ...m, done: true });
+    const ticked = shopLines().filter(m => m.itemId === it.id && !m.done && m.id !== shopId);
+    for (const m of ticked) patchLine(m.id, { set: { done: true }, inc: {}, del: [] });
     await haCloseSheet(s.el);
     apply(res, `Added ${n} ${it.name}`);
   });
@@ -1074,7 +1150,7 @@ function openLeftovers() {
     save('items', res.item); const ev = save('events', res.event);
     await haCloseSheet(s.el);
     redraw();
-    haToast(`${n}: use by ${fmt(by)}`, { action: 'Undo', onAction: () => { remove('items', base.id); remove('events', ev.id); redraw(); haAnnounce('Undone'); } });
+    haToast(`${n}: use by ${fmt(by)}`, { action: 'Undo', onAction: () => { removeItem(base.id); remove('events', ev.id); redraw(); haAnnounce('Undone'); } });
   });
   setTimeout(() => name.focus(), 50);
   return s;
@@ -1140,7 +1216,7 @@ async function openQuick() {
     if (!picked.length) return;
     const undo = [];
     for (const x of picked) {
-      const mine = x.match?.mine && S.items.get(x.match.mine.id);
+      const mine = x.match?.mine && itemById(x.match.mine.id);
       const c = x.match?.cat;
       const base = mine || {
         id: L.uid(), batches: [], createdAt: new Date().toISOString(), createdBy: who(),
@@ -1156,7 +1232,7 @@ async function openQuick() {
     await haCloseSheet(s.el);
     if (screen() === 'add') { S.draft = null; S.dirty = false; haGo('#/', { replace: true }); } else redraw();
     haToast(`Added ${plural(picked.length, 'item')}`, { action: 'Undo', onAction: () => {
-      for (const u of undo.reverse()) { if (u.created) remove('items', u.id); else if (u.sent) undoItem(u.id, u.sent, u.before); remove('events', u.ev); }
+      for (const u of undo.reverse()) { if (u.created) removeItem(u.id); else if (u.sent) undoItem(u.id, u.sent, u.before); remove('events', u.ev); }
       redraw(); haAnnounce('Undone');
     } });
   });
@@ -1172,14 +1248,14 @@ function afterSheet() {
 
 function shopLists() {
   const buy = L.toBuy(items(), eventsByItem());
-  const manual = [...S.shop.values()].sort((a, b) => (a.done - b.done) || (a.at < b.at ? -1 : 1));
+  const manual = shopLines().sort((a, b) => (a.done - b.done) || (a.at < b.at ? -1 : 1));
   const listed = new Set(manual.filter(m => m.itemId && !m.done).map(m => m.itemId));
   return { manual, suggested: buy.filter(b => !listed.has(b.item.id)) };
 }
 // The aisle a shopping line belongs to: its pantry item's category, else the catalogue's best match for its name.
 const aisleCache = new Map();
 function aisleOf(m) {
-  const it = m.itemId && S.items.get(m.itemId);
+  const it = itemById(m.itemId);
   if (it?.category) return it.category;
   if (!aisleCache.has(m.name)) aisleCache.set(m.name, catMatch(m.name)?.category || 'Other');
   return aisleCache.get(m.name);
@@ -1249,17 +1325,17 @@ function shareLines() {
 }
 function addToList(it, { quiet = false } = {}) {
   if (onList(it.id)) { if (!quiet) haToast('Already on the shopping list'); return null; }
-  const m = save('shop', { id: L.uid(), name: [it.brand, it.name].filter(Boolean).join(' '), itemId: it.id, done: false, at: new Date().toISOString(), by: who() });
+  const m = newLine([it.brand, it.name].filter(Boolean).join(' '), it.id);
   if (quiet) return m;
   redraw();
-  haToast(`${it.name} is on the shopping list`, { action: 'Undo', onAction: () => { remove('shop', m.id); redraw(); } });
+  haToast(`${it.name} is on the shopping list`, { action: 'Undo', onAction: () => { removeLine(m.id); redraw(); } });
   return m;
 }
 // A line typed or said: linked to the pantry item of that name, if there is one.
 function addLine(v) {
   const mine = items().find(i => L.norm(i.name) === L.norm(v) || L.norm(`${i.brand} ${i.name}`) === L.norm(v));
   if (mine && onList(mine.id)) return null;
-  return save('shop', { id: L.uid(), name: v, itemId: mine?.id || null, done: false, at: new Date().toISOString(), by: who() });
+  return newLine(v, mine?.id);
 }
 // The mic on the shopping list: say "milk, eggs and bread"; each becomes a line when the speaking stops.
 let shopMic = null;
@@ -1277,7 +1353,7 @@ async function listenShop(btn) {
     const added = Q.splitItems(heard).map(p => addLine(p.replace(/^(buy|get|need|we need|some)\s+/i, '').replace(/^./, c => c.toUpperCase()))).filter(Boolean);
     if (inp) inp.value = '';
     redraw();
-    if (added.length) haToast(`Added ${plural(added.length, 'thing')} to the list`, { action: 'Undo', onAction: () => { for (const m of added) remove('shop', m.id); redraw(); haAnnounce('Undone'); } });
+    if (added.length) haToast(`Added ${plural(added.length, 'thing')} to the list`, { action: 'Undo', onAction: () => { for (const m of added) removeLine(m.id); redraw(); haAnnounce('Undone'); } });
   };
   btn.classList.add('is-on'); btn.setAttribute('aria-pressed', 'true');
   try {
@@ -1288,11 +1364,11 @@ async function listenShop(btn) {
 // ---- Put away: everything ticked on the shopping list goes into the pantry in one sheet -----------------------------
 
 function openPutAway() {
-  const lines = [...S.shop.values()].filter(m => m.done).sort((a, b) => (a.at < b.at ? -1 : 1));
+  const lines = shopLines().filter(m => m.done).sort((a, b) => (a.at < b.at ? -1 : 1));
   if (!lines.length) return;
   // each line: its pantry item, or a new one (from the catalogue's best match for the name)
   const rows = lines.map(m => {
-    const it = m.itemId && S.items.get(m.itemId);
+    const it = itemById(m.itemId);
     const c = it ? null : catMatch(m.name);
     const base = it || { name: m.name, brand: '', category: c?.category || 'Other', location: c?.location || defaultPlace() };
     return { m, it, c, g: L.isStaple(it) ? null : guessFor(base), place: base.location || defaultPlace() };
@@ -1326,7 +1402,7 @@ function openPutAway() {
     const undo = { items: [], created: [], events: [], lines: [] };
     for (const i of picked()) {
       const r = rows[i], place = val('place', i), qty = Math.max(1, Math.min(99, parseInt(val('qty', i), 10) || 1));
-      const have = r.it && S.items.get(r.it.id);
+      const have = r.it && itemById(r.it.id);
       let res;
       if (have) {
         // an item at home: its place and the new stock go as changes to those fields, not as the whole item
@@ -1342,20 +1418,83 @@ function openPutAway() {
         save('items', res.item);
       }
       if (res.event) undo.events.push(save('events', res.event).id);
-      undo.lines.push(r.m); remove('shop', r.m.id);
+      undo.lines.push(r.m); removeLine(r.m.id);
     }
     await haCloseSheet(s.el);
     redraw();
     const n = undo.lines.length;
     haToast(`Put away ${plural(n, 'thing')}`, { action: 'Undo', onAction: () => {
       for (const u of undo.items) if (u.sent) undoItem(u.id, u.sent, u.before);
-      for (const id of undo.created) remove('items', id);
+      for (const id of undo.created) removeItem(id);
       for (const id of undo.events) remove('events', id);
-      for (const m of undo.lines) save('shop', m);
+      for (const m of undo.lines) restoreLine(m.id);
       redraw(); haAnnounce('Undone');
     } });
   });
   return s;
+}
+
+// ---- Recently removed (Settings → Recently removed, #/removed): 30 days to put things back --------------------------
+
+// What is in it: removed items and shopping lines still inside their 30 days, newest removal first.
+const removedLists = () => ({ items: L.recentlyRemoved([...S.items.values()]), lines: L.recentlyRemoved([...S.shop.values()]) });
+function viewRemoved() {
+  const { items: its, lines } = removedLists();
+  const landed = new Set(landedItems().map(i => i.id));
+  const row = (x, kind) => {
+    const by = x.removedBy ? `Removed by ${nameOf(x.removedBy)}` : 'Removed';
+    const sub = [kind === 'items' ? x.location : 'Shopping list', by, L.daysLeftText(L.daysLeft(x)), landed.has(x.id) ? 'Your change is kept' : ''].filter(Boolean).join(' · ');
+    return `<li><div class="ha-row pa-removed"><span class="ha-row-body"><span class="ha-row-title pa-break">${esc(x.name)}</span><span class="ha-row-sub pa-break">${esc(sub)}</span></span>
+      <span class="ha-row-trail"><button type="button" class="ha-btn ha-btn--small" data-act="restore" data-kind="${kind}" data-id="${esc(x.id)}" aria-label="Restore ${esc(x.name)}">Restore</button></span></div></li>`;
+  };
+  let h = `<h1 class="ha-large-title">Recently removed</h1><p class="ha-large-sub">Kept for ${L.REMOVED_DAYS} days</p>`;
+  if (!its.length && !lines.length) {
+    return h + `<div class="ha-card ha-empty"><span class="ha-empty-icon">${icon('trash')}</span><p class="ha-empty-title">Nothing removed</p>
+      <p class="ha-empty-text">Items and shopping list lines you delete wait here for ${L.REMOVED_DAYS} days, so you can put them back.</p></div>`;
+  }
+  if (its.length) h += section('Items', `<ul class="ha-list" id="pa-removed">${its.map(x => row(x, 'items')).join('')}</ul>`, { id: 'removed-items', count: its.length, footer: 'Restore brings the item back with its history and any change made to it since.' });
+  if (lines.length) h += section('Shopping list', `<ul class="ha-list" id="pa-removed-lines">${lines.map(x => row(x, 'shop')).join('')}</ul>`, { id: 'removed-lines', count: lines.length });
+  return h;
+}
+// Put back: clear the marker. The item returns as it now is (a use or edit that landed while it was hidden is in it).
+function restoreFromList(kind, id) {
+  const x = (kind === 'shop' ? S.shop : S.items).get(id); if (!x) return;
+  (kind === 'shop' ? restoreLine : restoreItem)(id);
+  redraw();
+  haToast(`${x.name} is back`, { action: 'Undo', onAction: () => { (kind === 'shop' ? removeLine : removeItem)(id); redraw(); haAnnounce('Removed again'); } });
+}
+
+// ---- the daily sweep: what was removed more than 30 days ago goes for good -------------------------------------------------
+
+// Once a day per phone (`pantry:lastSweep`), when the family pantry has been read from the server: this phone deletes up to
+// 20 items and shopping lines removed more than 30 days ago (and an item's photo and history). It already holds every item
+// in memory, so there is no extra listener and no full read; each delete is a small transaction that checks the document
+// is still removed (a Restore elsewhere a moment ago wins), and a document another phone swept first is just skipped.
+async function sweep({ force = false } = {}) {
+  if (S.mode !== 'cloud' && S.mode !== 'local') return 0;
+  const key = S.mode === 'cloud' ? 'lastSweep' : 'lastSweepLocal';
+  if (!force && prefs.get(key) === today()) return 0;
+  if (S.mode === 'cloud' && !force && (navigator.onLine === false || S.sync.cache)) return 0;   // from the phone's old copy: not today
+  const backend = S.backend, now = Date.now();
+  const due = L.sweepDue([...S.items.values()], [...S.shop.values()], now);
+  const cutoff = new Date(now - L.REMOVED_DAYS * 86400000).toISOString();
+  let n = 0;
+  for (const it of due.items) {
+    if (backend !== S.backend) break;
+    if (!(await backend.purge('items', it.id, cutoff))) continue;
+    const evs = eventsFor(it.id).map(e => e.id);
+    if (it.hasPhoto || it.photo) await backend.delMany(PHOTOS, [it.id]);
+    if (evs.length) await backend.delMany('events', evs);
+    S.items.delete(it.id); for (const id of evs) S.events.delete(id); S.pics.delete(it.id);
+    n++;
+  }
+  for (const m of due.shop) {
+    if (backend !== S.backend) break;
+    if (await backend.purge('shop', m.id, cutoff)) { S.shop.delete(m.id); n++; }
+  }
+  if (backend === S.backend && !force) prefs.set(key, today());
+  if (n) redraw();
+  return n;
 }
 
 // ---- Places (Settings → Places, #/places) -------------------------------------------------------------------------
@@ -1638,6 +1777,8 @@ function viewSettings() {
     ${section('Family sharing', fam, { id: 'family', footer: famFoot })}
     ${section('Where things are kept', `<ul class="ha-list"><li><a class="ha-row" href="#/places"><span class="ha-row-icon">${icon('home')}</span><span class="ha-row-body"><span class="ha-row-title">Places</span><span class="ha-row-sub">${esc(plural(placeNames().length, 'place'))}: ${esc(placeNames().slice(0, 3).join(', '))}${placeNames().length > 3 ? '…' : ''}</span></span>${chevron()}</a></li></ul>`,
       { id: 'places', footer: `Rename, reorder or add your own places.${S.mode === 'cloud' ? ' Shared with the family.' : ''}` })}
+    ${section('Recently removed', `<ul class="ha-list"><li><a class="ha-row" href="#/removed"><span class="ha-row-icon">${icon('trash')}</span><span class="ha-row-body"><span class="ha-row-title">Recently removed</span><span class="ha-row-sub">${esc((() => { const r = removedLists(), n = r.items.length + r.lines.length; return n ? `${plural(n, 'thing')} you can put back` : 'Nothing right now'; })())}</span></span>${chevron()}</a></li></ul>`,
+      { id: 'removed', footer: `Deleted items and shopping list lines wait here for ${L.REMOVED_DAYS} days, then go for good.` })}
     ${section('Reminders', `<div class="ha-chips ha-chips--wrap" role="group" aria-label="Use soon means within">${Object.entries(SOON).map(([v, l]) =>
       `<button type="button" class="ha-chip" aria-pressed="${soonDays() === Number(v)}" data-act="soon" data-v="${v}">${l}</button>`).join('')}</div>`,
       { id: 'remind', footer: 'How far ahead “Use soon” looks, on Home. Kept on this phone.' })}
@@ -1672,7 +1813,7 @@ function draw(r, { keep = false } = {}) {
   if (!task) { S.draft = null; S.dirty = false; }
   let it = null;
   if (name === 'item' || name === 'edit') {
-    it = S.items.get(id);
+    it = itemById(id);
     if (!it) {
       // deleted (here or by the family): go back to where it was opened from, after this draw has finished
       main.innerHTML = '';
@@ -1680,7 +1821,7 @@ function draw(r, { keep = false } = {}) {
       return;
     }
   }
-  if (!['home', 'items', 'item', 'add', 'edit', 'shop', 'settings', 'guide', 'places'].includes(name)) name = 'home';
+  if (!['home', 'items', 'item', 'add', 'edit', 'shop', 'settings', 'guide', 'places', 'removed'].includes(name)) name = 'home';
   if (TOP[name]) { S.originTab = name === 'home' ? '#/' : '#/' + name; S.backLabel = TOP[name]; }
 
   document.body.classList.toggle('ha-has-tabbar', !task);
@@ -1702,6 +1843,7 @@ function draw(r, { keep = false } = {}) {
     $('#pa-save').textContent = name === 'add' ? 'Add to pantry' : 'Save';
     wireForm();
   } else if (name === 'shop') { flag('shopped'); main.innerHTML = viewShop(); setBar({ title, trail: iconBtn('share', 'Share the list', 'share') }); }
+  else if (name === 'removed') { title = 'Recently removed'; main.innerHTML = viewRemoved(); setBar({ title, lead: backBtn(S.backLabel) }); noteSeen(); }
   else if (name === 'places') { title = 'Places'; main.innerHTML = viewPlaces(); setBar({ title, lead: backBtn(S.backLabel) }); }
   else if (name === 'guide') { title = GUIDE; main.innerHTML = viewGuide(); setBar({ title: 'How to use it', lead: backBtn(S.backLabel) }); }
   else if (name === 'settings') {
@@ -1731,7 +1873,7 @@ function redraw() {
   if (focus && $('#' + focus)) $('#' + focus).focus({ preventScroll: true });
 }
 function drawBadge() {
-  const left = [...S.shop.values()].filter(m => !m.done).length + shopLists().suggested.length;
+  const left = shopLines().filter(m => !m.done).length + shopLists().suggested.length;
   const b = $('#pa-shop-badge');
   b.textContent = left > 99 ? '99+' : left; b.hidden = !left;
   $('#pa-shop-sr').textContent = left ? `, ${left} to buy` : '';
@@ -1743,7 +1885,7 @@ async function onClick(e) {
   const b = e.target.closest('[data-act]');
   if (!b || b.getAttribute('aria-disabled') === 'true') return;
   const act = b.dataset.act;
-  const it = screen() === 'item' ? S.items.get(route().parts[1]) : (b.dataset.id && S.items.get(b.dataset.id));
+  const it = screen() === 'item' ? itemById(route().parts[1]) : itemById(b.dataset.id);
   switch (act) {
     case 'back': return haBack(screen() === 'edit' ? '#/item/' + route().parts[1] : S.originTab);
     case 'welcome': return showWelcome({ save: S.mode !== 'demo' });
@@ -1779,16 +1921,11 @@ async function onClick(e) {
     case 'bought': return openBought(it);
     case 'to-list': return addToList(it);
     case 'delete': {
-      const evs = eventsFor(it.id);
-      const photo = await photoOf(it);   // kept for Undo (already fetched when the item opened)
-      remove('items', it.id);
-      for (const ev of evs) remove('events', ev.id);
-      if (it.hasPhoto) delPhoto(it.id);
+      // a marker, not a delete: its history and photo stay, it is hidden everywhere, Recently removed (Settings) lists it for 30
+      // days, and Undo is Restore (clears the marker; whatever another phone did to it meanwhile is kept)
+      removeItem(it.id);
       haBack(S.originTab);
-      haToast(`${it.name} deleted`, { action: 'Undo', onAction: () => {
-        if (photo) savePhoto(it.id, it.thumb || '', photo);
-        save('items', it); for (const ev of evs) save('events', ev); redraw();
-      } });
+      haToast(`${it.name} deleted`, { action: 'Undo', onAction: () => { restoreItem(it.id); redraw(); haAnnounce('Undone'); } });
       return;
     }
     case 'place': {
@@ -1797,6 +1934,7 @@ async function onClick(e) {
       return drawItemsList();
     }
     case 'place-open': return openPlace(b.dataset.v);
+    case 'restore': return restoreFromList(b.dataset.kind, b.dataset.id);
     case 'q-clear': { S.q = ''; const q = $('#pa-q'); q.value = ''; drawItemsList(); return q.focus(); }
     case 'find-clear': { const f = $('#pa-find'); f.value = ''; showSugg(); return f.focus(); }
     case 'sample': {
@@ -1827,7 +1965,7 @@ async function onClick(e) {
       const n = $('#pa-form [name="name"]'); n.focus(); return;
     }
     case 'sugg-mine': {
-      const mine = S.items.get(b.dataset.id);
+      const mine = itemById(b.dataset.id); if (!mine) return;
       S.draft = null; S.dirty = false;
       haGo('#/item/' + mine.id, { replace: true });
       return openBought(mine);
@@ -1835,17 +1973,17 @@ async function onClick(e) {
     case 'photo-del': return fillDraft({ pic: '', _pics: null });
     case 'shop-del': {
       e.preventDefault();
-      const m = S.shop.get(b.dataset.id);
-      remove('shop', m.id); redraw();
-      return haToast(`${m.name} removed`, { action: 'Undo', onAction: () => { save('shop', m); redraw(); } });
+      const m = S.shop.get(b.dataset.id); if (!m) return;
+      removeLine(m.id); redraw();
+      return haToast(`${m.name} removed`, { action: 'Undo', onAction: () => { restoreLine(m.id); redraw(); } });
     }
     case 'shop-mic': return listenShop(b);
     case 'put-away': return openPutAway();
     case 'shop-clear': {
-      const gone = [...S.shop.values()].filter(m => m.done);
-      for (const m of gone) remove('shop', m.id);
+      const gone = shopLines().filter(m => m.done);
+      patchLines(gone.map(m => ({ id: m.id, ops: L.removeOps(who()) })));
       redraw();
-      return haToast(`Cleared ${plural(gone.length, 'ticked item')}`, { action: 'Undo', onAction: () => { for (const m of gone) save('shop', m); redraw(); } });
+      return haToast(`Cleared ${plural(gone.length, 'ticked item')}`, { action: 'Undo', onAction: () => { patchLines(gone.map(m => ({ id: m.id, ops: L.restoreOps() }))); redraw(); } });
     }
     case 'share': {
       const text = L.shareText(shareLines());
@@ -1911,7 +2049,7 @@ async function onClick(e) {
     case 'person': return openPerson(b.dataset.v);
     case 'copy-up': {
       try {
-        const data = await splitAll({ ...(await S.local.load()), photos: await S.local.list(PHOTOS) });
+        const data = L.keepLive(await splitAll({ ...(await S.local.load()), photos: await S.local.list(PHOTOS) }));   // not what was removed over 30 days ago
         data.settings = mergedPlaces(data.settings);   // the family's places first, then any only this phone had
         await S.backend.putMany(PHOTOS, data.photos);   // photos first, so no item points at a missing photo
         for (const k of KINDS) await S.backend.putMany(k, data[k]);
@@ -1948,13 +2086,13 @@ function download(name, text, type) {
 async function onChange(e) {
   const t = e.target;
   if (t.name === 'pa-level') {
-    const it = S.items.get(route().parts[1]); if (!it) return;
+    const it = itemById(route().parts[1]); if (!it) return;
     const before = it, res = L.setLevel(it, { level: t.value, by: who() });
     const sent = patchItem(it.id, res.ops); const ev = save('events', res.event);
     const line = t.value !== 'plenty' ? addToList(res.item, { quiet: true }) : null;
     redraw();
     haToast(`${it.name}: ${LEVEL_WORD[t.value].toLowerCase()}${line ? ', on the shopping list' : ''}`, { action: 'Undo', onAction: () => {
-      undoItem(it.id, sent, before); remove('events', ev.id); if (line) remove('shop', line.id); redraw(); haAnnounce('Undone');
+      undoItem(it.id, sent, before); remove('events', ev.id); if (line) removeLine(line.id); redraw(); haAnnounce('Undone');
     } });
     return;
   }
@@ -1962,7 +2100,7 @@ async function onChange(e) {
   if (t.id === 'pa-name') { prefs.set('name', t.value.trim()); return haToast('Saved'); }
   if (t.dataset.shop) {
     const m = S.shop.get(t.dataset.shop); if (!m) return;
-    save('shop', { ...m, done: t.checked, ...(t.checked ? { doneBy: who() } : {}) });
+    patchLine(m.id, { set: { done: t.checked, ...(t.checked ? { doneBy: who().slice(0, 100) } : {}) }, inc: {}, del: [] });   // a tick is a field, so two phones ticking and removing never undo each other
     return redraw();
   }
   if (t.id === 'pa-photo-file' && t.files[0]) {
@@ -2030,9 +2168,15 @@ function inviteHref(email) {
 
 function loadInto(data) {
   for (const k of KINDS) { S[k].clear(); for (const o of data[k] || []) S[k].set(o.id, k === 'items' ? L.normalizeItem(o) : o); }   // items: either shape of batches in, one out
+  for (const it of S.items.values()) noteLanded(it);
 }
-function onRemote(kind, docs, removed) {
-  for (const d of docs) S[kind].set(d.id, kind === 'items' ? L.normalizeItem(d) : d);
+// `pending`: ids of these documents this phone has changes on that the server hasn't confirmed yet.
+function onRemote(kind, docs, removed, pending = []) {
+  for (const d of docs) {
+    const was = S[kind].get(d.id);
+    S[kind].set(d.id, kind === 'items' ? L.normalizeItem(d) : d);
+    if (kind === 'items' && L.isRemoved(d) && !L.isRemoved(was)) noteLanded(d, pending.includes(d.id));   // removed on another phone
+  }
   for (const id of removed) S[kind].delete(id);
   redraw();
   if (kind === 'items' && docs.some(d => d.photo)) migratePhotos();
@@ -2084,7 +2228,7 @@ function onWriteError(err, info) {
   keepRefused(err, info);
 }
 function keepRefused(err, info) {
-  const name = S.items.get(info.id)?.name || info.obj?.name || '';
+  const name = S[info.kind]?.get?.(info.id)?.name || info.obj?.name || '';
   S.refused = SY.addRefused(S.refused, { n: L.uid(), hid: S.household?.id || '', kind: info.kind, id: info.id, op: info.op, ops: info.ops, obj: info.obj, code: err?.code || '', at: new Date().toISOString(), name });
   prefs.set('refused', S.refused);
   drawSync(); redraw();
@@ -2094,10 +2238,10 @@ function keepRefused(err, info) {
 function replay(r) {
   if (r.op === 'del') { remove(r.kind, r.id); return true; }
   if (r.op === 'put') { if (r.kind === 'items') S.items.set(r.id, L.normalizeItem(L.toStored(r.obj))); else S[r.kind].set(r.id, r.obj); S.backend.put(r.kind, r.obj); return true; }
-  const before = S.items.get(r.id);
+  const before = S[r.kind]?.get(r.id);
   if (!before) return false;
-  S.items.set(r.id, L.applyOps(before, r.ops));
-  S.backend.patch('items', r.id, r.ops, { before });
+  S[r.kind].set(r.id, r.kind === 'items' ? L.applyOps(before, r.ops) : L.applyFieldOps(before, r.ops));
+  S.backend.patch(r.kind, r.id, r.ops, { before });
   return true;
 }
 function settleRefused(n, retry) {
@@ -2122,6 +2266,7 @@ async function useHousehold(h) {
   loadInto(await S.backend.load());
   migratePhotos();
   S.backend.listen(onRemote);
+  setTimeout(sweep, 6000);   // once the first copy from the server is in
   unwatch?.();
   unwatch = await S.cloud.watchHousehold(h.id, x => { if (x) { S.household = x; redraw(); } });
   S.localCount = (await S.local.load()).items.length;
@@ -2353,7 +2498,7 @@ function watchUpdates(reg) {
 let R = null;
 async function start() {
   if (DEMO) {
-    S.local = S.backend = openMemory({ ...sampleData(demoBy), settings: [PP.peopleDoc(DEMO_NAMES)] });
+    S.local = S.backend = openMemory({ ...sampleData(demoBy, { removed: true }), settings: [PP.peopleDoc(DEMO_NAMES)] });
     S.household = { ...DEMO_FAMILY };
   } else {
     try { S.local = await openLocal(); }
@@ -2370,6 +2515,7 @@ async function start() {
     else { S.since = prefs.get('lastSeen'); prefs.set('lastSeen', new Date().toISOString()); redraw(); }
   });
   setTimeout(migratePhotos, 1000);   // old-style photos move out quietly, after the first screen is drawn
+  if (!DEMO) setTimeout(sweep, 4000);   // (this phone's own pantry; the family's runs once it is open)
   document.addEventListener('click', onClick);
   document.addEventListener('change', onChange);
   document.addEventListener('input', onInput);
@@ -2378,7 +2524,7 @@ async function start() {
   addEventListener('offline', redraw);
   R = haRouter({
     render: r => draw(r),
-    tabOf: r => ['item', 'edit', 'add', 'guide', 'places'].includes(r.parts[0]) ? S.originTab : r.hash,
+    tabOf: r => ['item', 'edit', 'add', 'guide', 'places', 'removed'].includes(r.parts[0]) ? S.originTab : r.hash,
   });
   // family sharing, only when a Firebase project is set up (config.js) or in the emulator tests
   if (!DEMO && (firebaseConfig || EMULATOR)) {
@@ -2409,6 +2555,12 @@ const testActions = {
   open: (id, batchId = null) => apply(L.openOne(S.items.get(id), { by: who(), batchId }), 'Opened'),
   set: (id, k, v) => patchItem(id, { set: { [k]: v }, inc: {}, del: [] }),
   undo: () => { const u = S.lastUndo; S.lastUndo = null; return u?.() || null; },
+  remove: id => removeItem(id), restore: id => restoreItem(id),
+  addLine: (name, itemId = null) => newLine(name, itemId).id,
+  tick: (id, done) => patchLine(id, { set: { done, ...(done ? { doneBy: 'test' } : {}) }, inc: {}, del: [] }),
+  removeLine: id => removeLine(id), restoreLine: id => restoreLine(id),
+  rename: (id, name) => patchLine(id, { set: { name }, inc: {}, del: [] }),
+  sweep: () => sweep({ force: true }),
 };
 
 // ---- the welcome, once per phone (guide.js) -------------------------------------------------------------------------

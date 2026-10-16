@@ -208,16 +208,16 @@ try {
     await pa.locator('.pa-pa', { hasText: 'Light soy sauce' }).locator('[name="qty"]').fill('2');
     await axe(page, 'put away sheet');
     await shot(page, '05a-put-away');
-    const n0 = await page.evaluate(() => window.__pantry.S.items.size);
+    const n0 = await page.evaluate(() => [...window.__pantry.S.items.values()].filter(i => !i.removedAt).length);
     await page.click('#pa-pa-go'); await settle(page);
     ok(await page.locator('dialog.ha-sheet[open]').count() === 0, 'the sheet closes');
     ok((await toast(page).textContent()).includes('Put away 2 things'), 'both put away');
-    ok(await page.evaluate(() => window.__pantry.S.items.size) === n0 + 1, 'bananas are a new item');
+    ok(await page.evaluate(() => [...window.__pantry.S.items.values()].filter(i => !i.removedAt).length) === n0 + 1, 'bananas are a new item');
     ok(await page.locator('#pa-shop-done').count() === 0 && await page.locator('#pa-shop .ha-row-title', { hasText: 'Bananas' }).count() === 0, 'put-away lines leave the list');
     const soy = await page.evaluate(() => [...window.__pantry.S.items.values()].find(i => i.name === 'Light soy sauce'));
     ok(soy.batches.reduce((n, b) => n + b.qty, 0) === 4, 'two more soy sauce in stock');
     await toast(page).locator('.ha-toast-action').click(); await settle(page);
-    ok(await page.evaluate(() => window.__pantry.S.items.size) === n0 && await page.locator('#pa-shop-done label.is-done').count() === 2, 'Undo takes it all back');
+    ok(await page.evaluate(() => [...window.__pantry.S.items.values()].filter(i => !i.removedAt).length) === n0 && await page.locator('#pa-shop-done label.is-done').count() === 2, 'Undo takes it all back');
     await page.click('[data-act="put-away"]'); await settle(page);
     await page.locator('dialog.ha-sheet[open] .pa-pa', { hasText: 'Light soy sauce' }).locator('input[type=checkbox]').uncheck();
     ok(await page.locator('#pa-pa-go').textContent() === 'Put away 1 thing', 'unticking leaves one out');
@@ -258,12 +258,12 @@ try {
     ok(await page.locator('#pa-quick-go').textContent() === 'Add 2 items', 'unticking one leaves it out');
     await axe(page, 'say or type');
     await shot(page, '06b-quick');
-    const before = await page.evaluate(() => window.__pantry.S.items.size);
+    const before = await page.evaluate(() => [...window.__pantry.S.items.values()].filter(i => !i.removedAt).length);
     await page.click('#pa-quick-go'); await settle(page);
     ok((await toast(page).textContent()).includes('Added 2 items'), 'adds them');
-    ok(await page.evaluate(() => window.__pantry.S.items.size) === before + 1, 'milk adds to the one at home, salmon is new');
+    ok(await page.evaluate(() => [...window.__pantry.S.items.values()].filter(i => !i.removedAt).length) === before + 1, 'milk adds to the one at home, salmon is new');
     await toast(page).locator('.ha-toast-action').click(); await settle(page);
-    ok(await page.evaluate(() => window.__pantry.S.items.size) === before, 'Undo takes them back out');
+    ok(await page.evaluate(() => [...window.__pantry.S.items.values()].filter(i => !i.removedAt).length) === before, 'Undo takes them back out');
 
     // items: search, place chips, sort
     await page.click('.ha-tabbar a[href="#/items"]'); await settle(page);
@@ -305,7 +305,7 @@ try {
     ok(await welcomeSheet(page).count() === 0 && hash(page) === '#/settings', 'back closes the welcome');
     const [dl] = await Promise.all([page.waitForEvent('download'), page.click('[data-act="backup"]')]);
     const backup = JSON.parse(fs.readFileSync(await dl.path(), 'utf8'));
-    ok(backup.app === 'pantry' && backup.items.length >= 14 && backup.events.length > 10 && backup.shop.length === 1, 'backup holds items, history and the list');
+    ok(backup.app === 'pantry' && backup.items.length >= 14 && backup.events.length > 10 && backup.shop.filter(m => !m.removedAt).length === 1, 'backup holds items, history and the list');
     // the service worker has installed by now: reload so it controls the page, then the version lines show
     await page.evaluate(() => navigator.serviceWorker.ready);
     await page.reload(); await page.locator('.ha-large-title').waitFor(); await settle(page);
@@ -458,7 +458,7 @@ try {
     await shot(page, 't1-quick-start');
     await page.click('#pa-start-go'); await settle(page);
     ok((await toast(page).textContent()).includes('Added 4 items'), 'adds them');
-    ok(await page.evaluate(() => window.__pantry.S.items.size) === 4, 'four items in the pantry');
+    ok(await page.evaluate(() => [...window.__pantry.S.items.values()].filter(i => !i.removedAt).length) === 4, 'four items in the pantry');
     const milk = await page.evaluate(() => [...window.__pantry.S.items.values()].find(i => i.name === 'Fresh milk'));
     ok(milk.batches[0].expiry && milk.location === 'Fridge', 'with a rough date and its usual place');
     const count = async () => (await page.locator('#h-tour .ha-num').textContent()).trim();
@@ -540,9 +540,10 @@ try {
       ok(hash(page) === '#/item/' + itemId && (await page.locator('h1').textContent()) === 'Light soy sauce (big)', 'edit saves and returns');
       // delete with Undo
       await page.click('[data-act="delete"]'); await settle(page);
-      ok(!(await page.evaluate(id => window.__pantry.S.items.has(id), itemId)), 'delete removes it');
+      const gone = id => page.evaluate(id => { const it = window.__pantry.S.items.get(id); return !it || !!it.removedAt; }, id);
+      ok(await gone(itemId), 'delete removes it (a marker; it is hidden everywhere)');
       await toast(page).locator('.ha-toast-action').click(); await settle(page);
-      ok(await page.evaluate(id => window.__pantry.S.items.has(id), itemId), 'Undo restores it');
+      ok(!(await gone(itemId)), 'Undo restores it');
       // 200% text: still no sideways scroll
       await page.evaluate(() => { document.documentElement.style.fontSize = '212.5%'; });
       for (const hsh of ['#/', '#/items', '#/item/' + itemId, '#/add', '#/edit/' + itemId, '#/shop', '#/settings', '#/guide']) { await go(page, hsh); await noSideways(page, `demo 200% ${hsh}`); await barApart(page, `demo 200% ${hsh}`); }
@@ -552,10 +553,50 @@ try {
     console.log(`  demo ${w}: ok`);
   }
 
+  // ---------- Recently removed: Settings → Recently removed (demo has two removed items; 30 days; Restore) ----------
+  {
+    const { ctx, page, errors } = await open(390, 844, BASE + '?demo');
+    await go(page, '#/items');
+    ok(await page.locator('#pa-items-list .ha-row', { hasText: /Chilli sauce|Spring onions/ }).count() === 0, 'removed items are not in Items');
+    ok(await page.locator('#main').evaluate(m => !/Chilli sauce|Spring onions/.test(m.textContent)), 'nor anywhere on Items');
+    await go(page, '#/settings');
+    ok(/2 things you can put back/.test(await page.locator('#h-removed').locator('xpath=..').textContent()), 'Settings says what can be put back');
+    await page.click('#main a[href="#/removed"]'); await settle(page);
+    ok(hash(page) === '#/removed' && await page.locator('h1').textContent() === 'Recently removed', 'Recently removed opens from Settings');
+    ok(await page.locator('.ha-back span').textContent() === 'Settings', 'its back button names Settings');
+    const rows = await page.locator('#pa-removed .ha-row').allTextContents();
+    ok(rows.length === 2 && /Spring onions.*Fridge · Removed by Mum · 2[89] days left/.test(rows[0]) && /Chilli sauce.*Kitchen cabinet · Removed by Dad · 3 days left/.test(rows[1]), 'name, place, who removed it, days left: ' + rows.join(' | '));
+    ok(await page.locator('#pa-removed img').count() === 0, 'no thumbnails on removed items');
+    await axe(page, 'recently removed');
+    await shot(page, 'r01-recently-removed');
+    await page.locator('#pa-removed .ha-row', { hasText: 'Chilli sauce' }).locator('[data-act="restore"]').click(); await settle(page);
+    ok(await page.locator('#pa-removed .ha-row').count() === 1 && /Chilli sauce is back/.test(await toast(page).textContent()), 'Restore takes it off the list');
+    await go(page, '#/items');
+    ok(await page.locator('#pa-items-list .ha-row', { hasText: 'Chilli sauce' }).count() === 1, 'and it is back in Items');
+    await go(page, '#/removed');
+    await page.locator('#pa-removed .ha-row', { hasText: 'Spring onions' }).locator('[data-act="restore"]').click(); await settle(page);
+    ok(/Nothing removed/.test(await page.locator('#main').textContent()), 'the empty state says so');
+    await axe(page, 'recently removed (empty)');
+    await shot(page, 'r01b-removed-empty');
+    // deleting an item puts it there, with 30 days; Undo from the toast is a Restore
+    await go(page, '#/items');
+    await page.locator('#pa-items-list a.ha-row', { hasText: 'Kaya' }).click(); await settle(page);
+    await page.click('[data-act="delete"]'); await settle(page);
+    await go(page, '#/removed');
+    ok(/Kaya.*30 days left/.test(await page.locator('#pa-removed').textContent()), 'a deleted item waits there for 30 days');
+    ok(await page.locator('#h-removed-items .ha-num').textContent() === '1', 'with its count');
+    // the guide says so
+    await go(page, '#/guide');
+    ok((await page.locator('#main').textContent()).includes('Recently removed'), 'the guide mentions Recently removed');
+    ok(errors.length === 0, `removed: console errors ${errors.join('; ')}`);
+    await ctx.close();
+    console.log('  recently removed: ok');
+  }
+
   // ---------- places: Settings → Places (the household's own list; demo) ----------
   {
     const { ctx, page, errors } = await open(390, 844, BASE + '?demo');
-    const S = () => page.evaluate(() => ({ list: [...window.__pantry.S.settings.values()].find(d => d.id === 'places')?.list || null, items: [...window.__pantry.S.items.values()].map(i => ({ id: i.id, name: i.name, location: i.location })) }));
+    const S = () => page.evaluate(() => ({ list: [...window.__pantry.S.settings.values()].find(d => d.id === 'places')?.list || null, items: [...window.__pantry.S.items.values()].filter(i => !i.removedAt).map(i => ({ id: i.id, name: i.name, location: i.location })) }));
     const rows = () => page.locator('#pa-places .ha-row-title').allTextContents();
     const count = async name => (await page.locator('#pa-places .ha-row, #pa-places-other .ha-row').filter({ has: page.locator('.ha-row-title', { hasText: new RegExp(`^${name}$`) }) }).locator('.ha-row-value').textContent()).replace(/\D+/g, '');
     const sheet = page.locator('dialog.ha-sheet[open]');
@@ -808,18 +849,15 @@ try {
     const again = await idb('photos/' + id);
     ok(again?.data?.startsWith('data:image/jpeg'), 'a new photo is saved');
     await page.click('[data-act="delete"]'); await settle(page);
-    ok(await idb('photos/' + id) === null && await idb('items/' + id) === null, 'deleting the item deletes its photo');
+    ok((await idb('items/' + id))?.removedAt && (await idb('photos/' + id))?.data === again.data, 'deleting the item hides it and keeps its photo (until it is purged after 30 days)');
     await toast(page).locator('.ha-toast-action').click(); await settle(page);
-    ok((await idb('photos/' + id))?.data === again.data && (await idb('items/' + id))?.hasPhoto, 'Undo brings the item and its photo back');
-    await go(page, '#/item/' + id);
-    await page.click('[data-act="delete"]'); await settle(page);
-    ok(await idb('photos/' + id) === null, 'deleted again: the photo is gone');
+    ok(!(await idb('items/' + id))?.removedAt && (await idb('photos/' + id))?.data === again.data && (await idb('items/' + id))?.hasPhoto, 'Undo brings the item back, photo and all');
 
     // the backup holds the photos
     await go(page, '#/settings');
     const [dl] = await Promise.all([page.waitForEvent('download'), page.click('[data-act="backup"]')]);
     const backup = JSON.parse(fs.readFileSync(await dl.path(), 'utf8'));
-    ok(backup.photos?.length === 1 && backup.photos[0].id === 'legacy1' && backup.photos[0].data === legacy, 'the backup includes the photos');
+    ok(backup.photos?.some(p => p.id === 'legacy1' && p.data === legacy), 'the backup includes the photos (a removed item’s photo too, until it is purged)');
     ok(backup.items.find(i => i.id === 'legacy1')?.thumb === migrated.thumb, 'and the items their thumbnails');
 
     // sizes, for the record: a photo-like camera picture and pure noise (the worst case)
@@ -1081,12 +1119,12 @@ try {
     ok(await page.locator('[data-act="bought"]').count() === 0 && await page.locator('#h-stock .ha-num').count() === 0, 'no count, no Bought more');
     await page.click('.pa-level .ha-seg:has(input[value="low"])'); await settle(page);
     ok((await toast(page).textContent()).includes('low, on the shopping list'), 'Low puts it on the list');
-    ok(await S(id => [...window.__pantry.S.shop.values()].some(x => x.itemId === id && !x.done), rice), 'a line on the list');
+    ok(await S(id => [...window.__pantry.S.shop.values()].some(x => x.itemId === id && !x.done && !x.removedAt), rice), 'a line on the list');
     ok((await page.locator('#h-history').locator('xpath=..').innerText()).includes('Marked low'), 'the history says Marked low');
     await axe(page, 'staple item');
     await shot(page, 'n08-staple');
     await toast(page).locator('.ha-toast-action').click(); await settle(page);
-    ok(await S(id => !window.__pantry.S.items.get(id).level || window.__pantry.S.items.get(id).level === 'plenty', rice) && await S(id => ![...window.__pantry.S.shop.values()].some(x => x.itemId === id), rice), 'Undo: plenty again, off the list');
+    ok(await S(id => !window.__pantry.S.items.get(id).level || window.__pantry.S.items.get(id).level === 'plenty', rice) && await S(id => ![...window.__pantry.S.shop.values()].some(x => x.itemId === id && !x.removedAt), rice), 'Undo: plenty again, off the list');
     await page.click('.pa-level .ha-seg:has(input[value="out"])'); await settle(page);
     await go(page, '#/items');
     ok((await page.locator('#pa-items-list .ha-row', { hasText: 'Thai hom mali rice' }).locator('.ha-row-sub').textContent()).startsWith('Out'), 'Items says Out');
@@ -1138,14 +1176,14 @@ try {
     ok(await kayaQty() === q0 + 1, 'Used up takes one out');
     await sm.locator('.ha-seg:has(input[value="list"])').click();
     await scanOne('4900000000028');
-    ok(await S(() => [...window.__pantry.S.shop.values()].some(x => x.name.includes('Fresh milk') && !x.done)), 'Add to list puts it on the list');
+    ok(await S(() => [...window.__pantry.S.shop.values()].some(x => x.name.includes('Fresh milk') && !x.done && !x.removedAt)), 'Add to list puts it on the list');
     await axe(page, 'scan many');
     await noSideways(page, 'scan many');
     await shot(page, 'n11-scan-many');
     await sm.locator('.ha-sheet-foot [data-ha-close]').click(); await settle(page);
     ok((await toast(page).textContent()).includes('Saved 5 scans'), 'Done: one toast for every scan (the new barcode waits)');
     await toast(page).locator('.ha-toast-action').click(); await settle(page);
-    ok(await kayaQty() === q0 && await S(() => ![...window.__pantry.S.shop.values()].some(x => x.name.includes('Fresh milk') && !x.done)), 'one Undo takes every scan back');
+    ok(await kayaQty() === q0 && await S(() => ![...window.__pantry.S.shop.values()].some(x => x.name.includes('Fresh milk') && !x.done && !x.removedAt)), 'one Undo takes every scan back');
 
     // the new screens at 320px: no sideways scroll
     await page.setViewportSize({ width: 320, height: 640 });

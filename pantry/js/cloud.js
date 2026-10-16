@@ -309,7 +309,7 @@ export async function copyHousehold(toId, fromId, members) {
   const { F, db } = await sdk();
   const read = async (hid, k) => (await F.getDocs(F.collection(db, 'households', hid, k))).docs.map(d => d.data());
   const out = {};
-  const { mergeSettings } = await import('./merge.js');
+  const { mergeSettings, carryOver } = await import('./merge.js');
   const photos = await read(fromId, 'photos');
   const photoIds = new Set(photos.map(p => p.id));
   const items = (await read(fromId, 'items')).map(it => {
@@ -318,7 +318,8 @@ export async function copyHousehold(toId, fromId, members) {
     const { photo, ...rest } = it;
     return rest;
   });
-  const lists = { items, events: await read(fromId, 'events'), shop: await read(fromId, 'shop'), photos };
+  // what was removed more than 30 days ago isn't carried over (with its history and photo); markers of the rest are
+  const lists = carryOver({ items, events: await read(fromId, 'events'), shop: await read(fromId, 'shop'), photos });
   for (const k of ['photos', 'items', 'events', 'shop']) { await writeAll(F, db, toId, k, lists[k]); out[k] = lists[k].length; }   // photos first, so no item points at a missing photo
   const settings = mergeSettings(await read(toId, 'settings'), await read(fromId, 'settings'), members);
   await writeAll(F, db, toId, 'settings', settings);
@@ -392,6 +393,29 @@ export async function openCloud(hid, onError = () => {}, onSync = () => {}) {
         await track(b.commit().catch(e => { for (const x of part) refused({ op: 'patch', kind, id: x.id, ops: x.ops })(e); }));
       }
     },
+    // Delete for good, only if it is still removed since before `cutoff` (the daily sweep): read and delete in one
+    // transaction, so a Restore on another phone a moment ago is never undone by a phone whose copy is a moment old. A
+    // transaction needs the server, so offline it fails and the sweep tries again another day. False for a document that is
+    // already gone (another phone swept first) or was put back.
+    async purge(kind, id, cutoff) {
+      const ref = F.doc(col(kind), id);
+      try {
+        return await F.runTransaction(db, async t => {
+          const s = await t.get(ref), d = s.exists() ? s.data() : null;
+          if (!d || typeof d.removedAt !== 'string' || !(d.removedAt < cutoff)) return false;
+          t.delete(ref);
+          return true;
+        });
+      } catch (e) { console.warn('purge', kind, id, e?.code); return false; }
+    },
+    // Several documents at once (a purged item's history): at most 400 to a batch.
+    async delMany(kind, ids) {
+      for (let i = 0; i < ids.length; i += 400) {
+        const b = F.writeBatch(db);
+        for (const id of ids.slice(i, i + 400)) b.delete(F.doc(col(kind), id));
+        await track(b.commit().catch(e => { console.warn('delete', kind, e?.code); }));
+      }
+    },
     del: (kind, id) => { track(F.deleteDoc(F.doc(col(kind), id)).then(() => true, refused({ op: 'del', kind, id })), counts(kind)); },
     // One document (an item's photo, when the item is opened), or null when there is none. Offline it is the
     // phone's copy if it has one; otherwise it throws, and the app tries again next time.
@@ -410,9 +434,12 @@ export async function openCloud(hid, onError = () => {}, onSync = () => {}) {
       for (const k of KINDS) {
         unsubs.push(F.onSnapshot(col(k), { includeMetadataChanges: true }, s => {
           seen[k] = { pending: s.docs.reduce((n, d) => n + (d.metadata.hasPendingWrites ? 1 : 0), 0), cache: s.metadata.fromCache };
-          const docs = [], removed = [];
-          for (const c of s.docChanges()) (c.type === 'removed' ? removed.push(c.doc.id) : docs.push(c.doc.data()));
-          if (docs.length || removed.length) cb(k, docs, removed);
+          const docs = [], removed = [], pending = [];
+          for (const c of s.docChanges()) {
+            if (c.type === 'removed') removed.push(c.doc.id);
+            else { docs.push(c.doc.data()); if (c.doc.metadata.hasPendingWrites) pending.push(c.doc.id); }
+          }
+          if (docs.length || removed.length) cb(k, docs, removed, pending);   // pending: ids this phone has changes on that the server hasn't confirmed
           tell();
         }, e => { console.warn('sync', k, e?.code); onError(e); }));
       }

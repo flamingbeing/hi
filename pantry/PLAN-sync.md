@@ -33,6 +33,21 @@ Item name/notes/category edited on two phones at once (rare, harmless), shopping
    PR-B: soft deletes, Recently removed and the shopping list (pieces 4, 5). PR-C: names written by field and places one
    record each (piece 6).
 
+## PR-B: done (pieces 4 and 5), what building it taught
+
+- A delete is `removedAt` + `removedBy` as field sets; `isRemoved` / `live` is the one door; a test fails if a list skips it.
+  Undo of a delete is Restore; Undo of *adding* a thing is a marker too (so the app deletes for real only in the sweep and the
+  merge), at the price of a just-added-then-undone item sitting in Recently removed.
+- The sweep is a small **transaction per document** (read, delete only if still removed and old), not a bare `deleteDoc`: a
+  Restore on another phone, or another phone's sweep, can't be undone or doubled by a phone with an old copy. At most 20 a day.
+- Shopping lines had no rules at all; now fields and lengths are capped (`id` = the document id, `name` at most 80 characters,
+  `done` a bool, optional `itemId`, `at`, `by`, `doneBy`, the two removal fields, nothing else). The merge test had seeded a line
+  with a `text` field the app never wrote; the new rules refuse it, so the test seed now uses the real shape.
+- A rules **compile** error looks like `invalid-argument` on every request in the emulator (`is boolean` should be `is bool`).
+- "My change landed on a removed item" is told from `touched` (this phone's own changes, kept in localStorage) against
+  `removedAt`, plus the listener's `hasPendingWrites`, so it also works after a long offline spell.
+- Put away is still several writes (items by field, lines by marker), each safe on its own, not one atomic batch.
+
 ## How PR-A differs from the draft above (what building it taught)
 
 - Undo is the *inverse instructions*, and a field is put back only if nobody changed it since (`invertOps` in `js/logic.js`).
