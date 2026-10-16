@@ -570,13 +570,14 @@ function viewSettings() {
     const h = S.household;
     fam = `<ul class="ha-list">${row(`<span class="ha-row-icon">${icon('cloud')}</span><span class="ha-row-body"><span class="ha-row-title">${esc(h.name)}</span><span class="ha-row-sub">Signed in as ${esc(S.user.email)}</span></span>`)}
       ${h.members.map(m => row(`<span class="ha-row-icon ha-row-icon--grey">${icon('user')}</span><span class="ha-row-body"><span class="ha-row-title pa-wrap">${esc(m)}</span>${m === h.owner ? '<span class="ha-row-sub">Started it</span>' : ''}</span>
+        ${m !== S.user.email ? `<a class="ha-btn ha-btn--quiet ha-btn--icon" href="${esc(inviteHref(m))}" aria-label="Email an invite to ${esc(m)}">${icon('mail')}</a>` : ''}
         ${m !== h.owner && m !== S.user.email ? `<button type="button" class="ha-btn ha-btn--quiet ha-btn--icon" data-act="member-del" data-v="${esc(m)}" aria-label="Stop sharing with ${esc(m)}">${icon('trash')}</button>` : ''}`)).join('')}
       ${S.localCount ? btnRow('copy-up', `Copy ${plural(S.localCount, 'item')} from this phone`, { iconName: 'upload', sub: 'Saved here before you signed in' }) : ''}
       ${btnRow('signout', 'Sign out')}</ul>
       <form class="pa-addline pa-member" id="pa-member-add"><label class="ha-sr" for="pa-member-email">Family member’s Google email</label>
         <input class="ha-input" id="pa-member-email" type="email" placeholder="Family member’s Gmail" autocomplete="off" autocapitalize="off" spellcheck="false">
         <button class="ha-btn ha-btn--compact" type="submit">Add</button></form>`;
-    famFoot = 'They sign in with that Google account to see the pantry. Whoever started it can’t be removed.';
+    famFoot = 'They sign in with that Google account to see the pantry. The envelope emails them the link from your own mail app. Whoever started it can’t be removed.';
   }
   return `<h1 class="ha-large-title">Settings</h1>
     ${section('Family sharing', fam, { id: 'family', footer: famFoot })}
@@ -860,9 +861,20 @@ async function onSubmit(e) {
     if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(v)) return haToast('Type their Google email address');
     try {
       await S.cloud.setMembers(S.household.id, [...S.household.members, v]);
-      haToast(`Added ${v}. They sign in with that Google account to see the pantry.`);
+      $('#pa-member-email').value = '';
+      haToast(`Added ${v}`, { action: 'Email invite', onAction: () => { location.href = inviteHref(v); }, ms: 10000 });
     } catch (err) { haToast(S.cloud.explain(err, 'Adding them')); }
   }
+}
+
+// An invite from the person's own mail app (no email server: the pantry never sends mail itself).
+function inviteHref(email) {
+  const from = who() || S.user?.name?.split(' ')[0] || '';
+  const link = location.origin + location.pathname.replace(/[^/]*$/, '');
+  const body = `Hi! I've added you to our family pantry, so we can all see what's at home, what to use first and what to buy.\n\n`
+    + `1. Open ${link}\n2. Settings → Sign in with Google, using this account (${email})\n3. Add it to your home screen: Safari's Share button → Add to Home Screen (iPhone), or Chrome's menu → Add to home screen (Android)`
+    + (from ? `\n\n${from}` : '');
+  return `mailto:${encodeURIComponent(email)}?subject=${encodeURIComponent('Our family pantry')}&body=${encodeURIComponent(body)}`;
 }
 
 // ---- data sources ------------------------------------------------------------------------------------------------

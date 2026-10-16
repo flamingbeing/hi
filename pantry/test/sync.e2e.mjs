@@ -31,6 +31,12 @@ try {
   await mum.fill('#pa-member-email', 'Dad@Example.com');
   await mum.click('#pa-member-add button[type=submit]');
   await mum.locator('#main .ha-row-title', { hasText: 'dad@example.com' }).waitFor();
+  // an invite from Mum's own mail app: the toast offers it, and Dad's row keeps an envelope for later
+  await mum.locator('.ha-toast-action', { hasText: 'Email invite' }).waitFor();
+  const invite = await mum.getAttribute('a[aria-label="Email an invite to dad@example.com"]', 'href');
+  assert.match(invite, /^mailto:dad%40example\.com\?subject=Our%20family%20pantry&body=/);
+  assert.match(decodeURIComponent(invite), /Sign in with Google, using this account \(dad@example\.com\)/);
+  assert.equal(await mum.inputValue('#pa-member-email'), '');
   await mum.click('[data-act="sample"]');
   await settle(mum);
 
