@@ -1,5 +1,5 @@
 rules_version = '2';
-// Household. Only Google accounts listed in a household's members can read or change it.
+// Kaki Home households. Only Google accounts listed in a household's members can read or change it.
 // Deployed on merge to main by .github/workflows/deploy-firestore-rules.yml. Tests: test/run-sync.sh (local emulators).
 service cloud.firestore {
   match /databases/{database}/documents {
