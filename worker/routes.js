@@ -9,7 +9,7 @@
 //      or { root: 'pantry/', also: { '/__/auth/': '__/auth/' } }   plus extra paths mapped to other folders
 //      or { prefixes: { '/a/': 'a/', '/b/': 'b/' } } several static pages sharing a host
 export const SITES = {
-  // the Koh family home design system's own guide pages (static, no data)
+  // the family home design system's own guide pages (static, no data)
   'design.flamingbeing.com': { root: 'homedesign/' },
   // the family pantry (saves data, signs in): Firebase's sign-in helper pages and the project's init.json on its own
   // address, so sign-in never leaves it (authDomain is pantry.flamingbeing.com)

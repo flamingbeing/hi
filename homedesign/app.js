@@ -1,4 +1,4 @@
-// Koh family home design system: the behaviour that goes with app.css (DESIGN-APP.md). An ES module, no dependencies.
+// Home design system: the behaviour that goes with app.css (DESIGN-APP.md). An ES module, no dependencies.
 //   import { haRouter, haGo, haBack, haSheet, haToast, haVersion } from '/homedesign/app.js';
 // It knows nothing about any app's data. Every screen and every sheet is a history entry (hash routes), so the iOS
 // edge swipe and the Android back button always do the expected thing.

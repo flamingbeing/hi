@@ -1,4 +1,4 @@
-// Pantry: the family's household inventory, on the Koh family home app kit (/homedesign/: DESIGN-APP.md).
+// Pantry: the family's household inventory, on the family home app kit (/homedesign/: DESIGN-APP.md).
 // Screens are hash routes drawn by haRouter (every screen and sheet is a history entry, so the iPhone edge swipe and
 // Android back always work). Each screen is an HTML string drawn from the state S; clicks are handled by one listener
 // reading data-act attributes. Data lives in one of three backends (store.js, cloud.js): this phone (IndexedDB),

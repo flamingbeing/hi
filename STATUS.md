@@ -1,7 +1,7 @@
 # Status (site-wide)
 
 ## Now
-- Koh family home design system (`homedesign/`): merged (#8); the pantry PR adds 22 household icons to it.
+- Home design system (`homedesign/`): merged (#8); the pantry PR adds 22 household icons to it.
 - Pantry: rebuilt on the design system (PR "Pantry: family household inventory on the home design kit"; first version
   was PR #5, closed). Status in `pantry/STATUS.md`.
 
@@ -17,5 +17,5 @@
 - 16 Oct 2026: home apps live on `*.flamingbeing.com`, code public in `hi`, private notes in `life`. One Cloudflare
   Worker like anawj.com's; a subdomain per data app. Design: calm and minimal, light only. Firebase on Blaze with
   daily backups.
-- 16 Oct 2026: `*.flamingbeing.com` also carries the owner's home/Tailscale catch-all; app names are checked with the
-  owner first. Push once per finished step to save build minutes.
+- 16 Oct 2026: other names under `flamingbeing.com` are already in use; app names are checked with the owner
+  first. Push once per finished step to save build minutes.
