@@ -329,6 +329,45 @@ export function recent(items, { days = 7, now = new Date() } = {}) {
   return items.filter(it => !it.archived && (it.createdAt || '') >= since).sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1));
 }
 
+// ---- since you last looked (Home) ------------------------------------------------------------------------------
+
+const SINCE_TYPES = new Set(['add', 'use', 'discard', 'expired', 'open', 'freeze', 'thaw', 'level']);
+// What the rest of the family did after `since` (an ISO time: when this phone last looked): history and shopping-list
+// lines signed by someone for whom isMe(by) is false, newest first, as { by, type, name, qty, level?, at }.
+export function sinceLast({ events = [], shop = [], since, isMe = () => false } = {}) {
+  if (!since) return [];
+  const out = [];
+  for (const e of events) if (e.at > since && e.by && !isMe(e.by) && SINCE_TYPES.has(e.type)) out.push({ by: e.by, type: e.type, name: e.name, qty: Number(e.qty) || 1, level: e.level, at: e.at });
+  for (const m of shop) if ((m.at || '') > since && m.by && !isMe(m.by)) out.push({ by: m.by, type: 'list', name: m.name, qty: 1, at: m.at });
+  return out.sort((a, b) => (a.at < b.at ? 1 : -1));
+}
+// One line of it, after the person's name: "bought 2 Fresh milk", "added Bananas to the shopping list".
+export function sinceText(x) {
+  const n = (x.qty > 1 ? `${x.qty} ` : '') + x.name;
+  return {
+    add: `bought ${n}`, use: `used up ${n}`, discard: `threw away ${n}`, expired: `threw away ${n} (expired)`, open: `opened ${x.name}`,
+    freeze: `froze ${n}`, thaw: `thawed ${n}`, level: `marked ${x.name} ${x.level === 'out' ? 'as out' : x.level === 'low' ? 'as low' : 'as plenty'}`,
+    list: `added ${x.name} to the shopping list`,
+  }[x.type] || `changed ${x.name}`;
+}
+// "just now", "5 min ago", "3 h ago", "yesterday", "4 days ago".
+export function agoText(iso, now = new Date()) {
+  const m = Math.max(0, Math.round((now - new Date(iso)) / 60000));
+  if (m < 2) return 'just now';
+  if (m < 60) return `${m} min ago`;
+  if (m < 24 * 60) return `${Math.round(m / 60)} h ago`;
+  const d = Math.round(m / (24 * 60));
+  return d === 1 ? 'yesterday' : `${d} days ago`;
+}
+
+// ---- sharing as plain text (WhatsApp, Notes) ---------------------------------------------------------------------
+
+// A WhatsApp link that opens a message with this text, for the person to pick the chat (no number, nothing sent by us).
+export const waLink = text => 'https://wa.me/?text=' + encodeURIComponent(text);
+// "Use this week" from Home's list: [{ item, date }] with a date formatter.
+export function useWeekText(list, fmt = d => d) {
+  return 'Use this week\n' + list.map(x => `- ${[x.item.brand, x.item.name].filter(Boolean).join(' ')}, by ${fmt(x.date)}`).join('\n');
+}
 // The shopping list as plain text to share (WhatsApp, Notes).
 export function shareText(lines) {
   return 'Shopping list\n' + (lines.length ? lines.map(l => '- ' + l).join('\n') : '(nothing to buy)');

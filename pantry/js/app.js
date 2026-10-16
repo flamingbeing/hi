@@ -28,6 +28,7 @@ const S = {
   backend: null, local: null, mode: DEMO ? 'demo' : 'local', cloud: null, user: null, household: null, localCount: 0,
   q: '', place: '', sort: prefs.get('sort', 'expiry'),
   draft: null, dirty: false, pendingRender: false, syncError: false,
+  since: null,   // when this phone last looked (Since you last looked), an ISO time
   originTab: '#/', backLabel: 'Pantry',
 };
 
@@ -298,6 +299,7 @@ function viewHome() {
   let h = `<h1 class="ha-large-title">Pantry</h1><p class="ha-large-sub">${esc(statusLine())}</p>`;
   if (S.syncError) h += `<div class="ha-panel pa-alert" role="status">${icon('alert')}<span>Some changes didn’t reach the family pantry. ${esc(S.syncError)}</span></div>`;
   h += viewTour();
+  h += viewSince();
   if (!all.length) {
     return h + `<div class="ha-card ha-empty">
       <span class="ha-empty-icon">${icon('box')}</span>
@@ -324,6 +326,10 @@ function viewHome() {
   </div>`;
   if (expired.length) h += section('Expired', `<ul class="ha-list">${expired.map(x => itemRow(x.item)).join('')}</ul>`, { count: expired.length, footer: 'Used it or binned it? Open the item and tap Used 1 or Bin 1.' });
   h += section('Use soon', soon.length ? `<ul class="ha-list">${soon.map(x => itemRow(x.item)).join('')}</ul>` : '', { count: soon.length || '', footer: soon.length ? `Within the next ${soonText()}.` : `Nothing runs out of date in the next ${soonText()}.` });
+  const week = soon.filter(x => L.daysBetween(t, x.date) <= 7);
+  if (week.length) {
+    h += `<p class="pa-share-line"><a class="ha-btn ha-btn--secondary ha-btn--compact" id="pa-wa-week" href="${esc(L.waLink(L.useWeekText(week, fmt)))}" target="_blank" rel="noopener">${icon('share')}Send “use this week” on WhatsApp<span class="ha-sr"> (opens WhatsApp)</span></a></p>`;
+  }
   if (opened.length) h += section('Opened', `<ul class="ha-list">${opened.map(it => itemRow(it)).join('')}</ul>`, { count: opened.length });
   if (buy.length) {
     h += section('Running low', `<ul class="ha-list">${buy.slice(0, 5).map(b => itemRow(b.item, { sub: esc(L.whyText(b, t)), trail: '' })).join('')}</ul>`,
@@ -337,6 +343,20 @@ function viewHome() {
   </ul>`, { id: 'month' });
   return h;
 }
+
+// ---- since you last looked: what the rest of the family did since this phone last opened the pantry ----------------
+
+function viewSince() {
+  if (S.mode === 'local') return '';   // on this phone only, everything is this phone's
+  const mine = who();
+  const list = L.sinceLast({ events: [...S.events.values()], shop: [...S.shop.values()], since: S.since, isMe: by => nameOf(by) === mine });
+  if (!list.length) return '';
+  const row = x => `<li><div class="ha-row"><span class="ha-row-icon ha-row-icon--grey">${icon('user')}</span><span class="ha-row-body"><span class="ha-row-title">${esc(nameOf(x.by))} ${esc(L.sinceText(x))}</span><span class="ha-row-sub">${esc(L.agoText(x.at))}</span></span></div></li>`;
+  return section('Since you last looked', `<ul class="ha-list pa-since">${list.slice(0, 5).map(row).join('')}</ul>`,
+    { id: 'since', count: list.length, footer: `${list.length > 5 ? `And ${list.length - 5} more. ` : ''}<button type="button" class="ha-btn ha-btn--plain ha-btn--compact pa-since-ok" data-act="since-ok">Got it</button>` });
+}
+// This phone looked: remember when (per phone), so the next open shows only what happened after.
+function looked() { S.since = new Date().toISOString(); prefs.set('lastSeen', S.since); }
 
 // ---- first steps (tour.js): the Getting started checklist and the quick start --------------------------------------
 
@@ -1420,6 +1440,7 @@ async function onClick(e) {
       return apply(L.thawBatch(it, { batchId: b.dataset.b, days: THAW_DAYS, place, by: who() }), `Thawed: moved to ${place}, use within ${plural(THAW_DAYS, 'day')}`);
     }
     case 'leftovers': return openLeftovers();
+    case 'since-ok': { looked(); redraw(); return haAnnounce('Cleared'); }
     case 'bought': return openBought(it);
     case 'to-list': return addToList(it);
     case 'delete': {
@@ -1710,6 +1731,14 @@ async function start() {
     S.backend = S.local;
   }
   loadInto(await S.backend.load());
+  // Since you last looked: from this phone's last visit (the demo pretends four days ago); then this visit counts
+  if (DEMO) S.since = new Date(Date.now() - 4 * 86400000).toISOString();
+  else { S.since = prefs.get('lastSeen'); prefs.set('lastSeen', new Date().toISOString()); }
+  document.addEventListener('visibilitychange', () => {
+    if (DEMO) return;
+    if (document.visibilityState === 'hidden') prefs.set('lastSeen', new Date().toISOString());
+    else { S.since = prefs.get('lastSeen'); prefs.set('lastSeen', new Date().toISOString()); redraw(); }
+  });
   setTimeout(migratePhotos, 1000);   // old-style photos move out quietly, after the first screen is drawn
   document.addEventListener('click', onClick);
   document.addEventListener('change', onChange);

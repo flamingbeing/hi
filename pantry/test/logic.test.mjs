@@ -192,4 +192,23 @@ assert.throws(() => L.parseBackup('nonsense'), /not a pantry backup/);
   assert.ok(P.isFreezer('Level 1 freezer') && !P.isFreezer('Fridge'));
 }
 
+// ---- since you last looked, and WhatsApp text ----
+{
+  const ev = (by, type, at, extra = {}) => ({ id: at, itemId: 'x', name: 'Milk', type, qty: 1, at, by, ...extra });
+  const since = '2026-10-15T00:00:00.000Z';
+  const list = L.sinceLast({ events: [ev('Dad', 'add', '2026-10-16T01:00:00.000Z', { qty: 2 }), ev('Mum', 'use', '2026-10-16T02:00:00.000Z'), ev('Dad', 'use', '2026-10-14T02:00:00.000Z'), ev('Dad', 'level', '2026-10-16T03:00:00.000Z', { level: 'low' })],
+    shop: [{ id: 's', name: 'Bananas', by: 'Dad', at: '2026-10-16T04:00:00.000Z' }], since, isMe: by => by === 'Mum' });
+  assert.deepEqual(list.map(L.sinceText), ['added Bananas to the shopping list', 'marked Milk as low', 'bought 2 Milk'], 'others only, after since, newest first');
+  assert.deepEqual(L.sinceLast({ events: [ev('Dad', 'add', '2026-10-16T01:00:00.000Z')], since: null }), [], 'never looked: nothing');
+  const now = new Date('2026-10-16T12:00:00Z');
+  assert.equal(L.agoText('2026-10-16T11:59:30Z', now), 'just now');
+  assert.equal(L.agoText('2026-10-16T11:30:00Z', now), '30 min ago');
+  assert.equal(L.agoText('2026-10-16T09:00:00Z', now), '3 h ago');
+  assert.equal(L.agoText('2026-10-15T10:00:00Z', now), 'yesterday');
+  assert.equal(L.agoText('2026-10-12T12:00:00Z', now), '4 days ago');
+  const text = L.useWeekText([{ item: { name: 'Fresh milk', brand: 'Meiji' }, date: '2026-10-18' }, { item: { name: 'Kaya', brand: '' }, date: '2026-10-20' }]);
+  assert.equal(text, 'Use this week\n- Meiji Fresh milk, by 2026-10-18\n- Kaya, by 2026-10-20');
+  assert.equal(L.waLink('a & b\nc'), 'https://wa.me/?text=a%20%26%20b%0Ac');
+}
+
 console.log('pantry logic: ok');
