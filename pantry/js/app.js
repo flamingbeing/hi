@@ -10,6 +10,8 @@ import * as PP from './people.js';
 import * as MG from './merge.js';
 import * as SY from './sync.js';
 import * as SEL from './select.js';
+import * as O from './order.js';
+import { startDrag } from './drag.js';
 import { openLocal, openMemory, prefs, KINDS, PHOTOS } from './store.js';
 import { sampleData, demoBy, DEMO_FAMILY, DEMO_ME, DEMO_NAMES } from './sample.js';
 import { openWelcome, viewGuide, welcomed, markWelcomed, installed } from './guide.js';
@@ -31,6 +33,7 @@ const S = {
   backend: null, local: null, mode: DEMO ? 'demo' : 'local', cloud: null, user: null, household: null, pantries: [], lookupFailed: false, lost: null, creating: false, pending: null, localCount: 0,
   q: '', place: '', sort: prefs.get('sort', 'expiry'),
   sel: SEL.newSel(),   // Items: the items selected (by id), while selecting (select.js)
+  dragging: false, gripQuiet: 0,   // a drag by the grip is going on (redraws wait); the click that follows a drag isn't a tap
   folded: new Set(prefs.get('folded', []) || []),   // place headings folded shut on Items (Group by place); per phone
   draft: null, dirty: false, pendingRender: false, syncError: false,
   refused: prefs.get('refused', []) || [],   // changes the family pantry refused, kept here until retried or discarded (sync.js)
@@ -111,12 +114,12 @@ function patchItem(id, ops, { stamp = true } = {}) {
   return sent;
 }
 // The same for many items (moving every item from one place to another): one write to the family pantry.
-function patchMany(list) {
+function patchMany(list, { stamp = true } = {}) {
   const at = new Date().toISOString(), by = who(), sent = [];
-  touchMany(list.map(x => x.id));
+  if (stamp) touchMany(list.map(x => x.id));
   for (const { id, ops } of list) {
     const before = S.items.get(id); if (!before) continue;
-    const full = L.mergeOps(ops, { set: { updatedAt: at, updatedBy: by } });
+    const full = stamp ? L.mergeOps(ops, { set: { updatedAt: at, updatedBy: by } }) : ops;
     S.items.set(id, L.applyOps(before, full));
     sent.push({ id, ops: full, before });
   }
@@ -410,7 +413,9 @@ const LEVEL_WORD = { plenty: 'Plenty', low: 'Low', out: 'Out' };
 // A stock change that means "bought more": a count gets a batch; a staple goes back to Plenty.
 const restock = (it, { qty = 1, expiry = null } = {}) => (L.isStaple(it) ? L.setLevel(it, { level: 'plenty', by: who() }) : L.addStock(it, { qty, expiry, by: who() }));
 const subOf = it => [it.brand, it.size].filter(Boolean).map(esc).join(' · ');
-function itemRow(it, { sub, trail, select = false } = {}) {
+const gripIcon = () => `<svg class="pa-grip-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle cx="9" cy="6" r="1.7"/><circle cx="15" cy="6" r="1.7"/><circle cx="9" cy="12" r="1.7"/><circle cx="15" cy="12" r="1.7"/><circle cx="9" cy="18" r="1.7"/><circle cx="15" cy="18" r="1.7"/></svg>`;
+// `grip`: the Items list: a real button after the row, 44 px, that drags the item (or, with a tap, opens its Move sheet).
+function itemRow(it, { sub, trail, select = false, grip = false } = {}) {
   const q = L.totalQty(it), staple = L.isStaple(it);
   const s = sub ?? [staple ? LEVEL_WORD[L.levelOf(it)] : q ? `${q} left` : 'None left', esc(it.location || '')].filter(Boolean).join(' · ');
   const t = trail ?? (staple ? '' : badge(L.nextUseBy(it)));
@@ -420,10 +425,11 @@ function itemRow(it, { sub, trail, select = false } = {}) {
   // selecting: the row is a label around a real checkbox (the whole row is the target; no link to open)
   if (select) {
     const on = SEL.isSel(S.sel, it.id);
-    return `<li data-id="${esc(it.id)}"><label class="ha-row pa-item pa-item--sel${on ? ' is-selected' : ''}"><input type="checkbox" class="pa-sel" id="pa-sel-${esc(it.id)}" data-sel="${esc(it.id)}"${on ? ' checked' : ''}>${body}</label></li>`;
+    return `<li data-id="${esc(it.id)}"${grip ? ' class="pa-li"' : ''}><label class="ha-row pa-item pa-item--sel${on ? ' is-selected' : ''}"><input type="checkbox" class="pa-sel" id="pa-sel-${esc(it.id)}" data-sel="${esc(it.id)}"${on ? ' checked' : ''}>${body}</label>${grip ? gripBtn(it) : ''}</li>`;
   }
-  return `<li data-id="${esc(it.id)}"><a class="ha-row pa-item" href="#/item/${esc(it.id)}" draggable="false">${body}${chevron()}</a></li>`;
+  return `<li data-id="${esc(it.id)}"${grip ? ' class="pa-li"' : ''}><a class="ha-row pa-item" href="#/item/${esc(it.id)}" draggable="false">${body}${grip ? '' : chevron()}</a>${grip ? gripBtn(it) : ''}</li>`;
 }
+const gripBtn = it => `<button type="button" class="pa-grip" id="pa-grip-${esc(it.id)}" data-act="grip" data-id="${esc(it.id)}" aria-label="Reorder or move ${esc(it.name)}">${gripIcon()}</button>`;
 function section(title, body, { count = '', action = '', footer = '', id = '' } = {}) {
   const hid = 'h-' + (id || title.toLowerCase().replace(/[^a-z]+/g, '-'));
   return `<section class="ha-section" aria-labelledby="${hid}"><h2 class="ha-section-header" id="${hid}"><span>${esc(title)}</span>${action || (count !== '' ? `<span class="ha-num">${count}</span>` : '')}</h2>${body}${footer ? `<p class="ha-section-footer">${footer}</p>` : ''}</section>`;
@@ -675,22 +681,28 @@ function openStarter() {
 
 // ---- Items ------------------------------------------------------------------------------------------------------
 
-// How the list is sorted. 'category' and 'place' put the items under headings; the others are one flat list.
+// How the list is sorted. 'category', 'place' and 'myorder' put the items under headings (My order: under their category, in the order
+// the family set by dragging, order.js); the others are one flat list.
+// My order is a way of ordering WITHIN each category (the owner: "per category only"), so it is a second choice that appears under
+// Category rather than a fifth segment: five labels don't fit one row at 320 to 390 px.
 const SORTS = [['expiry', 'Use by'], ['name', 'Name'], ['category', 'Category'], ['place', 'Place']];
-const sortMode = () => (SORTS.some(([v]) => v === S.sort) ? S.sort : 'expiry');
+const sortMode = () => (S.sort === 'myorder' || SORTS.some(([v]) => v === S.sort) ? S.sort : 'expiry');
+const topSort = () => (sortMode() === 'myorder' ? 'category' : sortMode());   // the segment that is on
 function viewItems() {
   const all = items();
   const { listed, unlisted } = placeChoices();
   const places = [...listed, ...unlisted].filter(l => all.some(i => i.location === l));
   if (S.place && !places.includes(S.place)) S.place = '';
-  const chip = (v, label, n) => `<button type="button" class="ha-chip" aria-pressed="${S.place === v}" data-act="place" data-v="${esc(v)}">${esc(label)} <span class="ha-chip-count">${n}</span></button>`;
-  const seg = (v, label) => `<label class="ha-seg"><input type="radio" name="pa-sort" value="${v}"${sortMode() === v ? ' checked' : ''}><span>${label}</span></label>`;
+  const chip = (v, label, n) => `<button type="button" class="ha-chip" aria-pressed="${S.place === v}" data-act="place" data-v="${esc(v)}"${v ? ` data-place="${esc(v)}"` : ''}>${esc(label)} <span class="ha-chip-count">${n}</span></button>`;
+  const seg = (v, label) => `<label class="ha-seg"><input type="radio" name="pa-sort" id="pa-sort-${v}" value="${v}"${topSort() === v ? ' checked' : ''}><span>${label}</span></label>`;
+  const within = (v, label) => `<label class="ha-seg"><input type="radio" name="pa-within" id="pa-within-${v}" value="${v}"${sortMode() === v ? ' checked' : ''}><span>${label}</span></label>`;
   return `<h1 class="ha-large-title">Items</h1>
     <div class="ha-search" role="search">${icon('search')}
       <input type="search" id="pa-q" placeholder="Search the pantry" aria-label="Search the pantry" autocomplete="off" value="${esc(S.q)}">
       <button type="button" class="ha-search-clear" data-act="q-clear" aria-label="Clear search">${icon('close')}</button></div>
     <div class="ha-chips" role="group" aria-label="Where it’s kept">${chip('', 'All', all.length)}${places.map(p => chip(p, p, all.filter(i => i.location === p).length)).join('')}</div>
     <fieldset class="ha-segmented"><legend>Sort by</legend>${SORTS.map(([v, l]) => seg(v, l)).join('')}</fieldset>
+    ${topSort() === 'category' ? `<fieldset class="ha-segmented pa-within"><legend>Order within each category</legend>${within('category', 'By name')}${within('myorder', 'My order')}</fieldset>` : ''}
     <div id="pa-items-list">${itemsList()}</div>`;
 }
 // What the search and the place chips let through (the whole result: Select all means this, not just the rows drawn).
@@ -701,6 +713,7 @@ const byUseBy = (a, b) => { const x = L.nextUseBy(a) || '9999', y = L.nextUseBy(
 function sortedItems(list) {
   const l = [...list];
   if (sortMode() === 'category') l.sort((a, b) => CATEGORIES.indexOf(a.category) - CATEGORIES.indexOf(b.category) || a.name.localeCompare(b.name));
+  else if (sortMode() === 'myorder') l.sort((a, b) => CATEGORIES.indexOf(a.category) - CATEGORIES.indexOf(b.category) || O.compareOrder(a, b));
   else if (sortMode() === 'name') l.sort((a, b) => a.name.localeCompare(b.name));
   else l.sort(byUseBy);   // by use-by date (and, grouped by place, within each place)
   return l;
@@ -709,10 +722,10 @@ function sortedItems(list) {
 // order of places (then any place items still use that isn't in it, then "No place").
 function itemGroups(list) {
   const mode = sortMode();
-  if (mode === 'category') {
+  if (mode === 'category' || mode === 'myorder') {
     const groups = new Map();
     for (const it of list) { const c = it.category || 'Other'; if (!groups.has(c)) groups.set(c, []); groups.get(c).push(it); }
-    return [...groups].map(([c, l], i) => ({ key: 'cat:' + c, hid: 'h-cat-' + i, title: c, items: l }));
+    return [...groups].map(([c, l], i) => ({ key: 'cat:' + c, hid: 'h-cat-' + i, title: c, cat: c, items: l }));
   }
   if (mode === 'place') {
     const { listed, unlisted } = placeChoices();
@@ -729,8 +742,8 @@ function groupSection(g) {
   const title = g.fold
     ? `<button type="button" class="pa-fold" data-act="fold" data-g="${esc(g.key)}" id="pa-fold-${esc(g.hid)}" aria-expanded="${!folded}" aria-controls="pa-list-${esc(g.hid)}">${icon('chevron-right', { cls: 'pa-fold-icon' })}<span class="pa-fold-name">${esc(g.title)}</span></button>`
     : `<span>${esc(g.title)}</span>`;
-  return `<section class="ha-section pa-group" ${g.place !== undefined ? `data-place="${esc(g.place)}" ` : ''}aria-labelledby="${esc(g.hid)}"><h2 class="ha-section-header pa-grouphead" id="${esc(g.hid)}">${title}<span class="ha-num">${n}</span>${sel}</h2>${
-    folded ? '' : `<ul class="ha-list" id="pa-list-${esc(g.hid)}">${g.items.map(it => itemRow(it, { select: S.sel.on })).join('')}</ul>`}</section>`;
+  return `<section class="ha-section pa-group" ${g.place ? `data-place="${esc(g.place)}" ` : ''}${g.cat !== undefined ? `data-cat="${esc(g.cat)}" ` : ''}aria-labelledby="${esc(g.hid)}"><h2 class="ha-section-header pa-grouphead" id="${esc(g.hid)}">${title}<span class="ha-num">${n}</span>${sel}</h2>${
+    folded ? '' : `<ul class="ha-list" id="pa-list-${esc(g.hid)}">${g.items.map(it => itemRow(it, { select: S.sel.on, grip: true })).join('')}</ul>`}</section>`;
 }
 const selTheseText = g => (SEL.groupState(S.sel, g.items.map(i => i.id)) === 'all' ? `Unselect these ${g.items.length}` : `Select these ${g.items.length}`);
 function itemsList() {
@@ -743,7 +756,7 @@ function itemsList() {
       : `<div class="ha-card ha-empty"><span class="ha-empty-icon">${icon('box')}</span><p class="ha-empty-title">No items yet</p><p class="ha-empty-text">Add what’s at home to start.</p><button type="button" class="ha-btn ha-btn--primary" data-act="go-add">Add an item</button></div>`;
   }
   const groups = itemGroups(list);
-  if (!groups) return section(plural(list.length, 'item'), `<ul class="ha-list">${list.map(i => itemRow(i, { select: S.sel.on })).join('')}</ul>`, { id: 'items' });
+  if (!groups) return section(plural(list.length, 'item'), `<ul class="ha-list">${list.map(i => itemRow(i, { select: S.sel.on, grip: true })).join('')}</ul>`, { id: 'items' });
   return groups.map(groupSection).join('');
 }
 function drawItemsList() {
@@ -835,13 +848,18 @@ function undoBatch(sent, { liveOnly = true } = {}) {
   const msg = `${back.length ? 'Undone' : 'Nothing to undo'}${changed ? `: ${changed} changed since, left as ${changed === 1 ? 'it is' : 'they are'}` : ''}`;
   haToast(msg); haAnnounce(msg);
 }
+// The move itself: one batch, nothing for an item that is already there. { place, sent, same }.
+function moveItems(list, to) {
+  const place = P.cleanPlace(to), todo = list.filter(it => it.location !== place);
+  const sent = todo.length ? patchMany(todo.map(it => ({ id: it.id, ops: { set: { location: place }, inc: {}, del: [] } }))) : [];
+  return { place, sent, same: list.length - todo.length };
+}
 function bulkMove(list, to) {
-  const place = P.cleanPlace(to), todo = list.filter(it => it.location !== place), same = list.length - todo.length;
   finishBulk();
-  if (!todo.length) { haToast(`Already in ${place}`); return; }
-  const sent = patchMany(todo.map(it => ({ id: it.id, ops: { set: { location: place }, inc: {}, del: [] } })));
+  const { place, sent, same } = moveItems(list, to);
+  if (!sent.length) { haToast(`Already in ${place}`); return; }
   redraw();
-  const msg = `${plural(sent.length, 'item')} moved to ${place}${same ? ` (${same} already there)` : ''}`;
+  const msg = sent.length === 1 && !same ? `${S.items.get(sent[0].id)?.name || 'Item'} moved to ${place}` : `${plural(sent.length, 'item')} moved to ${place}${same ? ` (${same} already there)` : ''}`;
   haToast(msg, { action: 'Undo', onAction: () => undoBatch(sent) }); haAnnounce(msg);
 }
 function bulkToList(list) {
@@ -894,6 +912,106 @@ function openMoveTo(list) {
     bulkMove(list.filter(it => S.items.has(it.id) && itemById(it.id)), v);
   });
   return s;
+}
+// ---- My order, and dragging by the grip (order.js, drag.js) ---------------------------------------------------------------------
+
+const catOf = it => it.category || 'Other';
+const groupOf = it => items().filter(x => catOf(x) === catOf(it));   // an item's category, every item (the filters don't matter to the order)
+// Put item `id` just after `afterId` (null: first) in its category: ONE field on ONE item, or, when there is no room (or the items
+// have no numbers yet), a renumbering of the category in one batch. No stamp: moving isn't changing. { sent, plan } or null.
+function commitOrder(id, afterId) {
+  const it = itemById(id); if (!it) return null;
+  const plan = O.planMove(groupOf(it), id, afterId);
+  if (!plan.sets.length) return null;
+  const sent = patchMany(plan.sets.map(x => ({ id: x.id, ops: { set: { order: x.order }, inc: {}, del: [] } })), { stamp: false });
+  return { sent, plan, cat: catOf(it) };
+}
+// One step up or down (the buttons, the arrow keys): { moved, text } with what to say.
+function moveStep(id, dir) {
+  const it = itemById(id); if (!it) return null;
+  const cat = catOf(it), to = O.stepTarget(groupOf(it), id, dir);
+  if (to === undefined) return { moved: false, text: `${it.name} is already ${dir < 0 ? 'first' : 'last'} in ${cat}` };
+  const r = commitOrder(id, to);
+  const p = O.positionOf(groupOf(it), id);
+  return { moved: !!r, ...r, text: `${it.name} moved ${dir < 0 ? 'up' : 'down'}: ${p.index + 1} of ${p.count} in ${cat}` };
+}
+// The sheet behind a grip, for anyone who isn't dragging (a tap, Enter or Space on the grip): Move up and Move down in My order,
+// and Move to… in every sort. The result is spoken each time.
+function openGrip(id) {
+  const it = itemById(id); if (!it) return;
+  const ord = sortMode() === 'myorder', cat = catOf(it);
+  const pos = () => { const p = O.positionOf(groupOf(it), id); return `${p.index + 1} of ${p.count} in ${cat}`; };
+  const btn = (g, title, sub, dis = false) => `<li><button type="button" class="ha-row ha-row--action" data-g="${g}"${dis ? ' aria-disabled="true"' : ''}><span class="ha-row-body"><span class="ha-row-title">${title}</span><span class="ha-row-sub" ${g === 'to' ? '' : `id="pa-grip-sub-${g}"`}>${sub}</span></span></button></li>`;
+  const first = () => O.positionOf(groupOf(it), id).index === 0, last = () => { const p = O.positionOf(groupOf(it), id); return p.index === p.count - 1; };
+  const s = haSheet({
+    title: it.name, closeLabel: 'Done', grey: true,
+    body: `<ul class="ha-list">${ord ? btn('up', 'Move up', esc(pos()), first()) + btn('down', 'Move down', esc(pos()), last()) : ''}${btn('to', 'Move to…', `Now in ${esc(it.location || 'no place')}`)}</ul>
+      ${ord ? '' : '<p class="ha-section-footer">To put items in your own order, choose Category under Sort by, then My order.</p>'}`,
+    onClose: afterSheet,
+  });
+  const refresh = () => {
+    const u = $('[data-g="up"]', s.el), d = $('[data-g="down"]', s.el); if (!u) return;
+    u.setAttribute('aria-disabled', String(first())); d.setAttribute('aria-disabled', String(last()));
+    for (const sub of s.el.querySelectorAll('[id^="pa-grip-sub-"]')) sub.textContent = pos();
+  };
+  s.el.addEventListener('click', async e => {
+    const b = e.target.closest('[data-g]'); if (!b || b.getAttribute('aria-disabled') === 'true') return;
+    if (b.dataset.g === 'to') { await haCloseSheet(s.el); return openMoveTo([it]); }
+    const r = moveStep(id, b.dataset.g === 'up' ? -1 : 1);
+    if (r) { haAnnounce(r.text); refresh(); }
+  });
+  return s;
+}
+// A drag from a grip (drag.js). A grip of a ticked row, while selecting, carries every ticked item. It can be dropped on a place
+// (a heading or section in Group by place, or one of the place chips at the top) to move, and in My order within its category
+// to reorder. The ghost says which, and where.
+function onGripDown(e) {
+  const grip = e.target.closest?.('.pa-grip'); if (!grip || screen() !== 'items') return;
+  const id = grip.dataset.id, it = itemById(id); if (!it) return;
+  const ids = S.sel.on && SEL.isSel(S.sel, id) ? selectedItems().map(x => x.id) : [id];
+  const many = ids.length > 1, ord = sortMode() === 'myorder' && !many;
+  const nameOf2 = i => S.items.get(i)?.name || 'item';
+  const hit = (x, y, under) => {
+    const t = under?.closest?.('[data-place]');
+    if (t) {
+      const place = t.dataset.place, movers = ids.map(itemById).filter(i => i && i.location !== place);
+      if (!movers.length) return { key: 'own', tip: `Already in ${place}`, drop: null };   // its own heading isn't a target
+      return { key: 'place:' + place, el: t, tip: many ? `Move ${ids.length} items to ${place}` : `Move to ${place}`, drop: { place } };
+    }
+    if (ord) {
+      const sec = [...document.querySelectorAll('section[data-cat]')].find(c => c.dataset.cat === catOf(it)), list = sec?.querySelector('ul.ha-list');
+      if (list) {
+        const lr = list.getBoundingClientRect();
+        if (y >= lr.top - 24 && y <= lr.bottom + 24 && x >= lr.left - 24 && x <= lr.right + 24) {
+          const all = [...list.querySelectorAll('li[data-id]')], rows = all.filter(li => li.dataset.id !== id);
+          const idx = rows.filter(li => { const r = li.getBoundingClientRect(); return r.top + r.height / 2 < y; }).length;
+          const afterId = idx > 0 ? rows[idx - 1].dataset.id : null;
+          const own = all.findIndex(li => li.dataset.id === id), prevId = own > 0 ? all[own - 1].dataset.id : null;
+          const at = idx < rows.length ? rows[idx].getBoundingClientRect().top : rows.length ? rows[rows.length - 1].getBoundingClientRect().bottom : lr.top;
+          const same = afterId === prevId;
+          return { key: 'ord:' + (afterId || ''), tip: same ? 'Stays here' : afterId ? `After ${nameOf2(afterId)}` : `First in ${catOf(it)}`, line: same ? null : { y: at, left: lr.left, width: lr.width }, drop: same ? null : { afterId } };
+        }
+      }
+    }
+    return { key: 'none', tip: ord ? 'Drop in the list to reorder, or on a place to move' : 'Drop on a place to move it', drop: null };
+  };
+  S.dragging = true;
+  startDrag(e, {
+    handle: grip,
+    ghost: many ? null : grip.closest('li'),
+    text: many ? `${ids.length} items` : '',
+    hit, haptic: () => haHaptic(8),
+    suppressClick: () => { S.gripQuiet = Date.now() + 500; },
+    onDrop: d => {
+      if (d.place) { const list = ids.map(itemById).filter(Boolean); bulkMove(list, d.place); return; }
+      const r = commitOrder(id, d.afterId);
+      if (!r) return;
+      redraw();
+      const msg = d.afterId ? `${it.name} moved after ${nameOf2(d.afterId)}` : `${it.name} moved to the top of ${catOf(it)}`;
+      haToast(msg, { action: 'Undo', onAction: () => undoBatch(r.sent) }); haAnnounce(msg);
+    },
+    onEnd: () => { S.dragging = false; afterSheet(); },
+  });
 }
 // What the bar's actions do with the items as they are now.
 function selAction(act) {
@@ -2222,7 +2340,7 @@ function draw(r, { keep = false } = {}) {
 // in or a sheet is open: then it waits (a family member's change must never wipe what someone is typing).
 function redraw() {
   if (!R) return;
-  if (haSheetOpen() || ['add', 'edit'].includes(screen())) { S.pendingRender = true; drawBadge(); return; }
+  if (haSheetOpen() || S.dragging || ['add', 'edit'].includes(screen())) { S.pendingRender = true; drawBadge(); return; }
   // someone is typing (a family member's email, a shopping line): draw once they leave the field
   const a = document.activeElement;
   if (a?.matches?.('#main input:not([type=checkbox]):not([type=radio]):not([type=search]), #main textarea') && a.value) {
@@ -2291,6 +2409,7 @@ async function onClick(e) {
       haToast(`${it.name} deleted`, { action: 'Undo', onAction: () => { restoreItem(it.id); redraw(); haAnnounce('Undone'); } });
       return;
     }
+    case 'grip': if (Date.now() < S.gripQuiet) return; return openGrip(b.dataset.id);
     case 'sel-on': return enterSelect('');
     case 'sel-done': return exitSelect();
     case 'sel-all': { const n = SEL.selectAll(S.sel, filteredItems().map(i => i.id)); selChanged(); return haAnnounce(`All ${n} selected`); }
@@ -2474,7 +2593,12 @@ async function onChange(e) {
     } });
     return;
   }
-  if (t.name === 'pa-sort') { S.sort = t.value; prefs.set('sort', t.value); return drawItemsList(); }
+  if (t.name === 'pa-sort') {
+    S.sort = t.value === 'category' && prefs.get('within') === 'myorder' ? 'myorder' : t.value;   // Category comes back as it was left (by name, or My order)
+    prefs.set('sort', S.sort);
+    return redraw();
+  }
+  if (t.name === 'pa-within') { S.sort = t.value; prefs.set('sort', t.value); prefs.set('within', t.value); return redraw(); }
   if (t.dataset.sel !== undefined) { if (t.checked) S.sel.ids.add(t.dataset.sel); else S.sel.ids.delete(t.dataset.sel); return selChanged(); }
   if (t.id === 'pa-name') { prefs.set('name', t.value.trim()); return haToast('Saved'); }
   if (t.dataset.shop) {
@@ -2934,8 +3058,15 @@ async function start() {
   document.addEventListener('keydown', e => {
     if (e.key === 'Escape' && S.sel.on && !haSheetOpen()) { e.preventDefault(); exitSelect(); }
     else if (e.key === 'Enter' && e.target.matches?.('input.pa-sel')) { e.preventDefault(); e.target.click(); }
+    else if ((e.key === 'ArrowUp' || e.key === 'ArrowDown') && e.target.matches?.('.pa-grip') && sortMode() === 'myorder' && !e.altKey && !e.metaKey && !e.ctrlKey) {
+      // on a grip in My order, the arrow keys move the item one step (and say where it went)
+      e.preventDefault();
+      const r = moveStep(e.target.dataset.id, e.key === 'ArrowUp' ? -1 : 1);
+      if (r) { haAnnounce(r.text); if (r.moved) { redraw(); document.getElementById('pa-grip-' + e.target.dataset.id)?.focus({ preventScroll: false }); } }
+    }
   });
   addEventListener('popstate', () => { if (S.sel.on && !history.state?.paSelect) exitSelect({ pop: false }); });
+  document.addEventListener('pointerdown', onGripDown);
   document.addEventListener('click', onClick);
   document.addEventListener('change', onChange);
   document.addEventListener('input', onInput);
@@ -2988,6 +3119,10 @@ const testActions = {
   reorderPlace: (id, dir) => { const e = placeList().find(x => x.id === id); return e ? movePlace(e, dir) : 0; },
   removePlace: id => { const e = placeList().find(x => x.id === id); if (e) removePlace(e); return !!e; },
   restorePlace: id => { restorePlaces([id]); return true; },
+  // the Items list (this PR): move items to a place in one batch, put one after another in My order, and tidy a category's numbers
+  bulkMove: (ids, place) => moveItems(ids.map(itemById).filter(Boolean), place).sent.length,
+  reorder: (id, afterId = null) => { const r = commitOrder(id, afterId); return r ? { sets: r.plan.sets, renumbered: r.plan.renumbered } : null; },
+  renumber: category => { const g = items().filter(x => catOf(x) === category); const sets = O.renumber(O.sortByOrder(g)); patchMany(sets.map(x => ({ id: x.id, ops: { set: { order: x.order }, inc: {}, del: [] } })), { stamp: false }); return sets.length; },
 };
 
 // ---- the welcome, once per phone (guide.js) -------------------------------------------------------------------------

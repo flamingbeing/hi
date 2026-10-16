@@ -180,6 +180,8 @@ export function viewGuide() {
       row('snowflake', 'Freeze and Thaw', 'Freeze moves it to the freezer and keeps it about 3 months. Thaw moves it to the fridge: use within 2 days.'),
       row('barcode', 'Scan many', 'On Home: choose Bought, Used up or Add to list, then scan one barcode after another. Done saves them all, with one Undo.'),
       row('check', 'Select several', 'On Items, tap Select (or press and hold a row), tick items, then Move to…, Shopping list or Delete. One Undo for the lot.'),
+      row('list', 'Your own order', 'On Items, choose Category, then My order. Drag an item by its grip (the dots) up or down inside its category, or tap the grip for Move up and Move down.'),
+      row('home', 'Move by dragging', 'Drag an item by its grip onto a place (a heading under Sort by Place, or a place at the top) to move it. While selecting, the grip of a ticked item moves them all.'),
       row('home', 'Group by place', 'On Items, choose Place under Sort by: a heading for each place, with how many. Tap a heading to fold it.'),
     ])}
     ${section('soon', 'Use soon and expired', [

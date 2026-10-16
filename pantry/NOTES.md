@@ -494,6 +494,40 @@ Lasting decisions and how to test. What's going on now: [STATUS.md](STATUS.md). 
     place in the household's order, with its count; a heading folds (the chevron button, `aria-expanded`; kept per phone in
     `pantry:folded`). Each place section carries `data-place`, which is what the drag in the next commit looks for.
   - Rows are now `<li data-id>` and the row `<a>` has `draggable="false"` (a link drags as a native ghost otherwise).
+- **16 Oct 2026, dragging by the grip and My order (commit 3 of the combined PR):**
+  - **The grip.** Every row on Items ends with a real button (`aria-label` "Reorder or move <item>", 44 px, `touch-action: none`,
+    a sibling of the row's link, never inside it: a button inside a link fails axe). Every drag starts there (owner), and a tap, Enter
+    or Space on it opens a small sheet (the keyboard and screen-reader way): Move up and Move down in My order, Move to… always;
+    each result is spoken ("Eggs moved down: 2 of 2 in Dairy & eggs"). In My order the arrow keys on a focused grip move it a step.
+    While selecting, the grip of a ticked row drags the whole selection (the ghost says "3 items"); an unticked row's grip drags that
+    row alone.
+  - **Where a drag can land** (`js/drag.js` knows nothing of items; `onGripDown` in `app.js` says what is under the finger): on a
+    place, which moves it: a heading or section under Group by place (`data-place` on the section), or one of the place chips at the
+    top (added so the grip does something in every sort; the chips scroll sideways, so only visible ones can be hit); and, in My
+    order, within its own category, which reorders (an insertion line, "After Kaya" / "First in Dairy & eggs", "Stays here" when it
+    would not move). Its own place is ignored ("Already in Fridge"), another category's rows give no line, and a drop on nothing does
+    nothing. Moves reuse the selection's batch and Undo toast.
+  - **Why pointer events, not HTML5 drag and drop:** HTML5 DnD does not work with touch on iOS Safari and gives no control of the
+    ghost, the auto-scroll or the label. Adapted from the logbook's Reflections drag: a ghost lifted above the finger (so it isn't
+    hidden), the target lit, a tick (`haHaptic`) on each new target, `touchmove` default prevented while dragging (iOS), edge
+    auto-scroll that stops above the tab bar and the selection bar and below the top bar, Escape or a cancelled pointer puts
+    everything back, ghost marked `aria-hidden`. A drag begins after 6 px, so a tap stays a tap, and the click after a drag is
+    swallowed. Remote changes wait (`S.dragging`) and are drawn when it ends.
+  - **My order** (`js/order.js`, pure) is a way of ordering inside each category (owner: per category only), chosen under Category
+    ("By name | My order"; five labels don't fit one row at 320-390 px, and the segmented control keeps its look). One optional
+    number `order` per item; the list sorts by it, numbers before items without one, ties by name then id, so every phone shows the
+    same order whatever happened at once. Moving an item sets ONE field on ONE item: the midpoint of its new neighbours (after the
+    last: last + 1; before the first: first - 1; first ever: 1). Only when there is no room (equal or too-close neighbours, a
+    neighbour before it without a number, numbers near the limit) is the whole category renumbered 1, 2, 3 in one batch. No stamp:
+    moving isn't changing. New items have no number and land at the bottom. Undo puts the numbers back only where nobody changed
+    them since.
+  - **Rules:** an item's `order` is absent or a number, greater than -1,000,000 and less than 1,000,000 (a string, null, NaN, a map or a
+    list is refused; a rename in the same update is fine); no `hasOnly` on item keys (test: "order" cases in `sync.e2e.mjs`). Deploys
+    on merge.
+  - **Known limits.** iOS Safari touch behaviour is NOT verified here (Chromium with real touch events only): `touch-action: none`,
+    pointer capture and `touchmove` prevention are the standard way, but a real iPhone needs a try. Two phones putting different items into
+    the same gap can write the same number; the tie-break keeps their order the same everywhere. Chips scrolled out of sight can't be
+    dropped on. A drag with several ticked items only moves them to a place (reordering several at once isn't offered).
 
 ## How to test
 
@@ -508,12 +542,13 @@ node pantry/test/merge.test.mjs        # merging duplicate pantries: members, wh
 node pantry/test/scan.test.mjs         # the barcode look-up chain with a stubbed fetch (plain node)
 node pantry/test/photo.test.mjs        # thumbnail and photo sizes, stepping down to fit the limits (plain node)
 node pantry/test/ops.test.mjs          # both shapes of batches, changes as instructions and their inverse, the chip text (plain node)
+node pantry/test/order.test.mjs        # My order: midpoints, append, prepend, collisions, renumbering, tie-breaks, 200 random sequences (plain node)
 node pantry/test/select.test.mjs       # selecting: the selection state and the press and hold with a fake pointer (plain node)
 node pantry/test/syncnow.test.mjs      # Sync now: each waiting change in words, last heard, what it says (plain node)
 node pantry/test/removed.test.mjs      # removed markers, Restore, days left, the sweep's choice, backups and merging, every list skips removed (plain node)
 node pantry/test/config.test.mjs       # set-config, sign-in choice, plain-word errors, sw.js rules
 node pantry/test/e2e.mjs               # phone browser test with axe; SHOTS=<dir> saves screenshots
-node pantry/test/items.e2e.mjs         # the Items list with real touch (CDP): selecting, press and hold, the actions and their Undo, group by place, axe
+node pantry/test/items.e2e.mjs         # the Items list with real touch (CDP): selecting, press and hold, the actions and their Undo, group by place, grip drags, My order, axe
 pantry/test/run-sync.sh                # two phones and the stock rules (sync.e2e.mjs), the randomised three-phone run (multidevice.e2e.mjs), sign-in by email link and password (signin.e2e.mjs), family sharing, the rules (photo size caps, places and names too) and moving old-style photos in the
                                        # local emulators (demo-pantry, fake accounts)
 node tools/check.mjs && node tools/stamp-versions.mjs --check

@@ -7,6 +7,10 @@
 //     leaving the screen ends it, items filtered out stay selected and are counted;
 //   - the three actions (Move to…, Shopping list, Delete): one batch and one toast with Undo that leaves alone what changed since;
 //   - Group by place: headings with counts that fold, and the default sort unchanged;
+//   - the grip on every row (a real 44px button): dragging one item or a whole selection onto a place heading or chip (a ghost lifted
+//     above the finger, the target lit, a label saying where it lands, Escape cancels, its own place is ignored, auto-scroll at the
+//     edges), My order (reorder in a category: one number on one item; the first reorder numbers the category), and the keyboard and
+//     screen-reader ways (arrow keys on the grip, its sheet with Move up, Move down and Move to…);
 //   - axe on every state added here.
 // Needs Playwright (PLAYWRIGHT_PATH) and axe-core (AXE_PATH, or node_modules/axe-core found from the repo or cwd).
 const { chromium } = await import(process.env.PLAYWRIGHT_PATH || '/opt/node22/lib/node_modules/playwright/index.mjs');
@@ -71,13 +75,14 @@ const stateOf = page => page.evaluate(() => ({ on: window.__pantry.S.sel.on, n: 
 const toast = page => page.locator('.ha-toast.is-visible');
 
 try {
-  // ---------- the list as it is (default sort and look unchanged), the four-way sort fits ----------
+  // ---------- the list as it is (default sort and look unchanged), the sort fits ----------
   {
     const { ctx, page, errors } = await open();
     ok(await page.locator('input[name="pa-sort"]:checked').getAttribute('value') === 'expiry', 'the default sort is still Use by');
-    eq(await page.locator('.ha-segmented .ha-seg span').allTextContents(), ['Use by', 'Name', 'Category', 'Place']);
+    eq(await page.locator('.ha-segmented .ha-seg span').allTextContents(), ['Use by', 'Name', 'Category', 'Place'], 'My order is not here until Category is chosen');
+    ok(await page.locator('.pa-within').count() === 0, 'the second choice is hidden');
     const seg = await page.evaluate(() => { const f = document.querySelector('.ha-segmented'); return { sw: f.scrollWidth, cw: f.clientWidth, spans: [...f.querySelectorAll('.ha-seg span')].map(s => ({ w: s.getBoundingClientRect().width, sw: s.scrollWidth, cw: s.clientWidth })) }; });
-    ok(seg.sw <= seg.cw && seg.spans.every(s => s.sw <= s.cw), 'four sort labels fit at 390px: ' + JSON.stringify(seg));
+    ok(seg.sw <= seg.cw && seg.spans.every(s => s.sw <= s.cw), 'the sort labels fit at 390px: ' + JSON.stringify(seg));
     ok(await page.locator('#pa-items-list .pa-item').count() === 13, 'thirteen items');
     ok(await page.locator('#pa-items-list a.pa-item[href^="#/item/"]').count() === 13, 'rows are links, as before');
     ok(await page.locator('#pa-sel-toggle').isVisible(), 'a Select button above the list');
@@ -346,6 +351,264 @@ try {
     ok(await page.locator('#pa-items-list li', { hasText: 'Kaya' }).locator('input').isChecked(), 'the rest stays ticked');
     ok((await names(page)).includes('Fresh milk 2 L'), 'and the change shows');
     ok(!(await names(page)).includes('Eggs (10)'), 'the removed item is gone from the list');
+    await ctx.close();
+    ok(errors.length === 0, 'no errors: ' + errors.join(' | '));
+  }
+
+  // ---------- the grip: a real button on every row; dragging by it, with real touch ----------
+  {
+    const { ctx, page, errors, touch } = await open(BASE + '?demo#/items', { height: 1500 });   // (tall, so every row and heading is on screen)
+    ok(await page.locator('#pa-items-list .pa-grip').count() === 13, 'a grip on every row');
+    const g = await page.locator('#pa-items-list li', { hasText: 'Kaya' }).locator('.pa-grip').boundingBox();
+    ok(g.width >= 43.5 && g.height >= 43.5, `a 44px target (${g.width}x${g.height})`);
+    eq(await page.locator('#pa-items-list li', { hasText: 'Kaya' }).locator('.pa-grip').getAttribute('aria-label'), 'Reorder or move Kaya');
+    ok(await page.locator('#pa-items-list li', { hasText: 'Kaya' }).locator('button.pa-grip').count() === 1, 'a real button');
+    ok(await page.locator('#pa-items-list a.pa-item .pa-grip').count() === 0, 'not inside the row’s link');
+    eq(await page.locator('.pa-grip').first().evaluate(e => getComputedStyle(e).touchAction), 'none', 'touch-action: none on the grip');
+    await axe(page, 'Items with grips');
+    await page.locator('.ha-seg', { hasText: 'Place' }).click(); await settle(page);
+    const center = async name => { const b = await page.locator('#pa-items-list li', { hasText: name }).first().locator('.pa-grip').boundingBox(); return { x: b.x + b.width / 2, y: b.y + b.height / 2 }; };
+    const headBox = async place => (await page.locator(`section[data-place="${place}"] .pa-grouphead`).boundingBox());
+    const moveTo = async (from, to, steps = 8, wait = 25) => { for (let i = 1; i <= steps; i++) { await touch('touchMove', from.x + (to.x - from.x) * i / steps, from.y + (to.y - from.y) * i / steps); await page.waitForTimeout(wait); } };
+
+    // 1. one item onto a heading
+    let c = await center('Kaya');
+    await page.evaluate(() => { window.__buzz = []; });
+    await touch('touchStart', c.x, c.y);
+    await touch('touchMove', c.x, c.y + 4); await page.waitForTimeout(30);
+    ok(await page.locator('.pa-ghost').count() === 0, 'a 4 px wobble is not yet a drag');
+    let hb = await headBox('Basement store');
+    await moveTo(c, { x: 150, y: hb.y + hb.height / 2 });
+    ok(await page.locator('.pa-ghost').count() === 1, 'a ghost follows the finger');
+    ok(await page.locator('section[data-place="Basement store"].pa-drop').count() === 1, 'the heading under it is lit');
+    eq(await page.locator('.pa-ghost-tip').textContent(), 'Move to Basement store', 'a label says where it will land');
+    ok(await page.locator('.pa-ghost').evaluate(e => e.getAttribute('aria-hidden')) === 'true', 'the ghost is hidden from screen readers');
+    const gb = await page.locator('.pa-ghost').boundingBox();
+    ok(gb.y + gb.height <= hb.y + hb.height / 2, 'the ghost is lifted above the finger so it is not hidden by it');
+    ok((await page.evaluate(() => window.__buzz.length)) >= 1, 'a tick on reaching the heading');
+    await shot(page, 'p05-drag');
+    await touch('touchEnd'); await settle(page);
+    ok(await page.locator('.pa-ghost').count() === 0 && await page.locator('.pa-drop').count() === 0, 'ghost and highlight gone');
+    eq((await itemNamed(page, 'Kaya')).location, 'Basement store', 'Kaya moved');
+    ok(/Kaya moved to Basement store/.test(await toast(page).textContent()), 'one toast: ' + await toast(page).textContent());
+    await page.locator('.ha-toast-action').click(); await settle(page);
+    eq((await itemNamed(page, 'Kaya')).location, 'Fridge', 'Undo');
+    eq(hash(page), '#/items', 'no navigation');
+
+    // 2. its own heading is ignored; so is dropping on nothing
+    c = await center('Kaya'); hb = await headBox('Fridge');
+    await touch('touchStart', c.x, c.y); await moveTo(c, { x: 150, y: hb.y + hb.height / 2 });
+    eq(await page.locator('.pa-ghost-tip').textContent(), 'Already in Fridge');
+    ok(await page.locator('.pa-drop').count() === 0, 'its own heading is not lit');
+    await touch('touchEnd'); await settle(page);
+    eq((await itemNamed(page, 'Kaya')).location, 'Fridge'); ok(!(await toast(page).count()) || !/moved/.test(await toast(page).textContent().catch(() => '')), 'no move');
+    c = await center('Kaya');
+    await touch('touchStart', c.x, c.y); await moveTo(c, { x: 150, y: 60 }); // over the bar and title: nothing to drop on
+    ok(/Drop on a place/.test(await page.locator('.pa-ghost-tip').textContent()), 'the label says what to do');
+    await touch('touchEnd'); await settle(page);
+    eq((await itemNamed(page, 'Kaya')).location, 'Fridge', 'dropped on nothing: nothing happens');
+
+    // 3. Escape cancels
+    c = await center('Kaya'); hb = await headBox('Basement store');
+    await touch('touchStart', c.x, c.y); await moveTo(c, { x: 150, y: hb.y + hb.height / 2 });
+    ok(await page.locator('section[data-place="Basement store"].pa-drop').count() === 1);
+    await page.keyboard.press('Escape'); await page.waitForTimeout(100);
+    ok(await page.locator('.pa-ghost').count() === 0 && await page.locator('.pa-drop').count() === 0, 'Escape puts everything back');
+    await touch('touchEnd'); await settle(page);
+    eq((await itemNamed(page, 'Kaya')).location, 'Fridge', 'and nothing moved'); ok(await selecting(page) === false);
+
+    // 4. a selection of three, by the grip of a ticked row
+    await page.click('#pa-sel-toggle'); await settle(page);
+    for (const n of ['Kaya', 'Fresh milk', 'Eggs (10)']) await page.locator('#pa-items-list li', { hasText: n }).locator('.pa-item').tap();
+    eq(await count(page), '3 selected');
+    c = await center('Fresh milk'); hb = await headBox('Kitchen cabinet');
+    await touch('touchStart', c.x, c.y); await moveTo(c, { x: 150, y: hb.y + hb.height / 2 });
+    eq(await page.locator('.pa-ghost-card').textContent(), '3 items', 'the ghost says 3 items');
+    eq(await page.locator('.pa-ghost-tip').textContent(), 'Move 3 items to Kitchen cabinet');
+    await touch('touchEnd'); await settle(page);
+    for (const n of ['Kaya', 'Fresh milk', 'Eggs (10)']) eq((await itemNamed(page, n)).location, 'Kitchen cabinet', n);
+    ok(!(await selecting(page)), 'selecting ends after the drop');
+    ok(/3 items moved to Kitchen cabinet/.test(await toast(page).textContent()), await toast(page).textContent());
+    await page.locator('.ha-toast-action').click(); await settle(page);
+    eq((await itemNamed(page, 'Eggs (10)')).location, 'Fridge', 'one Undo for the batch');
+    // while selecting, the grip of a row that is NOT ticked drags only that row
+    await page.click('#pa-sel-toggle'); await settle(page);
+    await page.locator('#pa-items-list li', { hasText: 'Kaya' }).locator('.pa-item').tap();
+    c = await center('Eggs (10)'); hb = await headBox('Kitchen cabinet');
+    await touch('touchStart', c.x, c.y); await moveTo(c, { x: 150, y: hb.y + hb.height / 2 });
+    eq(await page.locator('.pa-ghost-tip').textContent(), 'Move to Kitchen cabinet', 'an unticked row drags alone');
+    await touch('touchEnd'); await settle(page);
+    eq((await itemNamed(page, 'Eggs (10)')).location, 'Kitchen cabinet'); eq((await itemNamed(page, 'Kaya')).location, 'Fridge', 'the ticked one stayed');
+    await page.locator('.ha-toast-action').click(); await settle(page);
+    await ctx.close();
+    ok(errors.length === 0, 'no errors: ' + errors.join(' | '));
+  }
+
+  // ---------- drag onto a place chip (any sort), by touch and by mouse; auto-scroll at the edges ----------
+  {
+    const { ctx, page, errors, touch } = await open(BASE + '?demo#/items', { height: 1500 });
+    const grip = async name => { const b = await page.locator('#pa-items-list li', { hasText: name }).first().locator('.pa-grip').boundingBox(); return { x: b.x + b.width / 2, y: b.y + b.height / 2 }; };
+    // a chip is a target in the default sort too
+    let c = await grip('Laundry liquid');
+    const chip = await page.locator('.ha-chip[data-place="Fridge"]').boundingBox();
+    await touch('touchStart', c.x, c.y);
+    for (let i = 1; i <= 10; i++) { await touch('touchMove', c.x + (chip.x + chip.width / 2 - c.x) * i / 10, c.y + (chip.y + chip.height / 2 - c.y) * i / 10); await page.waitForTimeout(25); }
+    ok(await page.locator('.ha-chip.pa-drop').count() === 1, 'the place chip is lit');
+    eq(await page.locator('.pa-ghost-tip').textContent(), 'Move to Fridge');
+    await touch('touchEnd'); await settle(page);
+    eq((await itemNamed(page, 'Laundry liquid')).location, 'Fridge', 'moved by dropping on a chip');
+    await page.locator('.ha-toast-action').click(); await settle(page);
+    // the same with a mouse
+    c = await grip('Laundry liquid');
+    const chip2 = await page.locator('.ha-chip[data-place="Kitchen cabinet"]').boundingBox();
+    await page.mouse.move(c.x, c.y); await page.mouse.down();
+    await page.mouse.move(c.x + 5, c.y + 3); await page.mouse.move(chip2.x + chip2.width / 2, chip2.y + chip2.height / 2, { steps: 10 });
+    ok(await page.locator('.pa-ghost').count() === 1, 'a mouse drags too');
+    await page.mouse.up(); await settle(page);
+    eq((await itemNamed(page, 'Laundry liquid')).location, 'Kitchen cabinet', 'moved by a mouse');
+    await page.locator('.ha-toast-action').click(); await settle(page);
+    // a tap on the grip opens its sheet and does not drag
+    await page.locator('#pa-items-list li', { hasText: 'Kaya' }).locator('.pa-grip').tap(); await settle(page);
+    ok(await page.locator('dialog.ha-sheet[open]').count() === 1, 'a tap on the grip opens the Move sheet');
+    ok(await page.locator('dialog.ha-sheet[open] [data-g="up"]').count() === 0, 'no Move up outside My order');
+    ok(await page.locator('dialog.ha-sheet[open] [data-g="to"]').count() === 1, 'Move to… is there');
+    ok(/choose Category under Sort by, then My order/.test(await page.locator('dialog.ha-sheet[open]').textContent()), 'and says how to get My order');
+    await page.locator('dialog.ha-sheet[open] [data-ha-close]').click(); await settle(page);
+
+    await ctx.close();
+    ok(errors.length === 0, 'no errors: ' + errors.join(' | '));
+  }
+
+  // ---------- auto-scroll at the edges of a short screen ----------
+  {
+    const { ctx, page, errors, touch } = await open(BASE + '?demo#/items', { height: 560 });
+    const grip = async name => { const b = await page.locator('#pa-items-list li', { hasText: name }).first().locator('.pa-grip').boundingBox(); return { x: b.x + b.width / 2, y: b.y + b.height / 2 }; };
+    let c;
+    await page.evaluate(() => scrollTo(0, 0)); await settle(page);
+    c = await grip('Wholemeal bread');
+    await touch('touchStart', c.x, c.y);
+    const bottom = await page.evaluate(() => document.querySelector('.ha-tabbar').getBoundingClientRect().top);
+    for (let i = 1; i <= 8; i++) { await touch('touchMove', c.x, c.y + (bottom - 20 - c.y) * i / 8); await page.waitForTimeout(25); }
+    const s0 = await page.evaluate(() => scrollY);
+    await page.waitForTimeout(700);
+    const s1 = await page.evaluate(() => scrollY);
+    ok(s1 > s0 + 60, `holding near the bottom edge scrolls the page (${s0} -> ${s1})`);
+    ok(await page.locator('.pa-ghost').count() === 1, 'the drag goes on while it scrolls');
+    for (let i = 1; i <= 6; i++) { await touch('touchMove', c.x, bottom - 20 - (bottom - 25) * i / 6); await page.waitForTimeout(25); }
+    await page.waitForTimeout(700);
+    ok((await page.evaluate(() => scrollY)) < s1 - 40, 'and near the top it scrolls back');
+    await touch('touchEnd'); await settle(page);
+    ok(!/moved/.test(await toast(page).textContent().catch(() => '')), 'nothing was dropped');
+    await ctx.close();
+    ok(errors.length === 0, 'no errors: ' + errors.join(' | '));
+  }
+
+  // ---------- My order: reorder within a category by the grip ----------
+  {
+    const { ctx, page, errors, touch } = await open(BASE + '?demo#/items', { height: 1500 });
+    await page.locator('.ha-seg', { hasText: 'Category' }).click(); await settle(page);
+    eq(await page.locator('.pa-within .ha-seg span').allTextContents(), ['By name', 'My order'], 'under Category: how to order within it');
+    eq(await page.locator('input[name="pa-within"]:checked').getAttribute('value'), 'category');
+    await page.locator('.ha-seg', { hasText: 'My order' }).click(); await settle(page);
+    eq(await page.locator('input[name="pa-within"]:checked').getAttribute('value'), 'myorder');
+    eq(await page.locator('input[name="pa-sort"]:checked').getAttribute('value'), 'category', 'Category stays on');
+    eq(await page.evaluate(() => window.__pantry.S.sort), 'myorder');
+    const seg = await page.evaluate(() => [...document.querySelectorAll('.ha-segmented')].map(f => ({ sw: f.scrollWidth, cw: f.clientWidth, spans: [...f.querySelectorAll('.ha-seg span')].map(s => [s.scrollWidth <= s.clientWidth, s.getBoundingClientRect().height]) })));
+    ok(seg.every(f => f.sw <= f.cw && f.spans.every(([fits, h]) => fits && h <= 44)), 'both choices fit one row at 390px: ' + JSON.stringify(seg));
+    // leaving Category and coming back finds it as it was left
+    await page.locator('.ha-seg', { hasText: 'Name' }).first().click(); await settle(page);
+    ok(await page.locator('.pa-within').count() === 0, 'the second choice goes with Category');
+    await page.locator('.ha-seg', { hasText: 'Category' }).click(); await settle(page);
+    eq(await page.locator('input[name="pa-within"]:checked').getAttribute('value'), 'myorder', 'My order comes back as it was left');
+    const dairy = () => page.locator('section[data-cat="Dairy & eggs"] .ha-row-title').allTextContents();
+    eq(await dairy(), ['Eggs (10)', 'Fresh milk'], 'no numbers yet: by name (Eggs, then Fresh milk)');
+    await shot(page, 'p06-my-order');
+    await axe(page, 'Items: My order');
+    const center = async name => { const b = await page.locator('#pa-items-list li', { hasText: name }).first().locator('.pa-grip').boundingBox(); return { x: b.x + b.width / 2, y: b.y + b.height / 2 }; };
+    const dragRow = async (name, ontoName, where, release = true) => {
+      const from = await center(name), r = await page.locator('#pa-items-list li', { hasText: ontoName }).first().boundingBox();
+      const y = where === 'above' ? r.y + 4 : r.y + r.height - 4;
+      await touch('touchStart', from.x, from.y);
+      for (let i = 1; i <= 8; i++) { await touch('touchMove', from.x + (150 - from.x) * i / 8, from.y + (y - from.y) * i / 8); await page.waitForTimeout(25); }
+      if (release) { await touch('touchEnd'); await settle(page); }
+    };
+    // Fresh milk above Eggs (neither has a number yet: the moved one gets 1)
+    await dragRow('Fresh milk', 'Eggs (10)', 'above', false);
+    ok(await page.locator('.pa-dropline').count() === 1, 'an insertion line shows where it will land');
+    eq(await page.locator('.pa-ghost-tip').textContent(), 'First in Dairy & eggs');
+    await touch('touchEnd'); await settle(page);
+    eq(await dairy(), ['Fresh milk', 'Eggs (10)'], 'reordered');
+    const orders = () => page.evaluate(() => Object.fromEntries([...window.__pantry.S.items.values()].filter(i => i.category === 'Dairy & eggs').map(i => [i.name, i.order ?? null])));
+    eq(await orders(), { 'Fresh milk': 1, 'Eggs (10)': null }, 'ONE number: the item moved; the one after it still has none (numbers sort first)');
+    ok(/Fresh milk moved to the top of Dairy & eggs/.test(await toast(page).textContent()), await toast(page).textContent());
+    // then one field on one item: Eggs back above Fresh milk: order 0 on Eggs only, and no stamp
+    const stamp0 = await page.evaluate(() => [...window.__pantry.S.items.values()].find(i => i.name === 'Eggs (10)').updatedAt);
+    await dragRow('Eggs (10)', 'Fresh milk', 'above');
+    eq(await dairy(), ['Eggs (10)', 'Fresh milk']);
+    eq(await orders(), { 'Fresh milk': 1, 'Eggs (10)': 0 }, 'ONE number changed (first - 1)');
+    eq(await page.evaluate(() => [...window.__pantry.S.items.values()].find(i => i.name === 'Eggs (10)').updatedAt), stamp0, 'moving is not a change: no stamp');
+    // dropping where it already is does nothing
+    await dragRow('Eggs (10)', 'Fresh milk', 'above', false);
+    ok(/Stays here/.test(await page.locator('.pa-ghost-tip').textContent()) && await page.locator('.pa-dropline').count() === 0, 'the label says Stays here, no line');
+    await touch('touchEnd'); await settle(page);
+    eq(await orders(), { 'Fresh milk': 1, 'Eggs (10)': 0 });
+    // Undo
+    await dragRow('Eggs (10)', 'Fresh milk', 'below');
+    eq(await dairy(), ['Fresh milk', 'Eggs (10)']); eq((await orders())['Eggs (10)'], 2, 'last + 1');
+    await page.locator('.ha-toast-action').click(); await settle(page);
+    eq(await dairy(), ['Eggs (10)', 'Fresh milk'], 'Undo puts it back'); eq((await orders())['Eggs (10)'], 0);
+    // only within the category: a drag over another category's rows gives no insertion line
+    const from = await center('Eggs (10)'), other = await page.locator('#pa-items-list li', { hasText: 'Kaya' }).boundingBox();
+    await touch('touchStart', from.x, from.y);
+    for (let i = 1; i <= 8; i++) { await touch('touchMove', from.x, from.y + (other.y + 20 - from.y) * i / 8); await page.waitForTimeout(25); }
+    ok(await page.locator('.pa-dropline').count() === 0, 'no insertion line over another category');
+    await touch('touchEnd'); await settle(page);
+    eq(await dairy(), ['Eggs (10)', 'Fresh milk']);
+
+    // the keyboard and screen-reader ways: arrow keys on the grip, and the grip's sheet (Move up, Move down, Move to…)
+    const live = () => page.evaluate(() => [...document.querySelectorAll('.ha-sr[aria-live="polite"]')].map(e => e.textContent).join('|'));
+    await page.locator('#pa-items-list li', { hasText: 'Eggs (10)' }).locator('.pa-grip').focus();
+    await page.keyboard.press('ArrowDown'); await page.waitForTimeout(150);
+    eq(await dairy(), ['Fresh milk', 'Eggs (10)'], 'ArrowDown on the grip moves it down');
+    ok(/Eggs \(10\) moved down: 2 of 2 in Dairy & eggs/.test(await live()), 'and says so: ' + await live());
+    eq(await page.evaluate(() => document.activeElement.id), await page.locator('#pa-items-list li', { hasText: 'Eggs (10)' }).locator('.pa-grip').getAttribute('id'), 'focus stays on the grip');
+    await page.keyboard.press('ArrowDown'); await page.waitForTimeout(150);
+    ok(/already last in Dairy & eggs/.test(await live()), 'at the end it says so: ' + await live());
+    await page.keyboard.press('Enter'); await settle(page);   // the grip's sheet
+    const sheet = page.locator('dialog.ha-sheet[open]');
+    ok(await sheet.count() === 1 && /2 of 2 in Dairy & eggs/.test(await sheet.textContent()), 'the sheet says where it stands');
+    ok(await sheet.locator('[data-g="down"]').getAttribute('aria-disabled') === 'true', 'Move down is off at the end');
+    await axe(page, 'Move sheet in My order');
+    await shot(page, 'i03-grip-sheet');
+    await sheet.locator('[data-g="up"]').click(); await page.waitForTimeout(150);
+    ok(/Eggs \(10\) moved up: 1 of 2 in Dairy & eggs/.test(await live()), await live());
+    ok(/1 of 2 in Dairy & eggs/.test(await sheet.textContent()), 'the sheet’s position updates');
+    ok(await sheet.locator('[data-g="up"]').getAttribute('aria-disabled') === 'true', 'now Move up is off');
+    // Move to… for this one item
+    await sheet.locator('[data-g="to"]').click(); await settle(page);
+    const pick = page.locator('dialog.ha-sheet[open]');
+    ok(/Move 1 item/.test(await pick.locator('.ha-sheet-title').textContent()), 'the place picker for one item');
+    await pick.locator('label', { hasText: 'Laundry' }).click(); await pick.locator('#pa-moveto-go').click(); await settle(page);
+    eq((await itemNamed(page, 'Eggs (10)')).location, 'Laundry');
+    ok(/Eggs \(10\) moved to Laundry/.test(await toast(page).textContent()), await toast(page).textContent());
+    await ctx.close();
+    ok(errors.length === 0, 'no errors: ' + errors.join(' | '));
+  }
+
+  // ---------- reduced motion: a drag still works, with no buzz and a still ghost ----------
+  {
+    const { ctx, page, errors, touch } = await open(BASE + '?demo#/items', { height: 1500, reducedMotion: 'reduce' });
+    await page.locator('.ha-seg', { hasText: 'Place' }).click(); await settle(page);
+    const g = await page.locator('#pa-items-list li', { hasText: 'Kaya' }).locator('.pa-grip').boundingBox(), hb = await page.locator('section[data-place="Basement store"] .pa-grouphead').boundingBox();
+    const c = { x: g.x + g.width / 2, y: g.y + g.height / 2 };
+    await touch('touchStart', c.x, c.y);
+    for (let i = 1; i <= 8; i++) { await touch('touchMove', c.x + (150 - c.x) * i / 8, c.y + (hb.y + 20 - c.y) * i / 8); await page.waitForTimeout(25); }
+    ok(await page.locator('.pa-ghost').count() === 1);
+    eq(await page.evaluate(() => window.__buzz.length), 0, 'no tick with reduced motion');
+    const tr = await page.locator('.pa-ghost').evaluate(e => getComputedStyle(e).transitionDuration);
+    ok(parseFloat(tr) <= 0.001, 'the ghost has no animation: ' + tr);
+    await touch('touchEnd'); await settle(page);
+    eq((await itemNamed(page, 'Kaya')).location, 'Basement store');
     await ctx.close();
     ok(errors.length === 0, 'no errors: ' + errors.join(' | '));
   }

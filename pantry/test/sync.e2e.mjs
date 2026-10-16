@@ -12,6 +12,7 @@ import assert from 'node:assert/strict';
 import { serve } from './serve.mjs';
 import { placeId as Lgp } from '../js/places.js';
 import { stallProxy } from './proxy.mjs';
+import * as Ord from '../js/order.js';
 import fs from 'node:fs';
 import { createRequire } from 'node:module';
 const { chromium } = await import(process.env.PLAYWRIGHT_PATH || '/opt/node22/lib/node_modules/playwright/index.mjs');
@@ -778,6 +779,23 @@ try {
     // an old array turned into a map by one write (what the app does for an old-style item)
     await tryIt('convert an array', () => F.updateDoc(d('items', 'r3'), { batches: { a: { qty: 1, expiry: null } } }));
     await tryIt('a whole item with an array over a map', () => F.setDoc(d('items', 'r3'), item('r3', [{ id: 'a', qty: 1, expiry: null }])));
+    // My order: `order` absent or a number inside plus or minus a million; no limit on other keys of an item
+    await tryIt('order a fraction', () => F.setDoc(d('items', 'o1'), { ...item('o1', {}), order: 1.5 }));
+    await tryIt('order a string', () => F.setDoc(d('items', 'o2'), { ...item('o2', {}), order: '2' }));
+    await tryIt('order null', () => F.setDoc(d('items', 'o3'), { ...item('o3', {}), order: null }));
+    await tryIt('order 999999.5', () => F.setDoc(d('items', 'o4'), { ...item('o4', {}), order: 999999.5 }));
+    await tryIt('order 1000000', () => F.setDoc(d('items', 'o5'), { ...item('o5', {}), order: 1000000 }));
+    await tryIt('order -1000000', () => F.setDoc(d('items', 'o6'), { ...item('o6', {}), order: -1000000 }));
+    await tryIt('order -999999', () => F.setDoc(d('items', 'o7'), { ...item('o7', {}), order: -999999 }));
+    await tryIt('order NaN', () => F.setDoc(d('items', 'o8'), { ...item('o8', {}), order: NaN }));
+    await tryIt('order a map', () => F.setDoc(d('items', 'o9'), { ...item('o9', {}), order: { a: 1 } }));
+    await tryIt('order a list', () => F.setDoc(d('items', 'o10'), { ...item('o10', {}), order: [1] }));
+    await tryIt('order by field', () => F.updateDoc(d('items', 'o1'), { order: 2.25 }));
+    await tryIt('order a string by field', () => F.updateDoc(d('items', 'o1'), { order: 'x' }));
+    await tryIt('order too big by field', () => F.updateDoc(d('items', 'o1'), { order: 5000000 }));
+    await tryIt('order and a rename in one update', () => F.updateDoc(d('items', 'o1'), { order: 3, name: 'Renamed o1' }));
+    await tryIt('order taken off by field', () => F.updateDoc(d('items', 'o1'), { order: F.deleteField() }));
+    await tryIt('another key is still fine (no hasOnly on items)', () => F.setDoc(d('items', 'o11'), { ...item('o11', {}), colour: 'red', order: 4 }));
     // history: created once, never edited; deleting a line (Undo) is fine; writing it again exactly as it is is fine
     const e = (id, qty = 1) => ({ id, itemId: 'r1', type: 'use', qty, at: '2026-10-16T00:00:00.000Z', by: 'Mum' });
     await tryIt('event create', () => F.setDoc(d('events', 'ev1'), e('ev1')));
@@ -800,6 +818,10 @@ try {
     'convert an array': 'ok', 'a whole item with an array over a map': 'ok',
     'event create': 'ok', 'event rewritten as it is': 'ok', 'event changed': 'permission-denied', 'event field changed': 'permission-denied', 'event field added': 'permission-denied',
     'event delete': 'ok', 'event create again': 'ok', 'shop line create and change': 'ok',
+    'order a fraction': 'ok', 'order a string': 'permission-denied', 'order null': 'permission-denied', 'order 999999.5': 'ok', 'order 1000000': 'permission-denied',
+    'order -1000000': 'permission-denied', 'order -999999': 'ok', 'order NaN': 'permission-denied', 'order a map': 'permission-denied', 'order a list': 'permission-denied',
+    'order by field': 'ok', 'order a string by field': 'permission-denied', 'order too big by field': 'permission-denied', 'order and a rename in one update': 'ok',
+    'order taken off by field': 'ok', 'another key is still fine (no hasOnly on items)': 'ok',
   }, 'stock rules');
   const outsiderStock = await stranger.evaluate(async hid => {
     const F = await import('https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js');
@@ -813,6 +835,70 @@ try {
   }, hid);
   assert.deepEqual(outsiderStock, Array(5).fill('permission-denied'), 'outsider and stock: ' + outsiderStock.join(', '));
   assert.ok(await admin.get(`households/${hid}/events/ev1`), 'the outsider didn’t delete history');
+
+  // ---- the Items list: a bulk move and a reorder racing another phone: both kept; every phone shows the same order ----
+  {
+    const mk = async (id, name, extra = {}) => { await admin.put(`households/${hid}/items/${id}`, { id, name, ...base, batches: { a: { qty: 5, expiry: '2027-01-01', openedAt: null, addedAt: '2026-10-01' } }, ...extra }); await has(mum, id); await has(dad, id); };
+    for (const [id, n] of [['bm1', 'Bulk 1'], ['bm2', 'Bulk 2'], ['bm3', 'Bulk 3']]) await mk(id, n);
+    // A moves all three to the Garage in ONE batch while B, with no signal, uses one of them and renames another
+    await net(dad, false);
+    await act(dad, 'use', 'bm2', 'a'); await act(dad, 'set', 'bm3', 'name', 'Bulk 3 renamed');
+    assert.equal(await act(mum, 'bulkMove', ['bm1', 'bm2', 'bm3'], 'Garage'), 3, 'three moved');
+    await drain(mum);
+    assert.equal((await admin.get(`households/${hid}/items/bm2`)).location, 'Garage', 'the move reached the server while B was offline');
+    await net(dad, true); await drain(dad);
+    for (const [id, loc, qty, name] of [['bm1', 'Garage', 5, 'Bulk 1'], ['bm2', 'Garage', 4, 'Bulk 2'], ['bm3', 'Garage', 5, 'Bulk 3 renamed']]) {
+      const raw = await admin.get(`households/${hid}/items/${id}`);
+      assert.equal(raw.location, loc, id + ' place'); assert.equal(raw.batches.a.qty, qty, id + ' stock'); assert.equal(raw.name, name, id + ' name');
+      for (const ph of [mum, dad]) assert.deepEqual(await ph.evaluate(i => { const it = window.__pantry.S.items.get(i); return [it.location, it.batches[0].qty, it.name]; }, id), [loc, qty, name], id + ' on a phone');
+    }
+    // two bulk moves of the same item to different places at once: one place wins, on every phone (a field: last write)
+    await net(dad, false);
+    await act(dad, 'bulkMove', ['bm1'], 'Fridge'); await act(mum, 'bulkMove', ['bm1'], 'Laundry'); await drain(mum);
+    await net(dad, true); await drain(dad);
+    const won = (await admin.get(`households/${hid}/items/bm1`)).location;
+    assert.ok(['Fridge', 'Laundry'].includes(won), 'one of the two places: ' + won);
+    for (const ph of [mum, dad]) assert.equal(await ph.evaluate(() => window.__pantry.S.items.get('bm1').location), won, 'both phones agree');
+
+    // My order: a category of four (nothing numbered yet): a move is ONE field; after an item with no number, the category is numbered in one batch
+    for (const [id, n] of [['bo1', 'Pet A'], ['bo2', 'Pet B'], ['bo3', 'Pet C'], ['bo4', 'Pet D']]) await mk(id, n, { category: 'Pet' });
+    const seq = async () => Ord.sortByOrder((await admin.list(`households/${hid}/items`)).filter(i => /^bo\d$/.test(i.id))).map(i => i.id).join(',');
+    const phoneSeq = ph => ph.evaluate(() => [...window.__pantry.S.items.values()].filter(i => /^bo\d$/.test(i.id)).map(i => ({ id: i.id, name: i.name, order: i.order }))).then(l => Ord.sortByOrder(l).map(i => i.id).join(','));
+    assert.equal(await seq(), 'bo1,bo2,bo3,bo4');
+    const r1 = await act(mum, 'reorder', 'bo4', null);
+    assert.equal(r1.renumbered, false); assert.deepEqual(r1.sets, [{ id: 'bo4', order: 1 }], 'to the top of a category with no numbers: ONE field on ONE item');
+    await drain(mum); await drain(dad);
+    assert.equal(await seq(), 'bo4,bo1,bo2,bo3'); assert.equal(await phoneSeq(dad), 'bo4,bo1,bo2,bo3', 'the other phone shows it');
+    assert.deepEqual((await admin.list(`households/${hid}/items`)).filter(i => /^bo\d$/.test(i.id) && 'order' in i).map(i => i.id), ['bo4'], 'only the moved item has a number');
+    const r2 = await act(mum, 'reorder', 'bo3', 'bo4');
+    assert.equal(r2.sets.length, 1, 'again ONE field on ONE item'); assert.equal(r2.sets[0].order, 2); assert.equal(r2.renumbered, false);
+    await drain(mum);
+    const raw3 = await admin.get(`households/${hid}/items/bo3`);
+    assert.deepEqual(Object.keys(raw3).filter(k => ['order', 'updatedAt', 'updatedBy'].includes(k)), ['order'], 'only the order field, no stamp');
+    // a reorder racing a rename of the same item: both kept
+    await net(dad, false);
+    await act(dad, 'set', 'bo3', 'name', 'Pet C renamed');
+    await act(mum, 'reorder', 'bo3', 'bo2'); await drain(mum);
+    await net(dad, true); await drain(dad);
+    const raw3b = await admin.get(`households/${hid}/items/bo3`);
+    assert.equal(raw3b.name, 'Pet C renamed', 'the rename is kept'); assert.equal(typeof raw3b.order, 'number', 'and so is the move: ' + raw3b.order);
+    assert.equal(await seq(), 'bo4,bo1,bo2,bo3', 'moved to just after bo2 (after an item with no number: the category got numbered)');
+    // two phones put different items into the same gap at once (possibly the same number): every phone still shows one order
+    await net(dad, false);
+    await act(dad, 'reorder', 'bo1', 'bo4'); await act(mum, 'reorder', 'bo2', 'bo4'); await drain(mum);
+    await net(dad, true); await drain(dad);
+    const want = await seq();
+    for (let k = 0; k < 40 && (await phoneSeq(mum) !== want || await phoneSeq(dad) !== want); k++) await mum.waitForTimeout(250);   // (the listeners deliver a moment after the writes are acknowledged)
+    assert.equal(await phoneSeq(mum), want, 'mum shows the server’s order'); assert.equal(await phoneSeq(dad), want, 'dad shows the server’s order');
+    // tidying the numbers (a renumber) keeps the sequence and leaves every number different
+    const n = await act(mum, 'renumber', 'Pet'); await drain(mum); await drain(dad);
+    assert.ok(n >= 0);
+    assert.equal(await seq(), want, 'renumbering never changes the order');
+    const orders = (await admin.list(`households/${hid}/items`)).filter(i => /^bo\d$/.test(i.id)).map(i => i.order);
+    assert.equal(new Set(orders).size, 4, 'all different after a renumber: ' + orders.join(','));
+    assert.equal(await phoneSeq(dad), want);
+    for (const ph of [mum, dad]) assert.equal(await ph.evaluate(() => window.__pantry.S.refused.length), 0, 'nothing refused');
+  }
 
   // ---- removing without losing: a delete is a marker, a change that lands on a removed thing never brings it back ----
   const rawAt = path => admin.get(`households/${hid}/${path}`);

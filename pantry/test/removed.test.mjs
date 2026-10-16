@@ -186,6 +186,8 @@ const OK_GET = [
   /S\.items\.get\(it\.id\)\?\.location/,                          // moving the items of a renamed place
   /\(\[id, at\]\) => S\.items\.get\(id\)/,                       // the items a note is about (then checked removed)
   /use: \(id, batchId|add: \(id, qty|open: \(id, batchId/,         // the emulator tests' own actions
+  /S\.items\.get\(sent\[0\]\.id\)\?\.name/,                         // the name in a toast about an item just moved
+  /const nameOf2 = i => S\.items\.get\(i\)\?\.name/,              // a name in a drag's label (the item is on screen)
   /const now = S\.items\.get\(x\.id\)/,                          // Undo of a batch: the item as it is now (one removed since counts as changed, except undoing a delete)
 ];
 const strayGet = byId.filter(([, t]) => !OK_GET.some(re => re.test(t)));
