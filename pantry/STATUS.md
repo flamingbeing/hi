@@ -15,6 +15,9 @@
 - 16 Oct 2026: improvements from Kaki Home (PR "Pantry: used before expiry, Say or type and who changed what"):
   used-before-expiry and expired recorded, Say or type quick entry, added and changed by, Use soon setting.
 
+- 16 Oct 2026: hands-on walkthrough for first-time users (PR "Pantry: hands-on walkthrough for first-time users"): two-card
+  welcome, quick start chips, Getting started checklist with Show me.
+
 ## Waiting on the owner
 
 - Billing: waiting on the owner (Blaze), then the US$5 budget and daily backups.

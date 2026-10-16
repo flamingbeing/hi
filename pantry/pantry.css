@@ -78,3 +78,14 @@ label.ha-row:focus-within:has(.pa-file){outline:2px solid var(--home-focus);outl
 .pa-gagain{margin:var(--home-s2) 0 var(--home-s6)}
 .pa-quick-text{width:100%;min-height:6.5em;resize:vertical}
 .pa-mic.is-on{background:var(--home-bad);color:#fff}
+/* first steps (js/tour.js): the Getting started checklist, the quick start chips, and the Show me ring */
+.pa-tour-mark{flex:none;display:grid;place-items:center;width:26px;height:26px;border:2px solid var(--home-line-strong);border-radius:50%;color:#fff}
+.pa-tour-row.is-done .pa-tour-mark{border-color:var(--home-ok);background:var(--home-ok)}
+.pa-tour-mark .ha-icon{width:16px;height:16px}
+.pa-tour-row.is-done .ha-row-title{color:var(--home-muted);text-decoration:line-through}
+.pa-tour-foot{margin:var(--home-s1) 0 0;text-align:right}
+.pa-start-intro{margin:0 0 var(--home-s3)}
+.pa-start-chips .ha-chip[disabled]{opacity:.6}
+.pa-spot{outline:3px solid var(--home-accent);outline-offset:3px;animation:pa-spot 1.2s ease-in-out 3}
+@keyframes pa-spot{50%{outline-offset:7px}}
+@media (prefers-reduced-motion:reduce){.pa-spot{animation:none}}
