@@ -5,7 +5,8 @@ into with Google. Nothing here goes in the repo except the web config (a public 
 project id and who's in the pantry in `flamingbeing/life` (`plans/`), not here.
 
 1. **Cloudflare address.** First check `pantry` isn't a name already used at home (HOSTING.md, "Names already in use").
-   Then Cloudflare → Workers & Pages → **flamingbeing-home** → Settings → Domains & Routes → Add → Custom domain:
+   The address comes from `routes` in `wrangler.jsonc` (the deploy on merge creates it); if it doesn't appear,
+   Cloudflare → Workers & Pages → **flamingbeing-home** → Settings → Domains & Routes → Add → Custom domain:
    `pantry.flamingbeing.com`. Open it on the phone: the empty pantry shows.
 2. **Firebase project.** <https://console.firebase.google.com> → Add project → a name such as `family-pantry`
    (Google Analytics not needed).

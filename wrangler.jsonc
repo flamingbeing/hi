@@ -14,6 +14,13 @@
     "html_handling": "none",
     "not_found_handling": "none"
   },
+  // The app addresses (HOSTING.md). Cloudflare creates each name's DNS record and certificate on deploy; names not
+  // listed here (the owner's *.flamingbeing.com catch-all to the home server) are left alone. Check a new name with
+  // the owner first: it takes over that name from the catch-all.
+  "routes": [
+    { "pattern": "design.flamingbeing.com", "custom_domain": true },
+    { "pattern": "pantry.flamingbeing.com", "custom_domain": true }
+  ],
   // a preview link per branch and per build, posted on the PR by Workers Builds
   "preview_urls": true,
   "keep_vars": true,
