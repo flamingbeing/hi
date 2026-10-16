@@ -250,9 +250,17 @@ export async function setMembers(hid, members) {
   const { F, db } = await sdk();
   await F.updateDoc(F.doc(db, 'households', hid), { members: [...new Set(members.map(lc).filter(Boolean))] });
 }
+// Calls `cb(household)` when the household changes, and `cb(null)` once when it is gone or can't be read any more (deleted or
+// merged away by its owner, this account removed from it, or the rules said no: a listener that fails is finished). A copy
+// the phone made up from its own cache (no signal, nothing cached) is not "gone": only the server saying so counts.
 export async function watchHousehold(hid, cb) {
   const { F, db } = await sdk();
-  return F.onSnapshot(F.doc(db, 'households', hid), s => cb(s.exists() ? { id: s.id, ...s.data() } : null), () => cb(null));
+  let last = '';
+  return F.onSnapshot(F.doc(db, 'households', hid), { includeMetadataChanges: true }, s => {
+    if (!s.exists()) { if (!s.metadata.fromCache && last !== 'gone') { last = 'gone'; cb(null); } return; }
+    const h = { id: s.id, ...s.data() }, j = JSON.stringify(h);
+    if (j !== last) { last = j; cb(h); }
+  }, e => { console.warn('household', e?.code); if (last !== 'gone') { last = 'gone'; cb(null); } });
 }
 
 // Firestore can't store undefined; drop it.
@@ -362,21 +370,43 @@ export async function removeHousehold(hid) {
 }
 
 // `onError(err, info)` hears of a write the server refused (info says which: { op, kind, id, obj | ops });
-// `onSync(state)` of how many of this phone's changes the server hasn't confirmed yet ({ pending, cache }).
+// `onSync(state)` of how many of this phone's changes the server hasn't confirmed yet ({ pending, cache, list, heard }).
 export async function openCloud(hid, onError = () => {}, onSync = () => {}) {
   const { F, db } = await sdk();
   const col = kind => F.collection(db, 'households', hid, kind);
   const unsubs = [];
-  // Changes not yet confirmed, two ways: this phone's own writes still waiting for the server (inflight), and the
-  // documents the listeners say have pending writes (also those left from before the app was last closed). History
-  // lines (events) aren't counted: each belongs to a change that is.
-  let inflight = 0;
-  const seen = Object.fromEntries(KINDS.map(k => [k, { pending: 0, cache: false }]));
-  const tell = () => onSync({
-    pending: Math.max(inflight, KINDS.reduce((n, k) => n + (k === 'events' ? 0 : seen[k].pending), 0)),
-    cache: KINDS.some(k => seen[k].cache),
-  });
-  const track = (p, counted = true) => { if (counted) { inflight++; tell(); p.finally(() => { inflight--; tell(); }); } return p; };
+  // Changes the server hasn't confirmed, counted two ways, both from the SERVER's acknowledgement and nothing else:
+  //  - this phone's own writes whose promise hasn't resolved yet (`waiting`, with a record of each so Settings can say what it
+  //    was: { kind, id, op, ops | name });
+  //  - writes left from before the app was last closed (`leftover`: the documents the first snapshots flag as pending; each is
+  //    cleared when waitForPendingWrites says they were all acknowledged).
+  // NOT counted: a document the listener flags `hasPendingWrites` after this session's own write was acknowledged. The SDK keeps
+  // that flag up (as "committed mutations") until the listener stream has caught up with the write, so on a slow or stalled
+  // listener (wifi with a VPN, 17:54 on 16 Oct) a change the server already holds read as "Waiting for signal (1 change)"
+  // (found and reproduced in the emulator, test/sync.e2e.mjs "the chip tells the truth"). History lines (events) aren't
+  // counted: each belongs to a change that is.
+  let inflight = 0, serial = 0, heard = 0, leftover = [];
+  const waiting = new Map();
+  const first = new Set();
+  const seen = Object.fromEntries(KINDS.map(k => [k, { cache: false, flagged: [] }]));
+  const tell = () => {
+    const mine = [...waiting.values()];
+    const old = leftover.filter(x => !mine.some(m => m.kind === x.kind && m.id === x.id));
+    onSync({
+      pending: Math.max(inflight, mine.length, leftover.length),
+      cache: KINDS.some(k => seen[k].cache),
+      list: [...mine, ...old],
+      heard,
+    });
+  };
+  const track = (p, counted = true, recs = []) => {
+    if (!counted) return p;
+    inflight++;
+    const keys = recs.map(r => { const k = ++serial; waiting.set(k, r); return k; });
+    tell();
+    p.finally(() => { inflight--; for (const k of keys) waiting.delete(k); heard = Date.now(); tell(); });   // an answer from the server, whether it took the change or not
+    return p;
+  };
   const counts = kind => kind !== 'events' && kind !== 'photos';   // a history line or a photo belongs to a change that is counted
   const refused = info => e => { console.warn('save failed', info.op, info.kind, e?.code); onError(e, info); return false; };
   return {
@@ -391,7 +421,7 @@ export async function openCloud(hid, onError = () => {}, onSync = () => {}) {
     },
     // Writes go to the phone's copy at once and reach the family when there's signal; don't wait for the server.
     // The promise (which callers may ignore) says whether the server took it: true, or false when refused.
-    put: (kind, obj) => track(F.setDoc(F.doc(col(kind), obj.id), clean(kind === 'items' ? toStored(obj) : obj)).then(() => true, refused({ op: 'put', kind, id: obj.id, ...(kind === 'photos' ? {} : { obj: clean(kind === 'items' ? toStored(obj) : obj) }) })), counts(kind)),
+    put: (kind, obj) => track(F.setDoc(F.doc(col(kind), obj.id), clean(kind === 'items' ? toStored(obj) : obj)).then(() => true, refused({ op: 'put', kind, id: obj.id, ...(kind === 'photos' ? {} : { obj: clean(kind === 'items' ? toStored(obj) : obj) }) })), counts(kind), [{ kind, id: obj.id, op: 'put', name: obj.name || '' }]),
     // One item's change as instructions (ops: logic.js). `before` is the item as this phone has it (to tell an old-style
     // array that needs converting); without one the item isn't known here yet, so the fields are merged into whatever
     // is there (a set-with-merge, which creates it). Otherwise an update: it fails, rather than bringing back an item
@@ -401,14 +431,14 @@ export async function openCloud(hid, onError = () => {}, onSync = () => {}) {
       const info = { op: 'patch', kind, id, ops };
       // an update when this phone has the document (it fails, rather than bringing back one that is gone); a merge when it
       // doesn't know it yet (it creates the document, or adds these fields to whatever another phone made)
-      return track((before ? F.updateDoc(ref, ...updateArgs(F, before, ops)) : F.setDoc(ref, nest(updatePairs(F, before, ops)), { merge: true })).then(() => true, refused(info)));
+      return track((before ? F.updateDoc(ref, ...updateArgs(F, before, ops)) : F.setDoc(ref, nest(updatePairs(F, before, ops)), { merge: true })).then(() => true, refused(info)), true, [{ kind, id, op: 'patch', ops }]);
     },
     // Several items' changes in one write (renaming a place moves every item in it): [{ id, ops, before }].
     async patchMany(kind, list) {
       for (let i = 0; i < list.length; i += 400) {
         const part = list.slice(i, i + 400), b = F.writeBatch(db);
         for (const x of part) b.update(F.doc(col(kind), x.id), ...updateArgs(F, x.before, x.ops));
-        await track(b.commit().catch(e => { for (const x of part) refused({ op: 'patch', kind, id: x.id, ops: x.ops })(e); }));
+        await track(b.commit().catch(e => { for (const x of part) refused({ op: 'patch', kind, id: x.id, ops: x.ops })(e); }), true, part.map(x => ({ kind, id: x.id, op: 'patch', ops: x.ops })));
       }
     },
     // Delete for good, only if it is still removed since before `cutoff` (the daily sweep): read and delete in one
@@ -431,10 +461,10 @@ export async function openCloud(hid, onError = () => {}, onSync = () => {}) {
       for (let i = 0; i < ids.length; i += 400) {
         const b = F.writeBatch(db);
         for (const id of ids.slice(i, i + 400)) b.delete(F.doc(col(kind), id));
-        await track(b.commit().catch(e => { console.warn('delete', kind, e?.code); }));
+        await track(b.commit().catch(e => { console.warn('delete', kind, e?.code); }), false);
       }
     },
-    del: (kind, id) => { track(F.deleteDoc(F.doc(col(kind), id)).then(() => true, refused({ op: 'del', kind, id })), counts(kind)); },
+    del: (kind, id) => { track(F.deleteDoc(F.doc(col(kind), id)).then(() => true, refused({ op: 'del', kind, id })), counts(kind), [{ kind, id, op: 'del' }]); },
     // One document (an item's photo, when the item is opened), or null when there is none. Offline it is the
     // phone's copy if it has one; otherwise it throws, and the app tries again next time.
     async get(kind, id) {
@@ -451,7 +481,16 @@ export async function openCloud(hid, onError = () => {}, onSync = () => {}) {
     listen(cb) {
       for (const k of KINDS) {
         unsubs.push(F.onSnapshot(col(k), { includeMetadataChanges: true }, s => {
-          seen[k] = { pending: s.docs.reduce((n, d) => n + (d.metadata.hasPendingWrites ? 1 : 0), 0), cache: s.metadata.fromCache };
+          seen[k] = { cache: s.metadata.fromCache, flagged: s.docs.filter(d => d.metadata.hasPendingWrites).map(d => d.id) };
+          if (!s.metadata.fromCache) heard = Date.now();
+          // what was already waiting when the app opened (from before it was last closed): each kind's first snapshot says
+          if (!first.has(k)) {
+            first.add(k);
+            if (first.size === KINDS.length) {
+              leftover = KINDS.filter(x => x !== 'events').flatMap(x => seen[x].flagged.map(id => ({ kind: x, id, op: 'before' })));
+              if (leftover.length) F.waitForPendingWrites(db).then(() => { leftover = []; tell(); }, () => {});
+            }
+          }
           const docs = [], removed = [], pending = [];
           for (const c of s.docChanges()) {
             if (c.type === 'removed') removed.push(c.doc.id);
@@ -461,6 +500,25 @@ export async function openCloud(hid, onError = () => {}, onSync = () => {}) {
           tell();
         }, e => { console.warn('sync', k, e?.code); onError(e); }));
       }
+    },
+    // Sync now (Settings): try to send what is waiting, now: wait a few seconds for the SDK's own acknowledgement of every change,
+    // then a read from the server to prove the family can be reached (that is "Last heard from the family"). Nothing is
+    // switched off unless the person asks again (`cycle`: the "Reconnect and try again" button): one turn of the network switch,
+    // off and then on (the SDK drops its streams and sends again what is unacknowledged; never "on" while already on, which
+    // trips an assertion in Firestore 10.14.1). That is offered, not automatic, because a change the server applied but whose
+    // acknowledgement was lost is sent again, and an increment sent twice counts twice (NOTES.md). Resolves
+    // { ok, cycled, heard }: ok = every change on this phone is acknowledged; heard = the server answered.
+    async syncNow({ cycle = false, wait = 5000 } = {}) {
+      const race = (p, ms) => Promise.race([Promise.resolve(p).then(() => true, () => false), new Promise(r => setTimeout(() => r(false), ms))]);
+      let cycled = false;
+      if (cycle && globalThis.navigator?.onLine !== false) {
+        cycled = true;
+        try { await F.disableNetwork(db); await new Promise(r => setTimeout(r, 300)); await F.enableNetwork(db); } catch (e) { console.warn('network cycle', e?.code || e?.message); }
+      }
+      const ok = await race(F.waitForPendingWrites(db), cycled ? wait + 3000 : wait);
+      const reached = await race(F.getDocFromServer(F.doc(db, 'households', hid)), 6000);
+      if (reached) { heard = Date.now(); tell(); }
+      return { ok, cycled, heard: reached };
     },
     close() { unsubs.splice(0).forEach(u => u()); },
   };

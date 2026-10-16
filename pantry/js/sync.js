@@ -51,3 +51,71 @@ export const refusedFor = (list, hid) => list.filter(r => r.hid === hid);
 
 // Photos aren't kept in the list (up to 150 KB each); everything else is small.
 export const keepable = info => !!info && info.kind !== 'photos';
+
+// ---- Sync now (Settings → Saving to the family): what is waiting, in words, and when the family last answered ----------------
+//
+// cloud.js keeps a record of every change this phone has sent and the server hasn't acknowledged yet: { kind, id, op, ops | name }
+// ('before': left from before the app was last closed, only the document is known). `ctx` hands in what the words need:
+// { itemName(id), lineName(id), placeName(id), personName(email) }.
+
+const num = n => (n === 1 ? 'one' : String(n));
+// One waiting change as a short line: "Used one Rice", "Name for Jun", "Added place Garage".
+export function describeWaiting(r, ctx = {}) {
+  const c = { itemName: id => '', lineName: id => '', placeName: id => '', personName: e => e, ...ctx };
+  const ops = r.ops || {}, set = ops.set || {}, inc = ops.inc || {}, del = ops.del || [];
+  const incs = Object.entries(inc).filter(([p]) => /^batches\.[^.]+\.qty$/.test(p)).map(([, n]) => n);
+  if (r.kind === 'items') {
+    const name = c.itemName(r.id) || r.name || 'an item';
+    if (r.op === 'before') return `A change to ${name} (saved before the app was closed)`;
+    if (r.op === 'put') return `Added ${name}`;
+    if (r.op === 'del') return `Removing ${name}`;
+    if (typeof set.removedAt === 'string') return `Removed ${name}`;
+    if (del.includes('removedAt')) return `Put back ${name}`;
+    const net = incs.reduce((a, b) => a + b, 0);
+    if (incs.length && net < 0) return `Used ${num(-net)} ${name}`;
+    if (incs.length && net > 0) return `Added ${num(net)} ${name}`;
+    if (typeof set.level === 'string') return `${name}: marked ${set.level}`;
+    if (typeof set.location === 'string') return `Moved ${name} to ${set.location}`;
+    if (typeof set.order === 'number' && Object.keys(set).every(k => ['order', 'updatedAt', 'updatedBy'].includes(k))) return `Moved ${name} in the list`;
+    return `A change to ${name}`;
+  }
+  if (r.kind === 'shop') {
+    const name = c.lineName(r.id) || r.name || 'a line';
+    if (r.op === 'before') return `A change to the shopping list: ${name}`;
+    if (r.op === 'put') return `Added to the list: ${name}`;
+    if (typeof set.removedAt === 'string') return `Removed from the list: ${name}`;
+    if (del.includes('removedAt')) return `Put back on the list: ${name}`;
+    if ('done' in set) return `${set.done ? 'Ticked' : 'Unticked'}: ${name}`;
+    return `A change to the shopping list: ${name}`;
+  }
+  if (r.kind === 'places') {
+    const name = c.placeName(r.id) || r.name || 'a place';
+    if (r.op === 'before') return `A change to place ${name}`;
+    if (r.op === 'put') return `Added place ${name}`;
+    if (typeof set.removedAt === 'string') return `Removed place ${name}`;
+    if (del.includes('removedAt')) return `Put back place ${name}`;
+    if (typeof set.name === 'string') return `Renamed place to ${set.name}`;
+    if (typeof set.order === 'number') return `Moved place ${name}`;
+    return `A change to place ${name}`;
+  }
+  if (r.kind === 'settings') {
+    const k = ops.keyed?.names;
+    if (k) { const who = Object.keys(k.set || {})[0] || (k.del || [])[0]; if (who) return `Name for ${c.personName(who)}`; }
+    return r.op === 'before' ? 'A change to the family’s settings' : 'Names or places for the family';
+  }
+  return 'A change';
+}
+// "Last heard from the family: …": just now, at 3:42 pm (today), or 17 Oct, 3:42 pm. Without a time, say so.
+export function heardText(ts, now = Date.now(), locale = 'en-SG') {
+  if (!ts) return 'Not yet since the app opened';
+  const d = new Date(ts), n = new Date(now), age = now - ts;
+  if (age < 60000) return 'just now';
+  const t = d.toLocaleTimeString(locale, { hour: 'numeric', minute: '2-digit' });
+  return d.toDateString() === n.toDateString() ? `at ${t}` : `${d.toLocaleDateString(locale, { day: 'numeric', month: 'short' })}, ${t}`;
+}
+// What Sync now says. `r` is cloud.syncNow's answer ({ ok, cycled, heard }); `refused` the changes the server wouldn't take.
+export function syncNowResult(r, { refused = 0, pending = 0 } = {}) {
+  if (refused > 0) return { kind: 'attention', text: `Needs attention: ${refused === 1 ? 'the family pantry wouldn’t take one change' : `the family pantry wouldn’t take ${refused} changes`}. Retry or Discard ${refused === 1 ? 'it' : 'them'} below.` };
+  if (r.ok) return { kind: 'saved', text: 'Everything is saved' };
+  return { kind: 'waiting', offer: !r.cycled, text: `Still waiting: this phone can’t reach the family right now.${pending ? ` ${pending === 1 ? 'The change is' : 'The changes are'} kept on this phone and sent when there is signal.` : ''}` };
+}

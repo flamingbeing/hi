@@ -204,6 +204,7 @@ const OK_PLACES = [
   /L\.backup\(\{ items:.*places: \[\.\.\.S\.places\.values\(\)\]/,                                                      // a backup carries markers
   /const mergedPlaces = data => P\.mergeInto\(\{ docs: \[\.\.\.S\.places\.values\(\)\]/,                                // copying and restoring merge by name
   /places: new Map\(\)/,
+  /placeName: id => S\.places\.get\(id\)\?\.name/,                                                                   // naming a waiting change (Sync now), hidden place or not
 ];
 const strayP = placeBulk.filter(([, t]) => !OK_PLACES.some(re => re.test(t)));
 assert.deepEqual(strayP, [], 'places read other than through placeList(): ' + JSON.stringify(strayP));

@@ -11,6 +11,9 @@
 import assert from 'node:assert/strict';
 import { serve } from './serve.mjs';
 import { placeId as Lgp } from '../js/places.js';
+import { stallProxy } from './proxy.mjs';
+import fs from 'node:fs';
+import { createRequire } from 'node:module';
 const { chromium } = await import(process.env.PLAYWRIGHT_PATH || '/opt/node22/lib/node_modules/playwright/index.mjs');
 
 const srv = await serve();
@@ -18,12 +21,13 @@ const browser = await chromium.launch();
 const url = srv.url + '/pantry/?emulator';
 const errors = [];
 const settle = p => p.waitForTimeout(400);
-async function person(email) {
+async function person(email, base = url, { init = null } = {}) {
   const ctx = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  if (init) await ctx.addInitScript(init);
   const page = await ctx.newPage();
   page.on('pageerror', e => errors.push(email + ': ' + e.message));
   if (process.env.DEBUG) page.on('console', m => console.log(email, m.type(), m.text()));
-  await page.goto(url + '#/settings');
+  await page.goto(base + '#/settings');
   await page.waitForFunction(() => window.__pantry?.signIn);
   await page.evaluate(e => window.__pantry.signIn(e), email);
   await page.locator('#main', { hasText: email }).waitFor();
@@ -43,6 +47,18 @@ const admin = {
   async del(path) { const r = await fetch(FS + path, { method: 'DELETE', headers: { Authorization: 'Bearer owner' } }); assert.ok(r.ok, 'delete ' + path); },
   async get(path) { const r = await fetch(FS + path, { headers: { Authorization: 'Bearer owner' } }); return r.ok ? unfields((await r.json()).fields || {}) : null; },
 };
+
+// axe on the screens Sync now and "Your pantry changed" add (when axe-core is installed: AXE_PATH, or npm install --no-save axe-core)
+const AXE = (() => {
+  try { return fs.readFileSync(process.env.AXE_PATH || createRequire(import.meta.url).resolve('axe-core/axe.min.js'), 'utf8'); } catch { return null; }
+})();
+async function axe(page, what) {
+  if (!AXE) return;
+  if (!(await page.evaluate(() => !!window.axe))) await page.addScriptTag({ content: AXE });
+  const v = await page.evaluate(async () => (await window.axe.run(document, { runOnly: ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa', 'best-practice'] }))
+    .violations.map(x => `${x.id} (${x.impact}): ${x.nodes.slice(0, 3).map(n => n.target.join(' ')).join(' | ')}`));
+  assert.equal(v.length, 0, `${what}: axe violations\n  ${v.join('\n  ')}`);
+}
 const SYNC_REFUSED = list => list.length;
 const go = async (p, h) => { await p.evaluate(x => { location.hash = x; }, h); await settle(p); };
 const sub = (p, name) => p.locator('#pa-items-list .ha-row', { hasText: name }).locator('.ha-row-sub');
@@ -1102,6 +1118,177 @@ try {
   assert.equal((await admin.list('households/dupE/items')).length, 2, 'and its items');
   assert.equal((await admin.list('households/dupE/photos')).length, 2, 'and its photos');
   assert.ok(await admin.get('households/dupF'));
+
+  // ---- the chip tells the truth; Sync now; the name moves into Family sharing (PR-D) ----
+  {
+    const proxy = await stallProxy();
+    const pUrl = srv.url + `/pantry/?emulator=${proxy.port}:9099`;
+    const sy = await person('syncy@example.com', pUrl, { init: () => { try { localStorage.setItem('pantry:name', JSON.stringify('Jun')); } catch { /* */ } } });
+    // (a) Settings → You → Your name is gone in a family pantry; before signing in it was there (adopted below)
+    if (process.env.PROGRESS) console.log('  chip block a');
+    assert.equal(await sy.locator('#pa-name').count(), 1, 'signed in but in no pantry yet: the field is still there');
+    await sy.click('[data-act="hh-create"]');
+    await sy.locator('#main .ha-row-title', { hasText: 'Our pantry' }).waitFor();
+    const shid = await sy.evaluate(() => window.__pantry.S.household.id);
+    assert.equal(await sy.locator('#pa-name').count(), 0, 'no “Your name” field in Settings');
+    assert.equal(await sy.locator('#h-you').count(), 0, 'no You section');
+    // the name this phone had saved became the family's name for it, once
+    await sy.waitForFunction(() => window.__pantry.S.settings.get('people')?.names?.['syncy@example.com'] === 'Jun', null, { timeout: 15000 });
+    await sy.waitForFunction(() => window.__pantry.S.sync.pending === 0);
+    assert.equal((await admin.get(`households/${shid}/settings/people`)).names['syncy@example.com'], 'Jun', 'adopted as the family name');
+    assert.deepEqual(await sy.evaluate(() => JSON.parse(localStorage.getItem('pantry:nameAdopted'))), { [shid]: true }, 'adopted once: the flag is kept');
+    await sy.locator('[data-act="person"][data-v="syncy@example.com"] .ha-row-title', { hasText: 'Jun' }).waitFor();
+    if (process.env.SHOTS) { await sy.evaluate(() => { document.querySelector('.ha-toast')?.classList.remove('is-visible'); scrollTo(0, document.querySelector('section[aria-labelledby="h-family"]').offsetTop - 70); }); await settle(sy); await sy.screenshot({ path: process.env.SHOTS + '/p02-family.png' }); await sy.screenshot({ path: process.env.SHOTS + '/p02-family-full.png', fullPage: true }); }
+    // cleared by the family, it is not adopted again, even after a reload
+    await act(sy, 'namePerson', 'syncy@example.com', '');
+    await sy.waitForFunction(() => window.__pantry.S.sync.pending === 0);
+    await sy.reload(); await sy.waitForFunction(() => window.__pantry?.S?.household?.id);
+    await settle(sy); await settle(sy);
+    assert.equal(await sy.evaluate(() => window.__pantry.S.settings.get('people')?.names?.['syncy@example.com'] ?? ''), '', 'not adopted again');
+    // a family that already has a name for the account keeps it: the phone's own name is not adopted over it
+    await admin.put(`households/${shid}/settings/people`, { id: 'people', names: { 'syncy2@example.com': 'Ah Mei' }, updatedAt: 'x' });
+    await admin.put(`households/${shid}`, { name: 'Our pantry', owner: 'syncy@example.com', members: ['syncy@example.com', 'syncy2@example.com'], createdAt: '2026-10-16T00:00:00.000Z' });
+    const sy2 = await person('syncy2@example.com', url, { init: () => { try { localStorage.setItem('pantry:name', JSON.stringify('Someone else')); } catch { /* */ } } });
+    await sy2.waitForFunction(() => window.__pantry.S.household?.id);
+    await settle(sy2); await settle(sy2);
+    assert.equal((await admin.get(`households/${shid}/settings/people`)).names['syncy2@example.com'], 'Ah Mei', 'the family’s name wins');
+    assert.equal(await sy2.evaluate(() => (JSON.parse(localStorage.getItem('pantry:nameAdopted')) || {})[window.__pantry.S.household.id]), true);
+    // signed out (this phone's own pantry) the field is back
+    await go(sy, '#/settings');
+    await sy.click('[data-act="signout"]'); await sy.locator('[data-act="signin"]').waitFor();
+    assert.equal(await sy.locator('#pa-name').count(), 1, 'the field is back on this phone alone');
+    assert.equal(await sy.inputValue('#pa-name'), 'Jun');
+    await sy.evaluate(e => window.__pantry.signIn(e), 'syncy@example.com');
+    await sy.waitForFunction(() => window.__pantry.S.household?.id);
+    await go(sy, '#/settings');
+    const base = { category: 'Other', location: 'Fridge', brand: '', size: '', barcode: '', lowAt: 0, openDays: 7, createdAt: '2026-10-16T00:00:00.000Z', createdBy: 'Mum' };
+    await admin.put(`households/${shid}/items/sy1`, { id: 'sy1', name: 'Rice', ...base, batches: { b1: { qty: 5, expiry: null } } });
+    await sy.waitForFunction(() => window.__pantry.S.items.has('sy1'));
+
+    // (b) the chip tells the truth. The phone's change is acknowledged, but what it listens to is cut off, so the SDK keeps the
+    if (process.env.PROGRESS) console.log('  chip block b');
+    // document flagged `hasPendingWrites` ("committed mutations") for good: the chip used to read that as "Waiting for signal".
+    // (a listener made before the write, as the app's own is: a listener made after it never sees the flag)
+    await sy.evaluate(async ([u, hid]) => {
+      const F = await import(u), db = F.getFirestore();
+      window.__flag = null;
+      F.onSnapshot(F.doc(db, 'households', hid, 'items', 'sy1'), { includeMetadataChanges: true }, s => { window.__flag = s.metadata.hasPendingWrites; });
+    }, [FSJS, shid]);
+    proxy.set({ listen: true });
+    await settle(sy);
+    await act(sy, 'set', 'sy1', 'notes', 'one');
+    await sy.waitForFunction(() => window.__pantry.S.sync.pending === 0, null, { timeout: 8000 });
+    await sy.waitForTimeout(1500);
+    const flag = await sy.evaluate(() => window.__flag);
+    assert.equal(flag, true, 'the premise: the SDK still flags the document as having pending writes after the server acknowledged it, while its listener is cut off');
+    await settle(sy); await settle(sy); await sy.waitForTimeout(1200);
+    assert.equal(await sy.locator('[data-sync] .ha-badge').first().textContent(), 'Saved', 'acknowledged, so Saved, whatever the listener says');
+    assert.equal((await admin.get(`households/${shid}/items/sy1`)).notes, 'one', 'the server has it');
+    proxy.set({ listen: false });
+    await sy.waitForFunction(() => window.__pantry.S.items.get('sy1')?.notes === 'one');
+
+    // (c) Sync now: the server hears every change but its acknowledgements never arrive: the phone truly cannot tell
+    if (process.env.PROGRESS) console.log('  chip block c');
+    proxy.set({ write: true });
+    await act(sy, 'set', 'sy1', 'name', 'Rice (new)');
+    await act(sy, 'namePerson', 'syncy@example.com', 'Jun');
+    await act(sy, 'addPlace', 'Shed');
+    await sy.waitForFunction(() => window.__pantry.S.sync.pending === 3, null, { timeout: 8000 });
+    await sy.locator('[data-sync] .ha-badge--warn', { hasText: 'Waiting for signal (3 changes)' }).waitFor({ timeout: 8000 });
+    await go(sy, '#/settings');
+    await sy.click('#pa-syncnow');
+    await sy.locator('.pa-syncnow-result--waiting', { hasText: 'Still waiting: this phone can’t reach the family right now' }).waitFor({ timeout: 20000 });
+    const lines = await sy.locator('.pa-waiting .ha-row-title').allTextContents();
+    assert.deepEqual(lines.sort(), ['A change to Rice (new)', 'Added place Shed', 'Name for Jun'], 'each waiting change in words');
+    assert.equal(await sy.locator('#pa-heard').count(), 1);
+    assert.match(await sy.locator('#pa-heard').textContent(), /^Last heard from the family: (just now|at \d)/, 'last heard from the family');
+    assert.equal(await sy.locator('[data-act="sync-cycle"]').count(), 1, 'offers one reconnect');
+    await axe(sy, 'Settings: Sync now, still waiting, with the list');
+    if (process.env.SHOTS) { await sy.locator('section[aria-labelledby="h-saving"]').scrollIntoViewIfNeeded(); await sy.evaluate(() => scrollTo(0, document.querySelector('section[aria-labelledby="h-saving"]').offsetTop - 70)); await settle(sy); await sy.screenshot({ path: process.env.SHOTS + '/p01-sync-now.png' }); }
+    // the server already has all three
+    assert.equal((await admin.get(`households/${shid}/items/sy1`)).name, 'Rice (new)');
+    // Reconnect and try again: one switch off and on; nothing breaks, and still nothing is heard back
+    await sy.click('[data-act="sync-cycle"]');
+    await sy.locator('.pa-syncnow-result--waiting').waitFor({ timeout: 30000 });
+    await sy.locator('#pa-syncnow .ha-row-title', { hasText: 'Sync now' }).waitFor();
+    assert.equal(await sy.locator('[data-act="sync-cycle"]').count(), 0, 'only one reconnect is offered');
+    // the acknowledgements arrive: Saved, the list empties
+    proxy.set({ write: false });
+    await sy.waitForFunction(() => window.__pantry.S.sync.pending === 0, null, { timeout: 20000 });
+    await sy.click('#pa-syncnow');
+    await sy.locator('.pa-syncnow-result--saved', { hasText: 'Everything is saved' }).waitFor({ timeout: 20000 });
+    assert.equal(await sy.locator('.pa-waiting').count(), 0, 'nothing waiting any more');
+    assert.equal(await sy.locator('[data-sync] .ha-badge').first().textContent(), 'Saved');
+    await axe(sy, 'Settings: Sync now, everything saved');
+    // a change the server refuses is Needs attention (not "Everything is saved")
+    await sy.evaluate(() => { window.__pantry.S.refused.push({ n: 'x1', hid: window.__pantry.S.household.id, kind: 'items', id: 'sy1', op: 'patch', ops: { set: { a: 1 }, inc: {}, del: [] }, code: 'permission-denied', at: new Date().toISOString(), name: 'Rice' }); });
+    await sy.click('#pa-syncnow');
+    await sy.locator('.pa-syncnow-result--attention', { hasText: 'Needs attention: the family pantry wouldn’t take one change' }).waitFor({ timeout: 20000 });
+    await sy.evaluate(() => { window.__pantry.S.refused = []; });
+    await sy.waitForTimeout(100);
+    // no console or page errors (the stalled streams and the reconnect included)
+    proxy.close();
+  }
+
+  // ---- a pantry that goes away under an open phone (the owner merges or deletes it; evidence: 16 Oct, rules errors when a phone
+  // resumed on a deleted household) ----
+  {
+    const iso = '2026-10-16T00:00:00.000Z';
+    await seedPantry('goneX', 'losta@example.com', ['losta@example.com', 'lostb@example.com', 'lostc@example.com'], 'GX');   // the bigger one opens first
+    await admin.put('households/goneY', { name: 'Our other pantry', owner: 'lostb@example.com', members: ['lostb@example.com'], createdAt: iso });
+    await admin.put('households/goneY/items/gy1', { id: 'gy1', name: 'Survivor rice', batches: { y1: { qty: 3, expiry: null } } });
+    const lostB = await person('lostb@example.com');
+    const bErrors = [];
+    lostB.on('console', m => { if (m.type() === 'error' && !/Failed to load resource/.test(m.text())) bErrors.push(m.text()); });
+    assert.equal(await lostB.evaluate(() => window.__pantry.S.household.id), 'goneX', 'B opens the bigger pantry');
+    await go(lostB, '#/items');
+    await lostB.locator('#pa-items-list .ha-row', { hasText: 'GX item 0' }).waitFor();
+    await lostB.evaluate(() => { window.__sameDocument = true; });
+    const lostA = await person('losta@example.com');
+    assert.equal(await lostA.evaluate(() => window.__pantry.S.household.id), 'goneX');
+    // A, the owner, merges it away (the same call the merge sheet makes last)
+    await lostA.evaluate(() => window.__pantry.S.cloud.removeHousehold('goneX'));
+    await lostB.waitForFunction(() => window.__pantry.S.household?.id === 'goneY', null, { timeout: 30000 });
+    await lostB.locator('#pa-items-list .ha-row', { hasText: 'Survivor rice' }).waitFor();
+    assert.equal(await lostB.locator('#pa-items-list .ha-row', { hasText: 'GX item' }).count(), 0, 'the deleted pantry’s items are gone from the list');
+    assert.equal(await lostB.evaluate(() => window.__sameDocument === true), true, 'no reload');
+    assert.equal(await lostB.evaluate(() => window.__pantry.S.mode), 'cloud');
+    await lostB.locator('.ha-toast', { hasText: 'Your pantry changed' }).waitFor();
+    // the old listeners are stopped: nothing changes the screen after, and a change made now reaches the surviving pantry
+    await act(lostB, 'set', 'gy1', 'notes', 'after the switch');
+    await lostB.waitForFunction(() => window.__pantry.S.refused.length === 0 && window.__pantry.S.sync.pending === 0);
+    assert.equal((await admin.get('households/goneY/items/gy1')).notes, 'after the switch', 'writes go to the surviving pantry');
+    assert.equal(await lostB.evaluate(() => window.__pantry.S.syncError), false, 'no "changes didn’t reach" banner');
+    assert.deepEqual(bErrors, [], 'no console errors on the phone that was left behind: ' + bErrors.join(' | '));
+
+    // nothing left: a plain "Your pantry changed" with Try again, never a new pantry started on its own
+    await admin.put('households/goneZ', { name: 'Our pantry', owner: 'lostd@example.com', members: ['lostd@example.com', 'loste@example.com'], createdAt: iso });
+    const lostE = await person('loste@example.com');
+    const eErrors = [];
+    lostE.on('console', m => { if (m.type() === 'error' && !/Failed to load resource/.test(m.text())) eErrors.push(m.text()); });
+    assert.equal(await lostE.evaluate(() => window.__pantry.S.household.id), 'goneZ');
+    const lostD = await person('lostd@example.com');
+    await lostD.evaluate(() => window.__pantry.S.cloud.removeHousehold('goneZ'));
+    await lostE.locator('#pa-lost, [data-act="hh-check"]').first().waitFor({ timeout: 30000 });
+    await go(lostE, '#/');
+    await lostE.locator('#pa-lost', { hasText: 'Your pantry changed' }).waitFor();
+    await axe(lostE, 'Home: Your pantry changed');
+    assert.equal(await lostE.evaluate(() => window.__pantry.S.mode), 'local');
+    assert.equal(await lostE.evaluate(() => window.__pantry.S.household), null);
+    await go(lostE, '#/settings');
+    await lostE.locator('#main .ha-row-title', { hasText: 'Your pantry changed' }).waitFor();
+    await axe(lostE, 'Settings: Your pantry changed');
+    assert.equal(await lostE.locator('[data-act="hh-check"]').count(), 1, 'a Try again');
+    assert.equal((await admin.list('households')).filter(h => h.owner === 'loste@example.com').length, 0, 'nothing was started for them');
+    await lostE.click('[data-act="hh-check"]');
+    await lostE.locator('.ha-toast', { hasText: 'Not added yet' }).waitFor();
+    assert.equal(await lostE.evaluate(() => window.__pantry.S.household), null, 'still nothing to open');
+    await admin.put('households/goneW', { name: 'Our pantry', owner: 'lostd@example.com', members: ['lostd@example.com', 'loste@example.com'], createdAt: iso });
+    await lostE.click('[data-act="hh-check"]');
+    await lostE.waitForFunction(() => window.__pantry.S.household?.id === 'goneW', null, { timeout: 30000 });
+    assert.equal(await lostE.evaluate(() => window.__pantry.S.lost), null, 'the notice goes once a pantry is found');
+    assert.deepEqual(eErrors, [], 'no console errors: ' + eErrors.join(' | '));
+  }
 
   // ---- no signal: "can't tell" is never "no pantry", and nothing is created offline ----
   const owned = async email => (await admin.list('households')).filter(h => h.owner === email).length;

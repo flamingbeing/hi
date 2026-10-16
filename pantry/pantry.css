@@ -154,3 +154,15 @@ label.ha-row:focus-within:has(.pa-file){outline:2px solid var(--home-focus);outl
 .pa-sync-link{display:inline-flex;align-items:center;gap:var(--home-s2);color:inherit;text-decoration:none}
 .pa-sync-more{color:var(--home-accent);font-size:var(--home-t-small)}
 .pa-refused{flex-wrap:wrap;row-gap:var(--home-s2)}
+/* Sync now: the result, what is waiting (each change in words), when the family last answered */
+.pa-syncnow{margin:0 0 var(--home-s3)}
+.pa-sync-detail{margin:0 0 var(--home-s3)}
+.pa-syncnow-result{margin:0 0 var(--home-s3);padding:var(--home-s3) var(--home-s4);border-radius:var(--home-r-md);background:var(--home-fill);color:var(--home-ink);font-size:var(--home-t-small)}
+.pa-syncnow-result--saved{background:var(--home-ok-bg);color:var(--home-ok)}
+.pa-syncnow-result--waiting{background:var(--home-warn-bg);color:var(--home-warn)}
+.pa-syncnow-result--attention{background:var(--home-bad-bg);color:var(--home-bad)}
+.pa-sync-h{margin:0 0 var(--home-s2);padding:0 var(--home-s4);color:var(--home-muted);font-size:var(--home-t-label);font-weight:600;letter-spacing:.05em;text-transform:uppercase}
+.pa-waiting{margin:0 0 var(--home-s3)}
+.pa-heard{margin:0 0 var(--home-s2);padding:0 var(--home-s4);color:var(--home-muted);font-size:var(--home-t-small)}
+/* your family pantry went away */
+.pa-lost .ha-btn{display:flex;margin-top:var(--home-s2)}

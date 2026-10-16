@@ -201,13 +201,14 @@ export function viewGuide() {
     ${section('family', 'Family sharing', [
       row('user', 'Start it', 'One person: Settings, Continue with Google (or Use email instead), then Start our family pantry.'),
       row('users', 'Add the family', 'Type each person’s email and tap Add, then tap them to email the link.'),
-      row('edit', 'Names', 'Tap someone to give them a name, like Mum. Everyone sees it instead of the email, in history and on the list.'),
+      row('edit', 'Names', 'Tap someone, yourself included, to give them a name, like Mum. Everyone sees it instead of the email, in history and on the list.'),
       row('mail', 'When you’re invited', 'Open the link, then Settings, Continue with Google or Use email instead, with the email that was added.'),
       row('info', 'Who can see it', 'Only the people added. Whoever started it can stop sharing with anyone else.'),
     ])}
     ${section('phone', 'Phone tips', [
       row('download', 'On your home screen', 'iPhone: in Safari, Share, then Add to Home Screen. Android: in Chrome, the menu, then Add to home screen.'),
       row('cloud', 'No signal', 'It still works. Changes reach the family when you’re back online.'),
+      row('refresh', 'Not sure it reached the family?', 'Settings, Sync now: it sends anything waiting, lists each change and says if everything is saved.'),
       row('refresh', 'Looks out of date?', 'At the bottom of Settings, tap Get the latest version. Your items are kept.'),
     ])}
     <ul class="ha-list pa-gagain"><li><button type="button" class="ha-row ha-row--action ha-row--center" data-act="welcome"><span class="ha-row-body"><span class="ha-row-title">Show the welcome again</span></span></button></li></ul>`;

@@ -424,6 +424,48 @@ Lasting decisions and how to test. What's going on now: [STATUS.md](STATUS.md). 
     places and for names by field, outsiders included); `multidevice.e2e.mjs` (see its header: names, add, rename, move, remove,
     restore, the default places once, every phone showing the server's list).
   - **Still whole-document, on purpose:** see PLAN-sync.md ("What stays whole-document").
+- **16 Oct 2026, small fixes (commit 1 of the combined Items-list PR; owner's queue, "PR-D"):**
+  - **A pantry that goes away under an open phone.** Evidence: 11 rules errors at 08:30-08:32 UTC when a phone resumed on a
+    household that had been deleted (the rules `get()` the household document, which errors when it is missing). `watchHousehold`
+    (`cloud.js`) now says `cb(null)` once when the server says the document is gone or the listener fails (never from the phone's
+    own cache: no signal with nothing cached is not "gone"), and `useHousehold`'s callback used to ignore null. Now
+    `householdLost` (`app.js`) stops the old listeners, asks the SERVER which households the account is in (`findHouseholds`,
+    `getDocsFromServer`: never the phone's copy, which still holds the dead one), and opens the survivor (`pickHousehold`) without a
+    reload, with the toast "Your pantry changed: now showing …". With none left (or no signal) the phone shows its own pantry plus
+    "Your pantry changed" with Try again on Home and Settings; nothing is started by itself. Test: `sync.e2e.mjs`, "a pantry that
+    goes away" (two phones, the owner removes the pantry; the other ends on the survivor with no reload and no console errors; then
+    nothing left, Try again before and after the owner adds the account to a new pantry).
+  - **Sync now** (Settings → Saving to the family). A button that waits up to 5 s for the SDK to acknowledge every change
+    (`waitForPendingWrites`), reads the household document from the server (proves the family can be reached: that read, any
+    acknowledgement and any non-cache snapshot set "Last heard from the family"), and says plainly: "Everything is saved", "Still
+    waiting: this phone can't reach the family right now" or "Needs attention: …" (a refused change; Retry and Discard below). It
+    lists each waiting change in words ("Used one Rice", "Name for Jun", "Added place Garage": `describeWaiting` in `sync.js`) from
+    a small record `cloud.js` keeps of the writes it has sent and the server has not answered (each `track()` call carries
+    `{ kind, id, op, ops | name }`, cleared when its promise settles); changes left from before the app was last closed are
+    listed by document ("A change to Rice (saved before the app was closed)"). **The network switch is offered, not automatic:** if
+    the first try is still waiting, a second button "Reconnect and try again" turns the SDK's network off and on once
+    (`disableNetwork`, 300 ms, `enableNetwork`; never `enableNetwork` while already enabled, which crashed Firestore 10.14.1 in
+    tests). Reason: a change the server applied whose acknowledgement was lost is sent again after a reconnect, and an
+    `increment` sent twice counts twice (the same limit as the randomised test's note). The SDK does this on any real reconnect;
+    Sync now does not add one unasked.
+  - **The "Waiting for signal" chip was wrong in one case, found and fixed.** The owner's phone said "Waiting for signal (1 change)"
+    on wifi with a VPN while the server already held everything. `pending` used to be `max(inflight, documents the listeners flag
+    hasPendingWrites)`. That flag is `hasLocalMutations || hasCommittedMutations` in the SDK, and a listener that already flagged a
+    document keeps flagging it after the server ACKNOWLEDGED the write until the listen stream has delivered the server's version
+    (view.mutatedKeys). On a slow or stalled listen stream (a VPN that buffers one of the two streams) that is "for good", so a
+    saved change read as waiting. Reproduced in the emulator with `test/proxy.mjs` (a pass-through proxy that holds back what the
+    server says on the Listen or the Write stream): the old code said "Waiting for signal (1 change)" with the change on the server;
+    now `pending` counts only what the server has not acknowledged: this session's writes whose promise is unresolved, plus the
+    documents flagged when the app opened (cleared when `waitForPendingWrites` resolves). The other candidates were checked and
+    are fine: a listener that stays `fromCache` only matters with `pending > 0`; `onSyncState`'s 1.5 s grace stays. Not counted
+    on purpose (so the chip can undercount, never overcount): `putMany` (copying the phone's pantry up, restoring, seeding the
+    default places; the caller waits for those itself) and the daily sweep.
+  - **"You → Your name" is gone in a family pantry** (the person's own row in Family sharing is the one place for the name; the
+    contact sheet's field says "Your name" on your own row). A name saved on this phone is adopted once per household when the
+    family has none for the account (one `names.<email>` field operation, flag `pantry:nameAdopted` = `{ <household id>: true }`),
+    only after the family's own copy has come from the server, so it never overwrites a name from a stale cache. The field stays in
+    local-only and demo mode, `who()` keeps its order (family name, this phone's name, Google first name), and the welcome check
+    (`maybeWelcome`: "already using the app on this phone") still reads `prefs 'name'`.
 
 ## How to test
 
@@ -438,6 +480,7 @@ node pantry/test/merge.test.mjs        # merging duplicate pantries: members, wh
 node pantry/test/scan.test.mjs         # the barcode look-up chain with a stubbed fetch (plain node)
 node pantry/test/photo.test.mjs        # thumbnail and photo sizes, stepping down to fit the limits (plain node)
 node pantry/test/ops.test.mjs          # both shapes of batches, changes as instructions and their inverse, the chip text (plain node)
+node pantry/test/syncnow.test.mjs      # Sync now: each waiting change in words, last heard, what it says (plain node)
 node pantry/test/removed.test.mjs      # removed markers, Restore, days left, the sweep's choice, backups and merging, every list skips removed (plain node)
 node pantry/test/config.test.mjs       # set-config, sign-in choice, plain-word errors, sw.js rules
 node pantry/test/e2e.mjs               # phone browser test with axe; SHOTS=<dir> saves screenshots

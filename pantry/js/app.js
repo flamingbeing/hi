@@ -27,11 +27,12 @@ const WELCOME = params.has('welcome');   // show the welcome even in the demo, o
 
 const S = {
   items: new Map(), events: new Map(), shop: new Map(), places: new Map(), settings: new Map(), pics: new Map(),
-  backend: null, local: null, mode: DEMO ? 'demo' : 'local', cloud: null, user: null, household: null, pantries: [], lookupFailed: false, creating: false, pending: null, localCount: 0,
+  backend: null, local: null, mode: DEMO ? 'demo' : 'local', cloud: null, user: null, household: null, pantries: [], lookupFailed: false, lost: null, creating: false, pending: null, localCount: 0,
   q: '', place: '', sort: prefs.get('sort', 'expiry'),
   draft: null, dirty: false, pendingRender: false, syncError: false,
   refused: prefs.get('refused', []) || [],   // changes the family pantry refused, kept here until retried or discarded (sync.js)
-  sync: { pending: 0, cache: false, since: 0 },   // changes this phone made that the server hasn't confirmed yet
+  sync: { pending: 0, cache: false, since: 0, list: [], heard: 0 },   // changes this phone made that the server hasn't confirmed yet (list: each in words' records), and when the family last answered
+  syncNow: { busy: false, result: null },   // Settings → Saving to the family → Sync now
   lastUndo: null,
   removedNotes: prefs.get('removedNotes', {}) || {},   // items another phone removed that this phone had changes on: id -> removedAt (until Recently removed is opened)
   since: null,   // when this phone last looked (Since you last looked), an ISO time
@@ -468,6 +469,7 @@ function statusLine() {
 function viewHome() {
   const all = items();
   let h = `<h1 class="ha-large-title">Pantry</h1><p class="ha-large-sub">${esc(statusLine())}</p>${syncChip()}`;
+  h += viewLost();
   if (S.syncError) h += `<div class="ha-panel pa-alert" role="status">${icon('alert')}<span>Some changes didn’t reach the family pantry. ${esc(S.syncError)}</span></div>`;
   if (S.mode === 'cloud' && S.pantries.length > 1) h += `<a class="ha-panel pa-alert" href="#/settings">${icon('alert')}<span>You’re in more than one family pantry. Merge them in Settings.</span></a>`;
   h += viewLanded();
@@ -515,6 +517,15 @@ function viewHome() {
     <li><div class="ha-row"><span class="ha-row-icon ha-row-icon--bad">${icon('trash')}</span><span class="ha-row-body"><span class="ha-row-title">Thrown away</span>${m.expired ? `<span class="ha-row-sub">${m.expired} past ${m.expired === 1 ? 'its' : 'their'} date</span>` : ''}</span><span class="ha-row-value">${m.wasted}</span></div></li>
   </ul>`, { id: 'month' });
   return h;
+}
+
+// The family pantry this phone was showing is gone (deleted or merged away, or this account was taken out of it): say so plainly,
+// with Try again (asks the server which pantry this account is in now).
+function viewLost() {
+  if (!S.lost) return '';
+  return `<div class="ha-panel pa-alert pa-lost" id="pa-lost" role="status">${icon('alert')}<span><strong>Your pantry changed.</strong> The family pantry you were using is gone, or this account isn’t in it any more.
+    ${S.lost.failed ? 'There’s no signal to check right now.' : 'This phone is showing its own pantry for now.'}
+    <button type="button" class="ha-btn ha-btn--small" data-act="hh-check">Try again</button></span></div>`;
 }
 
 // This phone's change landed on an item another phone had removed: it is kept, hidden, and Recently removed has it.
@@ -1766,6 +1777,18 @@ function setPersonName(email, name) {
   const ops = PP.nameOps(email, name, { orphans: PP.orphanNames(cur, members, email) });
   return patchDoc('settings', PP.PEOPLE_ID, S.settings.has(PP.PEOPLE_ID) ? ops : L.mergeOps(ops, { set: { id: PP.PEOPLE_ID } }));
 }
+// A name this phone had saved for itself (Settings → You, before the family pantry) becomes the family's name for this account, once per
+// household and only when the family has none for it: one field (`names.<email>`) like any other name. Waits until the family's own
+// copy has come from the server (never decided from the phone's cache). The person's own row in Family sharing is the one place for
+// the name from then on (the field is hidden in a family pantry); the phone's own name stays saved, and is what shows on this phone alone.
+function adoptName() {
+  if (S.mode !== 'cloud' || !S.household || !me() || S.sync.cache) return;
+  const done = prefs.get('nameAdopted', {}) || {};
+  if (done[S.household.id]) return;
+  prefs.set('nameAdopted', { ...done, [S.household.id]: true });
+  const mine = PP.cleanName(prefs.get('name') || '');
+  if (mine && !names()[me()]) setPersonName(me(), mine);
+}
 // A family member's contact sheet: their Gmail, a name everyone sees, email an invite, stop sharing (not for whoever
 // started it, nor yourself).
 function openPerson(email) {
@@ -1776,7 +1799,7 @@ function openPerson(email) {
     body: `<ul class="ha-list"><li><div class="ha-row"><span class="ha-row-icon">${icon('mail')}</span><span class="ha-row-body"><span class="ha-row-title pa-break">${esc(email)}</span>
         <span class="ha-row-sub">${email === h.owner ? 'Started the family pantry' : 'Google account'}${email === me() ? ' · you' : ''}</span></span></div></li></ul>
       <form id="pa-person" class="pa-person-form" novalidate>
-        <label class="ha-field"><span class="ha-field-label">Name</span>
+        <label class="ha-field"><span class="ha-field-label">${email === me() ? 'Your name' : 'Name'}</span>
           <input class="ha-input" name="name" id="pa-person-name" value="${esc(names()[email] || '')}" maxlength="${PP.NAME_MAX}" autocomplete="off" placeholder="For example, Mum or Ah Mei" aria-describedby="pa-person-hint"></label>
         <p class="ha-section-footer" id="pa-person-hint">Everyone in the family sees this name instead of the email, in history and on the shopping list. Leave it empty to show the email.</p>
         <button type="submit" class="ha-btn ha-btn--primary ha-btn--block">Save</button>
@@ -1817,9 +1840,47 @@ function viewSaving() {
   const mine = SY.refusedFor(S.refused, S.household?.id || '');
   const row = r => `<li><div class="ha-row pa-refused"><span class="ha-row-body"><span class="ha-row-title pa-break">${esc(SY.describeRefused(r, id => S.items.get(id)?.name))}</span><span class="ha-row-sub">${esc(SY.refusedReason(r.code))}</span></span>
       <span class="pa-batch-acts"><button type="button" class="ha-btn ha-btn--small" data-act="refused-retry" data-n="${esc(r.n)}">Retry</button><button type="button" class="ha-btn ha-btn--small ha-btn--quiet" data-act="refused-discard" data-n="${esc(r.n)}">Discard</button></span></div></li>`;
-  const foot = { saved: 'Everything done on this phone has reached the family.', waiting: 'These changes are kept on this phone and sent when there is signal. Nothing is lost by closing the app.',
+  const syncRow = `<ul class="ha-list pa-syncnow"><li><button type="button" class="ha-row ha-row--action" data-act="sync-now" id="pa-syncnow"${S.syncNow.busy ? ' aria-disabled="true"' : ''}><span class="ha-row-icon">${icon('refresh')}</span><span class="ha-row-body"><span class="ha-row-title">${S.syncNow.busy ? 'Checking…' : 'Sync now'}</span><span class="ha-row-sub">Send what’s waiting and check the family can be reached</span></span></button></li></ul>`;
+  return section('Saving to the family', `${syncChip()}${syncRow}<div id="pa-sync-detail" class="pa-sync-detail">${syncDetail()}</div>${mine.length ? `<ul class="ha-list pa-refusals">${mine.map(row).join('')}</ul>` : ''}`, { id: 'saving' });
+}
+// What Sync now found, what is waiting (each change in words), and when the family last answered. Redrawn on its own as the
+// state changes (drawSyncDetail), without redrawing the screen.
+function syncDetail() {
+  const r = S.syncNow.result, list = S.sync.list || [];
+  const ctx = { itemName: id => S.items.get(id)?.name || '', lineName: id => S.shop.get(id)?.name || '', placeName: id => S.places.get(id)?.name || '', personName: e => nameOf(e) };
+  const lines = list.map(x => SY.describeWaiting(x, ctx));
+  let h = '';
+  if (r) h += `<p class="pa-syncnow-result pa-syncnow-result--${r.kind}" role="status">${esc(r.text)}</p>`;
+  if (r?.offer && !S.syncNow.busy) h += `<ul class="ha-list pa-syncnow"><li><button type="button" class="ha-row ha-row--action" data-act="sync-cycle"><span class="ha-row-icon">${icon('refresh')}</span><span class="ha-row-body"><span class="ha-row-title">Reconnect and try again</span><span class="ha-row-sub">Switches this phone’s connection off and on once</span></span></button></li></ul>`;
+  if (lines.length) h += `<h3 class="pa-sync-h" id="pa-waiting-h">Waiting to be sent (${lines.length})</h3><ul class="ha-list pa-waiting" aria-labelledby="pa-waiting-h">${lines.map(t => `<li><div class="ha-row"><span class="ha-row-body"><span class="ha-row-title pa-break">${esc(t)}</span></span></div></li>`).join('')}</ul>`;
+  h += `<p class="pa-heard" id="pa-heard">Last heard from the family: ${esc(SY.heardText(S.sync.heard))}</p>`;
+  const v = syncView();
+  const foot = v && { saved: 'Everything done on this phone has reached the family.', waiting: 'These changes are kept on this phone and sent when there is signal. Nothing is lost by closing the app.',
     attention: 'The family pantry would not take these. Retry sends one again; Discard drops it.' }[v.kind];
-  return section('Saving to the family', `${syncChip()}${mine.length ? `<ul class="ha-list pa-refusals">${mine.map(row).join('')}</ul>` : ''}`, { id: 'saving', footer: foot });
+  return h + (foot ? `<p class="ha-section-footer pa-sync-foot">${esc(foot)}</p>` : '');
+}
+function drawSyncDetail() {
+  const el = $('#pa-sync-detail'); if (!el) return;
+  const v = syncView();
+  if (v?.kind === 'saved' && S.syncNow.result?.kind === 'waiting') S.syncNow.result = { kind: 'saved', text: 'Everything is saved' };
+  const html = syncDetail();
+  if (el.dataset.html !== html) { el.innerHTML = html; el.dataset.html = html; }
+  const b = $('#pa-syncnow');
+  if (b) {
+    b.setAttribute('aria-disabled', String(S.syncNow.busy));
+    b.querySelector('.ha-row-title').textContent = S.syncNow.busy ? 'Checking…' : 'Sync now';
+  }
+}
+// Sync now: try to send what is waiting (cloud.js syncNow), then say plainly how it went.
+async function syncNow({ cycle = false } = {}) {
+  if (S.syncNow.busy || S.mode !== 'cloud' || !S.backend?.syncNow) return;
+  S.syncNow = { busy: true, result: null }; drawSyncDetail(); haAnnounce(cycle ? 'Reconnecting…' : 'Checking…');
+  let r;
+  try { r = await S.backend.syncNow({ cycle }); } catch (err) { console.warn('sync now', err?.code || err?.message); r = { ok: false }; }
+  S.syncNow = { busy: false, result: SY.syncNowResult(r, { refused: SY.refusedFor(S.refused, S.household?.id || '').length, pending: S.sync.pending }) };
+  drawSyncDetail(); drawSync();
+  if (document.activeElement === document.body) $('#pa-syncnow')?.focus({ preventScroll: true });
+  haAnnounce(S.syncNow.result.text);
 }
 
 function viewSettings() {
@@ -1842,6 +1903,10 @@ function viewSettings() {
     fam = `<ul class="ha-list">${btnRow('signin', 'Continue with Google', { iconName: 'user' })}</ul>
       <p class="pa-quiet"><button type="button" class="ha-btn ha-btn--plain ha-btn--compact" data-act="email-open">Use email instead</button></p>`;
     famFoot = 'Sign in to share one pantry with the family: everyone sees the same items and shopping list. Only the people added can see it.';
+  } else if (!S.household && S.lost) {
+    fam = `<ul class="ha-list">${row(`<span class="ha-row-icon">${icon('alert')}</span><span class="ha-row-body"><span class="ha-row-title">Your pantry changed</span><span class="ha-row-sub pa-break">${S.lost.failed ? 'No signal to check right now.' : 'Your family pantry is gone, or this account isn’t in it any more.'}</span></span>`)}
+      ${btnRow('hh-check', 'Try again', { iconName: 'refresh' })}${btnRow('hh-create', 'Start our family pantry')}${btnRow('signout', 'Sign out')}</ul>`;
+    famFoot = `Signed in as ${esc(S.user.email)}. Try again looks for a pantry this account is in now; starting a new one is your choice.`;
   } else if (!S.household && S.lookupFailed) {
     // couldn't ask the server (no signal): not "no pantry", so no Start button
     fam = `<ul class="ha-list">${row(`<span class="ha-row-icon">${icon('alert')}</span><span class="ha-row-body"><span class="ha-row-title">Can’t check right now</span><span class="ha-row-sub pa-break">${esc(S.user.email)}</span></span>`)}
@@ -1854,7 +1919,7 @@ function viewSettings() {
   } else {
     fam = familyList(S.household, { extra: `${S.localCount ? btnRow('copy-up', `Copy ${plural(S.localCount, 'item')} from this phone`, { iconName: 'upload', sub: 'Saved here before you signed in' }) : ''}
       ${btnRow('signout', 'Sign out')}` });
-    famFoot = 'They sign in with that email (Google, or an emailed link or password) to see the pantry. Tap someone to give them a name, email them the link again, or stop sharing. Whoever started it can’t be removed.';
+    famFoot = 'They sign in with that email (Google, or an emailed link or password) to see the pantry. Tap your own row to set your name; tap someone else to name them, email them the link again, or stop sharing. Whoever started it can’t be removed.';
   }
   return `<h1 class="ha-large-title">Settings</h1>
     ${viewSaving()}
@@ -1872,9 +1937,9 @@ function viewSettings() {
       ${btnRow('welcome', 'Show the welcome again', { iconName: 'home' })}
       ${tourOn() ? '' : btnRow('tour-on', 'Show the getting-started list', { iconName: 'list' })}
     </ul>`, { id: 'help' })}
-    ${section('You', `<ul class="ha-list"><li><label class="ha-row"><span class="ha-row-body"><span class="ha-row-title">Your name</span></span>
+    ${S.mode === 'cloud' ? '' : section('You', `<ul class="ha-list"><li><label class="ha-row"><span class="ha-row-body"><span class="ha-row-title">Your name</span></span>
       <input class="ha-input ha-input--inline" id="pa-name" value="${esc(prefs.get('name') || '')}" placeholder="${esc(S.user?.name?.split(' ')[0] || 'For example, Mum')}" autocomplete="off"></label></li></ul>`,
-      { id: 'you', footer: 'Shows in each item’s history and on the shopping list. Kept on this phone. In a family pantry, the name the family gives you (Family sharing) comes first.' })}
+      { id: 'you', footer: 'Shows in each item’s history and on the shopping list. Kept on this phone. In a family pantry, your name is set on your own row under Family sharing, and the family sees it too.' })}
     ${section('Your data', `<ul class="ha-list">
       ${btnRow('csv', 'Export as CSV', { iconName: 'download', sub: 'A spreadsheet of what’s in stock' })}
       ${btnRow('backup', 'Back up', { iconName: 'download', sub: 'Everything, as a JSON file' })}
@@ -2129,6 +2194,8 @@ async function onClick(e) {
       } catch (err) { S.lookupFailed = true; redraw(); haToast(S.cloud.explain(err, 'Checking')); }
       return;
     }
+    case 'sync-now': return syncNow();
+    case 'sync-cycle': return syncNow({ cycle: true });
     case 'refused-retry': return settleRefused(b.dataset.n, true);
     case 'refused-discard': return settleRefused(b.dataset.n, false);
     case 'person': return openPerson(b.dataset.v);
@@ -2299,8 +2366,9 @@ function drawSync() {
 // stays unconfirmed for a moment turns the chip to "Waiting for signal"; a normal save confirms before that.
 function onSyncState(st) {
   const was = S.sync.pending;
-  S.sync = { pending: st.pending, cache: st.cache, since: st.pending > 0 ? (was > 0 ? S.sync.since : Date.now()) : 0 };
-  drawSync();
+  S.sync = { pending: st.pending, cache: st.cache, since: st.pending > 0 ? (was > 0 ? S.sync.since : Date.now()) : 0, list: st.list || [], heard: st.heard || S.sync.heard || 0 };
+  drawSync(); drawSyncDetail();
+  adoptName();
   clearTimeout(syncTimer);
   if (st.pending > 0) syncTimer = setTimeout(drawSync, 1600);
 }
@@ -2339,10 +2407,10 @@ function settleRefused(n, retry) {
 
 let unwatch = null;
 async function useHousehold(h) {
-  S.household = h;
+  S.household = h; S.lost = null;
   prefs.set('household', h.id);
   S.backend?.close?.();
-  S.sync = { pending: 0, cache: false, since: 0 };
+  S.sync = { pending: 0, cache: false, since: 0, list: [], heard: 0 }; S.syncNow = { busy: false, result: null };
   S.backend = await S.cloud.openCloud(h.id, onWriteError, onSyncState);
   S.mode = 'cloud';
   S.pics.clear();
@@ -2351,16 +2419,45 @@ async function useHousehold(h) {
   S.backend.listen(onRemote);
   setTimeout(sweep, 6000);   // once the first copy from the server is in
   unwatch?.();
-  unwatch = await S.cloud.watchHousehold(h.id, x => { if (x) { S.household = x; redraw(); } });
+  unwatch = await S.cloud.watchHousehold(h.id, x => onHouseholdDoc(h.id, x));
   S.localCount = (await S.local.load()).items.length;
   redraw();
+}
+// The household document changed (x), or is gone or can't be read any more (x is null: deleted or merged away by its owner, this
+// account taken out of it, or the rules refused). Nothing is read from the phone's copy to decide: see householdLost.
+function onHouseholdDoc(hid, x) {
+  if (S.household?.id !== hid) return;   // an old listener, after the phone moved to another pantry
+  if (x) { S.household = x; redraw(); } else householdLost(hid);
+}
+// The pantry this phone was showing is gone. Stop its listeners, ask the SERVER which pantries this account is in now (never the
+// phone's copy: it would still say the old one is there), and move to the one left; with none, or no signal, say so plainly with
+// Try again (a pantry is never started by mistake). Phone: "Your pantry changed", at most once at a time.
+let losing = false;
+async function householdLost(hid) {
+  if (losing || !S.user || S.household?.id !== hid) return;
+  losing = true;
+  try {
+    S.backend?.close?.();
+    unwatch?.(); unwatch = null;
+    let h = null, failed = false;
+    try { h = await locate(S.user.email); } catch (e) { console.warn('household', e?.code); failed = true; }
+    if (h) {
+      await useHousehold(h);   // (the same pantry again if it was only unreadable for a moment)
+      if (h.id !== hid) { haToast(`Your pantry changed: now showing ${h.name}`); haAnnounce(`Your pantry changed. Now showing ${h.name}.`); }
+      return;
+    }
+    await useLocal();
+    S.lost = { at: Date.now(), failed };
+    S.lookupFailed = failed;
+    redraw();
+  } finally { losing = false; }
 }
 async function useLocal() {
   S.backend?.close?.();
   unwatch?.(); unwatch = null;
   S.backend = S.local;
   S.mode = 'local';
-  S.household = null; S.pantries = []; S.lookupFailed = false; S.syncError = false;
+  S.household = null; S.pantries = []; S.lookupFailed = false; S.syncError = false; S.lost = null;
   S.pics.clear();
   loadInto(await S.local.load());
   migratePhotos();
