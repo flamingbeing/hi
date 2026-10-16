@@ -24,9 +24,12 @@ const out = files(cfg);
 assert.match(out['config.js'], /export const firebaseConfig = \{/);
 assert.equal(JSON.parse(out['auth/firebase/init.json']).authDomain, 'pantry.flamingbeing.com');
 
-// until the owner's config arrives, the app is on-phone only
-assert.equal(firebaseConfig, null);
-assert.equal(configured, false);
+// the committed config (written by set-config.mjs) signs in on the app's own address; with none, on-phone only
+if (firebaseConfig) {
+  assert.equal(firebaseConfig.authDomain, 'pantry.flamingbeing.com');
+  assert.ok(firebaseConfig.apiKey && firebaseConfig.projectId && firebaseConfig.appId);
+  assert.equal(configured, true);
+} else assert.equal(configured, false);
 
 // installed apps and Firefox on Android sign in by redirect; browser tabs by popup
 assert.equal(redirectFirst({ standalone: true, ua: 'iPhone' }), true);
