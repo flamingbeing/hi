@@ -1,4 +1,4 @@
-# Koh family home app design language (phone)
+# Home app design language (phone)
 
 The phone-app version of [DESIGN.md](DESIGN.md), for installable web apps (anything with a service worker or a
 home-screen icon; first: the pantry). Opened from the home screen, an app should be hard to tell from a native iPhone

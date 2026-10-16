@@ -1,4 +1,4 @@
-/* Koh family home design system: the phone app kit (DESIGN-APP.md). Needs tokens.css first; app.js drives it.
+/* Home design system: the phone app kit (DESIGN-APP.md). Needs tokens.css first; app.js drives it.
    For installable web apps on *.flamingbeing.com. No dependencies, no build step. Every class starts with ha-, so it
    never clashes with an app's own CSS. Light only. Every component is shown working in app.html. */
 

@@ -1,4 +1,4 @@
-# Koh family home design language (web)
+# Home design language (web)
 
 The look for every family home app on `*.flamingbeing.com`. **Calm and minimal**: mostly white and soft greys, one
 quiet slate-blue accent, generous space, a clear hierarchy and no decoration. Think of the built-in apps on an

@@ -5,8 +5,8 @@ Instructions for every AI assistant working here (Claude Code reads this through
 This **public** repo holds two things:
 
 - `songs/`, `suno-songs/`: song lyrics and Suno style prompts (not served anywhere).
-- **The Koh family home apps** on `*.flamingbeing.com`, served by one Cloudflare Worker ([HOSTING.md](HOSTING.md)):
-  - `homedesign/`: the Koh family home design system (web and phone app kit), shared by every home app at
+- **The family home apps** on `*.flamingbeing.com`, served by one Cloudflare Worker ([HOSTING.md](HOSTING.md)):
+  - `homedesign/`: the home design system (web and phone app kit), shared by every home app at
     `/homedesign/`; its own guide at `design.flamingbeing.com`. Start with `homedesign/README.md`.
   - `pantry/`: the family's household inventory at `pantry.flamingbeing.com`. Start with `pantry/NOTES.md`.
 
@@ -19,6 +19,9 @@ Personal notes, real household data, family names and email addresses, and anyth
 owner's private repo `flamingbeing/life` (`plans/`, `data/<app>/`); attach it with `add_repo` if the session lacks
 it. Never copy anything from `life` into this repo, a PR or an issue. Never commit secrets; public Firebase web configs
 are fine (the rules are the protection).
+
+Cloud sessions load `life` at start: `.claude/hooks/session-start.sh` clones it next to this checkout (read-only use).
+Codex needs `life` added to its environment to see it.
 
 ## Rules that bite
 
@@ -46,22 +49,12 @@ are fine (the rules are the protection).
   `.github/workflows/deploy-firestore-rules.yml` (once set up): run the rules tests first, merge only when Checks are
   green, confirm the deploy run, and say what the rules now allow or deny. Never loosen rules to make a test pass.
 
-## Cloud changes go through firetop
+## Live cloud changes
 
-Since 16 Oct 2026 the owner has given **firetop** (a Claude session on the owner's home computer, session name
-`firetop-partitioned-rose`) standing read-write access to the owner's Firebase projects and Cloudflare account. When
-work needs something a cloud session can't or mustn't do itself (create or change a Firebase project, Firestore data
-or rules, Auth settings and authorised domains, Hosting, IAM roles, budgets and backups, GitHub secrets or variables
-for those, Cloudflare DNS, Workers or rules checks), send firetop a job with `SendMessage` instead of asking the owner.
-
-- **A job gives:** the project or zone; the exact change (file, rule text, record, document ids); why; how to verify.
-  Never send secrets or real household or patient data.
-- **firetop** saves the before-state, makes the change, verifies it, logs it and replies.
-- **Not through firetop without the owner:** deleting databases, backups, buckets or domains; making private data
-  public; spending beyond the owner's budgets; account security (members, API tokens, sign-in methods).
-- **Console-only clicks** (turning on a sign-in provider, OAuth client origins, publishing a consent screen) still
-  need the owner; firetop gives the owner the exact clicks.
-- If firetop isn't reachable (not listed by `ListAgents`, or messages fail), ask the owner as before.
+Live cloud changes a session can't or mustn't make itself (Firebase projects, data, rules, Auth settings, IAM,
+budgets, GitHub secrets for those, Cloudflare DNS or Workers) go to the owner's private helper; how is in the owner's
+private notes (`life`). If that isn't possible, ask the owner. Never send secrets or real household
+data with such a request.
 
 ## Checks before merging
 
@@ -79,8 +72,8 @@ Plus each app's browser tests when it changes (listed in its `NOTES.md`; the app
   the owner's. When asked to plan, plan and wait.
 - PR titles start with the app: "Pantry: …", "Home design: …", "Repo: …". Keep each PR small and finished on its own.
 - **Build minutes are limited:** every push to a branch with a PR starts a Cloudflare build, and the account's free
-  plan has 3,000 build minutes a month shared with anawj.com. Commit freely but push once per finished step, never just
-  to save work in progress.
+  plan has limited build minutes a month, shared with the owner's other sites. Commit freely but push once per
+  finished step, never just to save work in progress.
 - Merge your own PRs once the Checks are green, then report with the PR link. Merge by the number the PR's creation
   returned. Exceptions: anything touching live data or rules waits for the checks above; the owner may ask to wait.
 - Show UI changes with 390 px phone screenshots and the PR preview link (`<preview>/_sites/<host>/?demo`).

@@ -34,11 +34,11 @@ project id and who's in the pantry in `flamingbeing/life` (`plans/`), not here.
    with `authDomain: "pantry.flamingbeing.com"`) and opens a PR.
 9. **Rules deploy on merge.** The workflow `.github/workflows/deploy-firestore-rules.yml` deploys
    `pantry/firestore.rules` whenever it changes on `main`. It needs:
-   - a service account with **Firebase Rules Admin** on this project. The easiest is the one anawj.com already uses
-     (`firebase-rules-deployer@apmes-logbook.iam.gserviceaccount.com`): Google Cloud → IAM & Admin → IAM (this
-     project) → Grant access → that address → role **Firebase Rules Admin** → Save;
+   - a service account with **Firebase Rules Admin** on this project (details in the owner's private notes):
+     Google Cloud → IAM & Admin → IAM (this project) → Grant access → that address → role **Firebase Rules Admin**
+     → Save;
    - github.com/flamingbeing/hi → Settings → Secrets and variables → Actions → **Secrets**: `FIREBASE_SERVICE_ACCOUNT`
-     = that account's JSON key (the same one as in anawj-site);
+     = that account's JSON key;
    - the same page → **Variables**: `PANTRY_FIREBASE_PROJECT` = the project id (e.g. `family-pantry`).
    Then Actions → Deploy Firestore rules → Run workflow once (it deploys the pantry rules), and check it's green.
    Until both are set, the workflow skips with a notice instead of failing.

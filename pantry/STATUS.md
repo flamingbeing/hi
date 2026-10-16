@@ -11,11 +11,10 @@
 
 ## Waiting on the owner
 
-- Billing: link `flamingbeing-pantry` to Blaze (the billing account's 5-project quota is full: unlink one or ask for
-  more), then the US$5 budget and daily backups (the home computer does these).
+- Billing: waiting on the owner (Blaze), then the US$5 budget and daily backups.
 - Google sign-in clicks (SETUP.md steps 6–7): Authentication → Get started → Google → Enable; the OAuth web client's
   origin `https://pantry.flamingbeing.com` and redirect `https://pantry.flamingbeing.com/__/auth/handler`; publish the
-  "Pantry" consent screen. The home computer then adds the authorised domain. Until then sign-in shows an error and
+  "Pantry" consent screen. Then the authorised domain is added. Until then sign-in shows an error and
   the app keeps working on the phone.
 
 ## Next

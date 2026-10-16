@@ -1,4 +1,4 @@
-# homedesign: the Koh family home design system
+# homedesign: the home design system
 
 Shared by every family home app on `*.flamingbeing.com` (first: the pantry). Calm and minimal, light only, the
 phone's own font, one slate-blue accent. Two versions:

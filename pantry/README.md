@@ -1,6 +1,6 @@
 # Pantry
 
-The Koh family's household inventory, at `pantry.flamingbeing.com`: what's at home, what to use first, how fast the
+The family's household inventory, at `pantry.flamingbeing.com`: what's at home, what to use first, how fast the
 family gets through things, and what to buy. A phone app (installable PWA) on the home design kit (`/homedesign/`).
 Start with [NOTES.md](NOTES.md) (decisions, how to test); the owner's one-time setup is [SETUP.md](SETUP.md); what's
 happening now is [STATUS.md](STATUS.md).

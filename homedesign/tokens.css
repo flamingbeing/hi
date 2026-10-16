@@ -1,4 +1,4 @@
-/* Koh family home design system: tokens and a minimal base.
+/* Home design system: tokens and a minimal base.
    Shared by every home app on *.flamingbeing.com (served at /homedesign/). Calm and minimal, light only.
    Web pages add web.css (h- classes); phone apps add app.css + app.js (ha- classes). DESIGN.md and DESIGN-APP.md
    explain every value. Every colour is a custom property, so a dark set could be added later as one block. */
