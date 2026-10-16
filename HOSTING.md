@@ -12,8 +12,9 @@ Worker. `flamingbeing.com` itself (the owner's server page) is not served by it.
 
 - **Previews:** `https://<branch>-flamingbeing-home.<account>.workers.dev/`. A preview serves the whole repo; try a
   host's view at `<preview>/_sites/pantry.flamingbeing.com/?demo`. Sign-in never works on previews (on purpose).
-- **Adding an app:** add its host to `SITES` (and a test in `worker/test/routes.test.mjs`), merge, then the owner adds
-  the custom domain (below).
+- **Adding an app:** add its host to `SITES` (and a test in `worker/test/routes.test.mjs`) and to `routes` in
+  `wrangler.jsonc` (`custom_domain: true`); the deploy on merge creates the address. Ask the owner first whether the
+  name is used at home (below).
 - **Service-worker versions** are stamped by the build command (`node tools/stamp-versions.mjs`).
 - Check a change to `.assetsignore`/`wrangler.jsonc` with `npx wrangler deploy --dry-run`.
 
@@ -41,6 +42,7 @@ minutes"). Owner's click: Workers → flamingbeing-home → Settings → Build �
    Deploy command: `npx wrangler deploy`. Preview command: `npx wrangler preview`. Root path `/`. **Deploy.**
 3. Worker → **Settings → Builds**: on both the **Production** and **Previews Base** tabs pick or create an **API
    token**; on Previews Base turn on **Builds for preview branches** and **Enable Preview URLs**. Keep PR comments on.
-4. Worker → **Settings → Domains & Routes → Add → Custom domain**: `design.flamingbeing.com`. Cloudflare makes the
-   DNS record and certificate itself. The same for `pantry.flamingbeing.com` (pantry/SETUP.md step 1).
+4. The addresses (`design.` and `pantry.flamingbeing.com`) come from `routes` in `wrangler.jsonc`: the deploy creates
+   each DNS record and certificate itself (16 Oct 2026). If a deploy can't (its API token lacks DNS rights), add them
+   by hand: Worker → **Settings → Domains & Routes → Add → Custom domain**.
 5. Check: open https://design.flamingbeing.com/ on the phone.
