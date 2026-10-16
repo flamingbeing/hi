@@ -7,6 +7,7 @@ import * as L from './logic.js';
 import { CATALOGUE, CATEGORIES, LOCATIONS } from './catalogue.js';
 import { openLocal, openMemory, prefs, KINDS } from './store.js';
 import { sampleData } from './sample.js';
+import { openWelcome, viewGuide, welcomed, markWelcomed } from './guide.js';
 import { firebaseConfig } from '../config.js';
 import {
   haRouter, haGo, haBack, haSheet, haCloseSheet, haSheetOpen, haConfirm, haToast, haHideToast, haStepper, haVersion,
@@ -17,6 +18,7 @@ const $ = (s, el = document) => el.querySelector(s);
 const params = new URLSearchParams(location.search);
 const DEMO = params.has('demo');
 const EMULATOR = params.has('emulator') && /^(localhost|127\.0\.0\.1)$/.test(location.hostname);
+const WELCOME = params.has('welcome');   // show the welcome even in the demo, or again
 
 const S = {
   items: new Map(), events: new Map(), shop: new Map(),
@@ -144,6 +146,7 @@ function viewHome() {
       <p class="ha-empty-text">Add what’s in the fridge and cupboards. The pantry then shows what to use first and what to buy.</p>
       <button type="button" class="ha-btn ha-btn--primary" data-act="go-add">Add an item</button>
       <button type="button" class="ha-btn ha-btn--plain" data-act="sample">Try it with sample items</button>
+      <a class="ha-btn ha-btn--plain" href="#/guide">How to use the pantry</a>
     </div>`;
   }
   const t = today();
@@ -529,7 +532,8 @@ function viewShop() {
   h += section('To buy', manual.length ? `<ul class="ha-list" id="pa-shop">${manual.map(line).join('')}</ul>`
     : `<ul class="ha-list" id="pa-shop"><li><div class="ha-row"><span class="ha-row-body"><span class="ha-row-sub">Nothing on the list yet.</span></span></div></li></ul>`,
   { id: 'shop', action: done ? `<button type="button" data-act="shop-clear">Clear ticked</button>` : (left ? `<span class="ha-num">${left}</span>` : ''),
-    footer: 'Tick things off as you buy them. A pantry item asks how many you bought and the date.' });
+    footer: manual.length || suggested.length ? 'Tick things off as you buy them. A pantry item asks how many you bought and the date.'
+      : 'Pantry items come here by themselves when none are left, when they’re down to their “on the list when down to” number, or when they’ll run out within a week at your usual pace. Type anything else above.' });
   h += section('Suggested from the pantry', suggested.length
     ? `<ul class="ha-list">${suggested.map(b => `<li><div class="ha-row">${thumb(b.item)}<span class="ha-row-body"><span class="ha-row-title">${esc(b.item.name)}</span><span class="ha-row-sub">${esc(L.whyText(b, today()))}</span></span>
         <span class="ha-row-trail"><button type="button" class="ha-btn ha-btn--small" data-act="to-list" data-id="${esc(b.item.id)}" aria-label="Add ${esc(b.item.name)} to the list">Add</button></span></div></li>`).join('')}</ul>`
@@ -561,7 +565,7 @@ function viewSettings() {
     famFoot = 'Sharing with the family needs a one-time setup of the pantry’s Firebase project (SETUP.md).';
   } else if (!S.user) {
     fam = `<ul class="ha-list">${btnRow('signin', 'Sign in with Google', { iconName: 'user' })}</ul>`;
-    famFoot = 'Sign in to share one pantry with the family. Only the people you add can see it.';
+    famFoot = 'Sign in to share one pantry with the family: everyone sees the same items and shopping list. Only the people added can see it.';
   } else if (!S.household) {
     fam = `<ul class="ha-list">${row(`<span class="ha-row-icon">${icon('user')}</span><span class="ha-row-body"><span class="ha-row-title">Signed in</span><span class="ha-row-sub">${esc(S.user.email)}</span></span>`)}
       ${btnRow('hh-create', 'Start our family pantry')}${btnRow('hh-check', 'Check again')}${btnRow('signout', 'Sign out')}</ul>`;
@@ -581,6 +585,10 @@ function viewSettings() {
   }
   return `<h1 class="ha-large-title">Settings</h1>
     ${section('Family sharing', fam, { id: 'family', footer: famFoot })}
+    ${section('Help', `<ul class="ha-list">
+      <li><a class="ha-row" href="#/guide"><span class="ha-row-icon">${icon('info')}</span><span class="ha-row-body"><span class="ha-row-title">How to use the pantry</span></span>${chevron()}</a></li>
+      ${btnRow('welcome', 'Show the welcome again', { iconName: 'home' })}
+    </ul>`, { id: 'help' })}
     ${section('You', `<ul class="ha-list"><li><label class="ha-row"><span class="ha-row-body"><span class="ha-row-title">Your name</span></span>
       <input class="ha-input ha-input--inline" id="pa-name" value="${esc(prefs.get('name') || '')}" placeholder="${esc(S.user?.name?.split(' ')[0] || 'For example, Mum')}" autocomplete="off"></label></li></ul>`,
       { id: 'you', footer: 'Shows in each item’s history and on the shopping list. Kept on this phone.' })}
@@ -599,6 +607,7 @@ function viewSettings() {
 // ---- drawing ----------------------------------------------------------------------------------------------------
 
 const TOP = { home: 'Pantry', items: 'Items', shop: 'Shopping', settings: 'Settings' };
+const GUIDE = 'How to use the pantry';
 function draw(r, { keep = false } = {}) {
   let [name = 'home', id] = r.parts;
   const main = $('#main');
@@ -614,7 +623,7 @@ function draw(r, { keep = false } = {}) {
       return;
     }
   }
-  if (!['home', 'items', 'item', 'add', 'edit', 'shop', 'settings'].includes(name)) name = 'home';
+  if (!['home', 'items', 'item', 'add', 'edit', 'shop', 'settings', 'guide'].includes(name)) name = 'home';
   if (TOP[name]) { S.originTab = name === 'home' ? '#/' : '#/' + name; S.backLabel = TOP[name]; }
 
   document.body.classList.toggle('ha-has-tabbar', !task);
@@ -636,6 +645,7 @@ function draw(r, { keep = false } = {}) {
     $('#pa-save').textContent = name === 'add' ? 'Add to pantry' : 'Save';
     wireForm();
   } else if (name === 'shop') { main.innerHTML = viewShop(); setBar({ title, trail: iconBtn('share', 'Share the list', 'share') }); }
+  else if (name === 'guide') { title = GUIDE; main.innerHTML = viewGuide(); setBar({ title: 'How to use it', lead: backBtn(S.backLabel) }); }
   else if (name === 'settings') {
     main.innerHTML = viewSettings(); setBar({ title });
     haVersion($('#pa-version'), 'pantry');
@@ -678,6 +688,7 @@ async function onClick(e) {
   const it = screen() === 'item' ? S.items.get(route().parts[1]) : (b.dataset.id && S.items.get(b.dataset.id));
   switch (act) {
     case 'back': return haBack(screen() === 'edit' ? '#/item/' + route().parts[1] : S.originTab);
+    case 'welcome': return showWelcome({ save: S.mode !== 'demo' });
     case 'go-add': return haGo('#/add');
     case 'scan-home': haGo('#/add'); return openScan();
     case 'scan': return openScan();
@@ -870,7 +881,7 @@ async function onSubmit(e) {
 // An invite from the person's own mail app (no email server: the pantry never sends mail itself).
 function inviteHref(email) {
   const from = who() || S.user?.name?.split(' ')[0] || '';
-  const link = location.origin + location.pathname.replace(/[^/]*$/, '');
+  const link = location.origin + location.pathname.replace(/[^/]*$/, '') + '#/settings';   // lands on Sign in
   const body = `Hi! I've added you to our family pantry, so we can all see what's at home, what to use first and what to buy.\n\n`
     + `1. Open ${link}\n2. Settings → Sign in with Google, using this account (${email})\n3. Add it to your home screen: Safari's Share button → Add to Home Screen (iPhone), or Chrome's menu → Add to home screen (Android)`
     + (from ? `\n\n${from}` : '');
@@ -952,7 +963,7 @@ async function start() {
   addEventListener('offline', redraw);
   R = haRouter({
     render: r => draw(r),
-    tabOf: r => ['item', 'edit', 'add'].includes(r.parts[0]) ? S.originTab : r.hash,
+    tabOf: r => ['item', 'edit', 'add', 'guide'].includes(r.parts[0]) ? S.originTab : r.hash,
   });
   // family sharing, only when a Firebase project is set up (config.js) or in the emulator tests
   if (!DEMO && (firebaseConfig || EMULATOR)) {
@@ -975,5 +986,33 @@ async function start() {
     navigator.serviceWorker.register('sw.js').then(watchUpdates).catch(() => { /* no offline copy (private window) */ });
   }
   window.__pantry = { ...(window.__pantry || {}), S };
+  setTimeout(maybeWelcome, 300);
+}
+
+// ---- the welcome, once per phone (guide.js) -------------------------------------------------------------------------
+
+// Someone opening an invite: the email's link ends #/settings, where Sign in is.
+const INVITED = /^#\/settings/.test(location.hash);
+function maybeWelcome() {
+  if (!WELCOME) {
+    if (DEMO || EMULATOR || welcomed()) return;
+    // already using the app on this phone (from before the welcome existed): never interrupt them
+    if (S.items.size || prefs.get('household') || prefs.get('name')) { markWelcomed(); return; }
+  }
+  if (haSheetOpen() || ['add', 'edit'].includes(screen())) return;
+  showWelcome({ invited: INVITED && !S.user, save: !DEMO });
+}
+function showWelcome({ invited = false, save = true } = {}) {
+  openWelcome({
+    invited, save, signedIn: !!S.user,
+    onDone: v => {
+      afterSheet();
+      if (v === 'add') haGo('#/add');
+      else if (v === 'signin') {
+        if (screen() !== 'settings') haGo('#/settings');
+        requestAnimationFrame(() => $('[data-act="signin"]')?.focus());
+      }
+    },
+  });
 }
 start();

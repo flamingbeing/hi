@@ -56,3 +56,20 @@ label.ha-row:focus-within:has(.pa-file){outline:2px solid var(--home-focus);outl
 .pa-stats{grid-template-columns:repeat(3,minmax(0,1fr))}
 .pa-item .ha-row-body{flex-basis:8em}
 .pa-item .ha-row-title{overflow-wrap:break-word}
+
+/* the welcome sheet (js/guide.js): an icon, a title and a line, then kit rows; dots and the buttons in the foot */
+.pa-welcome{touch-action:pan-y}
+.pa-wtop{display:flex;flex-direction:column;align-items:center;gap:var(--home-s2);padding:var(--home-s4) var(--home-s2) var(--home-s5);text-align:center}
+.pa-wicon{display:grid;place-items:center;width:64px;height:64px;margin-bottom:var(--home-s2);border-radius:50%;background:var(--home-accent-soft);color:var(--home-accent)}
+.pa-wicon .ha-icon{width:30px;height:30px}
+.pa-wtitle{margin:0;font-size:var(--home-t-title2);font-weight:700;line-height:1.25;letter-spacing:-.012em}
+.pa-wtitle:focus{outline:none}
+.pa-wtitle:focus-visible{outline:2px solid var(--home-focus);outline-offset:2px;border-radius:var(--home-r-xs)}
+.pa-wtext{margin:0;max-width:32ch;color:var(--home-muted);font-size:var(--home-t-small);line-height:1.5}
+.pa-dots{display:flex;justify-content:center;gap:6px;margin:0 0 var(--home-s3)}
+.pa-dot{width:7px;height:7px;border-radius:var(--home-r-full);background:var(--home-line-strong);transition:width var(--home-d-med) var(--home-ease),background-color var(--home-d-fast) linear}
+.pa-dot.is-current{width:20px;background:var(--home-accent)}
+.pa-wbtns{margin:0}
+
+/* the guide screen */
+.pa-gagain{margin:var(--home-s2) 0 var(--home-s6)}

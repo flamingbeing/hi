@@ -29,6 +29,18 @@ Lasting decisions and how to test. What's going on now: [STATUS.md](STATUS.md). 
   unsent changes ask first.
 - **A family member's change never wipes what someone is doing:** while a form is open, a sheet is up or a field has
   text in it, changes from the family wait and are drawn afterwards.
+- **Help for first-time users (16 Oct 2026, owner: "a walkthrough or guide for first time users"):** `js/guide.js`.
+  The **welcome** is a kit sheet of three or four cards (what it's for; put it on your home screen, left out when it
+  already runs installed; share with the family; add your first item, ending "Add my first item" or "Look around
+  first"), with Next, Back, Skip, dots and an optional sideways swipe. It shows once per phone: the flag is
+  `localStorage 'pantry:welcomed'` (through `prefs`, so wrapped in try/catch), set however the sheet closes. Never in
+  `?demo` (or the emulator tests) unless `?welcome` is added; `?welcome` forces it anywhere. Someone already using the
+  app on that phone (items, a family pantry or a name saved) never sees it: the flag is set quietly. The invite email's
+  link ends `#/settings`; opening it gives a short version ending "Go to sign in" (Settings, Sign in focused). The
+  **guide** is the screen `#/guide` ("How to use the pantry"), linked from Settings (Help: the guide and "Show the
+  welcome again") and the empty Home. **Hints** stay quiet text: the empty shopping list says how things get there, the
+  item explains the pace before two "Used 1"s, Settings signed out says why to sign in. Note: an iPhone home-screen app
+  has its own storage, separate from Safari, so the welcome shows once more there (without the home-screen card).
 - **Demo mode `?demo`:** made-up items in memory only, no Firebase, nothing saved. Makes PR previews useful.
 - **Hosting:** `pantry.flamingbeing.com` (Worker `SITES`, HOSTING.md), with `/__/auth/` (Firebase's generic sign-in
   helper pages, copied from Firebase into the repo's `__/auth/`) and `/__/firebase/init.json` (`pantry/auth/firebase/`).
