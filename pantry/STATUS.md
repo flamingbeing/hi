@@ -31,9 +31,18 @@
   links; Freeze and Thaw; Leftovers; shopping list by aisle with Buy again, mic, Going shopping and Put away; Plenty /
   Low / Out for staples; Scan many.
 
+- 16 Oct 2026: sign in by email link and password besides Google (branch, PR to follow); also the household pick fix
+  (an account in two pantries opened the wrong one).
+
+- 16 Oct 2026: merge duplicate pantries (Settings card and sheet; copies, counts, then deletes the extra one; owner only).
+
 ## Waiting on the owner
 
 - Billing: waiting on the owner (Blaze), then the US$5 budget and daily backups.
+- Email sign-in switch (Firebase console, project `flamingbeing-pantry`, via Firetop if easier): Authentication →
+  Sign-in method → **Email/Password** → Enable, and tick **Email link (passwordless sign-in)** → Save. The authorised
+  domain `pantry.flamingbeing.com` is already there. Until then "Use email instead" says "This way of signing in isn't
+  switched on yet."
 - Google sign-in clicks (SETUP.md steps 6–7): Authentication → Get started → Google → Enable; the OAuth web client's
   origin `https://pantry.flamingbeing.com` and redirect `https://pantry.flamingbeing.com/__/auth/handler`; publish the
   "Pantry" consent screen. Then the authorised domain is added. Until then sign-in shows an error and
@@ -47,6 +56,9 @@
   reminders (push, needs a Worker cron), money saved or wasted, recipe-idea links, pasting an online order.
 
 ## Decisions
+
+- 16 Oct 2026: three ways in: Google, emailed link, password; rules keep requiring a verified email, so a new password
+  account sees nothing until it taps the emailed link (NOTES.md).
 
 - 16 Oct 2026: names live in `settings/people` (members only, at most 20, 1-40 characters); ticking the shopping list
   no longer opens Bought more: Put away does them all at once; freezing moves the whole item (places are per item)

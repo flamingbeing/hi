@@ -18,7 +18,7 @@
 // (the anawj.com logbook's fix for "missing initial state").
 
 import { firebaseConfig } from '../config.js';
-import { KINDS } from './store.js';
+import { KINDS, prefs } from './store.js';
 
 const SDK = 'https://www.gstatic.com/firebasejs/10.14.1/';
 export const APP_HOST = 'pantry.flamingbeing.com';
@@ -77,7 +77,18 @@ export function explain(err, doing = 'That') {
   if (/unauthorized-domain/.test(code)) return 'This address isn’t allowed to sign in yet. The pantry’s setup needs finishing (SETUP.md).';
   if (/permission-denied/.test(code)) return 'This Google account isn’t in that family pantry.';
   if (/too-many-requests|resource-exhausted/.test(code)) return 'Too many tries. Wait a minute and try again.';
-  if (/user-disabled/.test(code)) return 'This Google account can’t sign in.';
+  if (/user-disabled/.test(code)) return 'This account can’t sign in.';
+  if (/wrong-password|invalid-credential/.test(code)) return 'That email and password don’t match. Check them, or tap Forgot password.';
+  if (/user-not-found/.test(code)) return 'There’s no account with that email yet. Tap Create account to make one.';
+  if (/email-already-in-use/.test(code)) return 'That email already has an account. Tap Sign in, or Forgot password.';
+  if (/weak-password/.test(code)) return 'That password is too easy to guess. Use at least 8 characters.';
+  if (/invalid-email/.test(code)) return 'That doesn’t look like an email address.';
+  if (/missing-email/.test(code)) return 'Type your email address first.';
+  if (/missing-password/.test(code)) return 'Type your password.';
+  if (/expired-action-code/.test(code)) return 'That link has expired or was already used. Ask for a new one.';
+  if (/invalid-action-code/.test(code)) return 'That link isn’t valid any more. Ask for a new one.';
+  if (/merge-count/.test(code)) return 'Not everything arrived in the pantry you’re keeping, so nothing was deleted.';
+  if (/operation-not-allowed/.test(code)) return 'This way of signing in isn’t switched on yet.';
   return `${doing} didn’t work. Try again in a moment.`;
 }
 
@@ -94,8 +105,13 @@ export async function onUser(cb) {
   const { A, auth } = await sdk();
   // finishes a redirect sign-in when the page loads again
   A.getRedirectResult(auth).catch(e => console.warn('Redirect sign-in failed', e?.code || e));
-  A.onAuthStateChanged(auth, u => cb(u ? { email: lc(u.email), name: u.displayName || u.email, photo: u.photoURL || '' } : null));
+  A.onAuthStateChanged(auth, u => cb(userInfo(u)));
 }
+// What the app needs to know about the signed-in account. `verified` is false for a new password account until the
+// person taps the emailed link: the rules need a verified email, so the app shows no family data until then. (Google
+// and email-link sign-ins are verified already.)
+export const userInfo = u => u ? { email: lc(u.email), name: u.displayName || u.email, photo: u.photoURL || '', verified: u.emailVerified === true } : null;
+
 export async function signIn() {
   const { A, auth } = await sdk();
   const provider = new A.GoogleAuthProvider();
@@ -106,6 +122,84 @@ export async function signIn() {
     if (!REDIRECT_CODES.includes(e?.code)) throw e;
     await A.signInWithRedirect(auth, provider);
   }
+}
+// ---- email link and password (besides Google) ----------------------------------------------------------------------
+
+// Where an emailed link brings the person back: the app's own address (installed apps and the home screen open this).
+// On localhost (the emulator tests) it is the page the test is on.
+export const continueUrl = ({ hostname = '', origin = '', pathname = '/' } = {}) =>
+  /^(localhost|127\.0\.0\.1)$/.test(hostname) ? origin + pathname : `https://${APP_HOST}/`;
+const here = () => continueUrl({ hostname: location.hostname, origin: location.origin, pathname: location.pathname });
+export const goodEmail = e => /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(String(e || '').trim());
+export const MIN_PASSWORD = 8;
+// The query that Firebase's emailed link adds (apiKey, oobCode, mode, lang) comes off the address once used.
+export const stripLinkParams = (href, keep = ['emulator']) => {
+  const u = new URL(href);
+  const q = u.search.slice(1).split('&').filter(p => p && keep.includes(decodeURIComponent(p.split('=')[0])));
+  return u.pathname + (q.length ? '?' + q.join('&') : '') + u.hash;
+};
+const KEY = 'emailForSignIn';
+export const savedEmail = () => lc(prefs.get(KEY, ''));
+
+export async function sendLink(email) {
+  const e = lc(email);
+  if (!e) throw { code: 'auth/missing-email' };
+  if (!goodEmail(e)) throw { code: 'auth/invalid-email' };
+  const { A, auth } = await sdk();
+  await A.sendSignInLinkToEmail(auth, e, { url: here(), handleCodeInApp: true });
+  prefs.set(KEY, e);   // the link may open in this same browser (no need to type the email again) or another one
+}
+export async function isEmailLink(href = location.href) {
+  const { A, auth } = await sdk();
+  return A.isSignInWithEmailLink(auth, href);
+}
+// Finishes the sign-in with the emailed link. The address is the one saved on this phone when the link was asked for;
+// a link opened in another browser needs the person to type it.
+export async function finishLink(email, href = location.href) {
+  const e = lc(email);
+  if (!e) throw { code: 'auth/missing-email' };
+  const { A, auth } = await sdk();
+  await A.signInWithEmailLink(auth, e, href);
+  prefs.del(KEY);
+}
+export async function passwordSignIn(email, password) {
+  const e = lc(email);
+  if (!e) throw { code: 'auth/missing-email' };
+  if (!password) throw { code: 'auth/missing-password' };
+  const { A, auth } = await sdk();
+  await A.signInWithEmailAndPassword(auth, e, password);
+}
+// A new account: the person must tap the emailed link before the app treats them as signed in.
+export async function passwordCreate(email, password) {
+  const e = lc(email);
+  if (!e) throw { code: 'auth/missing-email' };
+  if (!goodEmail(e)) throw { code: 'auth/invalid-email' };
+  if (String(password || '').length < MIN_PASSWORD) throw { code: 'auth/weak-password' };
+  const { A, auth } = await sdk();
+  const c = await A.createUserWithEmailAndPassword(auth, e, password);
+  await A.sendEmailVerification(c.user, { url: here() });
+  return userInfo(c.user);
+}
+export async function resendVerification() {
+  const { A, auth } = await sdk();
+  if (!auth.currentUser) throw { code: 'auth/user-not-found' };
+  await A.sendEmailVerification(auth.currentUser, { url: here() });
+}
+// "I've verified": reload the account and its sign-in token (the token carries email_verified), then say how it stands.
+export async function refreshUser() {
+  const { auth } = await sdk();
+  const u = auth.currentUser;
+  if (!u) return null;
+  await u.reload();
+  await u.getIdToken(true);
+  return userInfo(u);
+}
+export async function resetPassword(email) {
+  const e = lc(email);
+  if (!e) throw { code: 'auth/missing-email' };
+  if (!goodEmail(e)) throw { code: 'auth/invalid-email' };
+  const { A, auth } = await sdk();
+  await A.sendPasswordResetEmail(auth, e, { url: here() });
 }
 // Tests only (?emulator): sign in as a made-up Google account.
 export async function emulatorSignIn(email) {
@@ -124,18 +218,28 @@ export async function signOut() {
   await A.signOut(auth);
 }
 
-// The household this account belongs to (the owner adds family members by their Google email).
-export async function findHousehold(email) {
+// The household this account belongs to (the owner adds family members by their Google email). An account can end up
+// in more than one (a second "Start our family pantry" tapped when the first couldn't be found), and a query's
+// first match is arbitrary: so pick the one this phone used last (`prefer`), else the one with the most members,
+// else the oldest.
+export const pickHousehold = (list, prefer = '') => list.length < 2 ? (list[0] || null)
+  : list.find(h => h.id === prefer) || [...list].sort((a, b) => (b.members?.length || 0) - (a.members?.length || 0) || String(a.createdAt || '').localeCompare(String(b.createdAt || '')) || (a.id < b.id ? -1 : 1))[0];
+export async function findHouseholds(email) {
   const { F, db } = await sdk();
-  const q = F.query(F.collection(db, 'households'), F.where('members', 'array-contains', lc(email)), F.limit(1));
-  const s = await F.getDocs(q);
-  return s.empty ? null : { id: s.docs[0].id, ...s.docs[0].data() };
+  const q = F.query(F.collection(db, 'households'), F.where('members', 'array-contains', lc(email)), F.limit(10));
+  // From the server, never the phone's copy: offline this throws ("can't tell") instead of answering "none" from an
+  // empty or old copy, which would offer to start a second pantry.
+  const s = await F.getDocsFromServer(q);
+  return s.docs.map(d => ({ id: d.id, ...d.data() }));
 }
+export async function findHousehold(email, prefer = '') { return pickHousehold(await findHouseholds(email), prefer); }
 export async function createHousehold(email, name = 'Our pantry') {
   const { F, db } = await sdk();
   const ref = F.doc(F.collection(db, 'households'));
   const data = { name, owner: lc(email), members: [lc(email)], createdAt: new Date().toISOString() };
-  await F.setDoc(ref, data);
+  // A transaction needs the server: offline it fails at once, where a plain setDoc would queue on the phone and create
+  // the pantry later, whenever signal came back (even if one already existed).
+  await F.runTransaction(db, async t => { t.set(ref, data); });
   return { id: ref.id, ...data };
 }
 export async function setMembers(hid, members) {
@@ -149,6 +253,64 @@ export async function watchHousehold(hid, cb) {
 
 // Firestore can't store undefined; drop it.
 const clean = o => JSON.parse(JSON.stringify(o));
+
+// Many documents at once: at most 400 to a batch or about 4 MB (photos are up to 150 KB each; Firestore takes about
+// 10 MB a request).
+async function writeAll(F, db, hid, kind, list) {
+  let b = null, n = 0, bytes = 0;
+  for (const o of list) {
+    const c = clean(o), size = JSON.stringify(c).length;
+    if (b && (n >= 400 || bytes + size > 4e6)) { await b.commit(); b = null; }
+    if (!b) { b = F.writeBatch(db); n = 0; bytes = 0; }
+    b.set(F.doc(F.collection(db, 'households', hid, kind), o.id), c); n++; bytes += size;
+  }
+  if (b) await b.commit();
+}
+const MERGE_KINDS = ['items', 'events', 'shop', 'photos'];
+const ALL_KINDS = [...MERGE_KINDS, 'settings'];
+
+export async function addMembers(hid, members) { return setMembers(hid, members); }
+// Merging, step 1: copy everything in household `fromId` into `toId` (ids are random, so nothing clashes; running it
+// again after a failure just writes the same documents again). Settings are merged, not copied over. Then COUNT: the
+// kept pantry must hold at least as many documents of each kind as were copied. Throws if anything fails; never
+// deletes. Resolves with how many were copied.
+export async function copyHousehold(toId, fromId, members) {
+  const { F, db } = await sdk();
+  const read = async (hid, k) => (await F.getDocs(F.collection(db, 'households', hid, k))).docs.map(d => d.data());
+  const out = {};
+  const { mergeSettings } = await import('./merge.js');
+  const photos = await read(fromId, 'photos');
+  const photoIds = new Set(photos.map(p => p.id));
+  const items = (await read(fromId, 'items')).map(it => {
+    // an item from before thumbnails still holds a whole photo: the rules refuse new ones, so it moves to photos/<id>
+    if (it.photo && !photoIds.has(it.id) && String(it.photo).length <= 150000) { photos.push({ id: it.id, data: it.photo, updatedAt: new Date().toISOString() }); photoIds.add(it.id); }
+    const { photo, ...rest } = it;
+    return rest;
+  });
+  const lists = { items, events: await read(fromId, 'events'), shop: await read(fromId, 'shop'), photos };
+  for (const k of ['photos', 'items', 'events', 'shop']) { await writeAll(F, db, toId, k, lists[k]); out[k] = lists[k].length; }   // photos first, so no item points at a missing photo
+  const settings = mergeSettings(await read(toId, 'settings'), await read(fromId, 'settings'), members);
+  await writeAll(F, db, toId, 'settings', settings);
+  for (const k of MERGE_KINDS) {
+    const c = (await F.getCountFromServer(F.collection(db, 'households', toId, k))).data().count;
+    if (c < out[k]) throw { code: 'merge-count', kind: k };
+  }
+  return out;
+}
+// Merging, step 2, only after step 1 for every pantry succeeded: delete household `hid` (its documents, then itself).
+// Only its owner may (the rules).
+export async function removeHousehold(hid) {
+  const { F, db } = await sdk();
+  for (const k of ALL_KINDS) {
+    const ids = (await F.getDocs(F.collection(db, 'households', hid, k))).docs.map(d => d.ref);
+    for (let i = 0; i < ids.length; i += 400) {
+      const b = F.writeBatch(db);
+      for (const r of ids.slice(i, i + 400)) b.delete(r);
+      await b.commit();
+    }
+  }
+  await F.deleteDoc(F.doc(db, 'households', hid));
+}
 
 export async function openCloud(hid, onError = () => {}) {
   const { F, db } = await sdk();
@@ -178,16 +340,7 @@ export async function openCloud(hid, onError = () => {}) {
     async list(kind) { return (await F.getDocs(col(kind))).docs.map(d => d.data()); },
     // Write many at once (copying the phone's pantry up, restoring a backup): at most 400 documents or about 4 MB
     // to a batch (photos are up to 150 KB each; Firestore takes about 10 MB a request).
-    async putMany(kind, list) {
-      let b = null, n = 0, bytes = 0;
-      for (const o of list) {
-        const c = clean(o), size = JSON.stringify(c).length;
-        if (b && (n >= 400 || bytes + size > 4e6)) { await b.commit(); b = null; }
-        if (!b) { b = F.writeBatch(db); n = 0; bytes = 0; }
-        b.set(F.doc(col(kind), o.id), c); n++; bytes += size;
-      }
-      if (b) await b.commit();
-    },
+    putMany: (kind, list) => writeAll(F, db, hid, kind, list),
     listen(cb) {
       for (const k of KINDS) {
         unsubs.push(F.onSnapshot(col(k), s => {

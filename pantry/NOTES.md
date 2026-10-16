@@ -6,7 +6,7 @@ Lasting decisions and how to test. What's going on now: [STATUS.md](STATUS.md). 
 
 - **16 Oct 2026, first build (PR #5, closed):** plain HTML and JS modules, no build step. Data lives on the phone
   (IndexedDB) until family sharing is set up; then in Firestore, one household per family: `households/{hid}` with
-  `members` (Google emails, lower case), and `items`, `events`, `shop` under it. Rules: only members read or write; the
+  `members` (emails, lower case; Google, emailed link or password), and `items`, `events`, `shop` under it. Rules: only members read or write; the
   person who started it can't be removed and stays owner. Real household data never goes in this public repo.
 - **Stock is batches** (qty, best-before, opened date). An opened item is due by the earlier of its printed date and
   opened + "keeps once opened" days. Taking out is first expiring first (opened ones first). The pace comes from
@@ -177,6 +177,56 @@ Lasting decisions and how to test. What's going on now: [STATUS.md](STATUS.md). 
     "Add it" (opens Add with the look-up), Done gives one toast with one Undo for every scan.
   - Data cost: nothing new is listened to or read in full; all of it is the existing items, events, shop and settings.
 
+- **16 Oct 2026, which family pantry opens** (owner report: after saving a name, "the list of my family members
+  disappeared"; saving names itself never hides anyone, tested with three members on three phones, with reloads): an
+  account can be in more than one household (a second "Start our family pantry" when the first lookup failed), and
+  the lookup's first match is arbitrary, so a one-person duplicate could open instead of the family's. `findHousehold`
+  now takes the one this phone last used (`pantry:household`), else the one with most members, else the oldest
+  (`pickHousehold`); "Start our family pantry" first looks for an existing one.
+
+- **16 Oct 2026, sign in by email too** (owner; Google stays the main button): Settings → Family sharing shows
+  **Continue with Google** and a quiet **Use email instead** (a sheet: the address, then **Email me a sign-in link** or
+  **Use a password** with Sign in, Create account and Forgot password). Not offered in the demo or on-this-phone mode.
+  - **Rules still need `request.auth.token.email_verified == true`** (unchanged). Google and email-link sign-ins are
+    verified already. A new password account is not: `userInfo().verified` is false, the app keeps it as `S.pending`
+    (never `S.user`), does no household lookup and reads nothing from Firestore, and Settings shows "Check your email"
+    with **I've verified** (`reload()` + `getIdToken(true)`, then carries on) and **Send it again**. Coming back to the
+    app checks quietly too.
+  - **Email link:** `sendSignInLinkToEmail` with `handleCodeInApp: true`, continue URL `https://pantry.flamingbeing.com/`
+    (localhost: the page itself, `continueUrl()`). The address is saved in `localStorage pantry:emailForSignIn`. On
+    load, `isSignInWithEmailLink` finishes it with that address, or, when the link was opened elsewhere (Safari instead
+    of the home-screen app), a small sheet asks for it. Then the link's query comes off the address and the saved
+    address is cleared. The "link sent" text says that on an iPhone the link may open in Safari, that's fine, and to use
+    a password in the home-screen app.
+  - Errors in plain words through `explain()` (wrong password, no account, already in use, weak password (8+ here),
+    bad or missing email, expired or used link, "This way of signing in isn't switched on yet."). Passwords are
+    only ever sent to Firebase Auth; nothing is stored here.
+  - **The owner must switch it on** (SETUP.md step 6): Authentication → Sign-in method → Email/Password, with "Email
+    link (passwordless sign-in)" ticked. Until then the sheet says it isn't switched on yet.
+  - Tests: `test/signin.e2e.mjs` (run by `run-sync.sh`, reads the Auth emulator's `oobCodes`), helpers in
+    `test/config.test.mjs`.
+
+- **16 Oct 2026, never a second pantry from a bad signal** (owner: "can the app create a second pantry offline?"): yes,
+  it could. The lookup used `getDocs` on the persistent cache, which answers from the phone's copy when offline (empty or
+  old = "no pantry"), then "Start our family pantry" queued a `setDoc` that committed whenever signal came back. Now
+  `findHouseholds` uses `getDocsFromServer`: offline it throws, the app shows "Can't check right now" with Try again
+  (retries by itself when the phone is back online) and no Start button; `createHousehold` is a transaction, which needs
+  the server and never queues; Start looks the account up on the server first and refuses a second tap while one is
+  going. Test: Firestore blocked in the browser (`sync.e2e.mjs`).
+- **16 Oct 2026, merge duplicate pantries** (owner: "we should merge duplicate emails into 1 pantry"; the real cause of
+  the disappeared list was an account in two households, one a stray one-person pantry). `S.pantries` holds every
+  household the account is in (`findHouseholds`, at most 10). With two or more, Settings shows "Two family pantries"
+  and Home a one-line note; the sheet (`openMerge`) lists each (people, who started it) with the one with most people
+  chosen to keep. **Merge into this one** (after a confirm): `copyHousehold` copies items, events, shop and photos in
+  batches (photos first; an old-style item's `photo` moves to `photos/<id>`), merges settings (`js/merge.js`: places by
+  `mergePlaces`, names joined, the kept pantry's name wins), then COUNTS (`getCountFromServer`: the kept pantry must hold
+  at least what was copied); members are unioned (over 20: refused, nothing done); the app switches to the kept pantry;
+  only then `removeHousehold` deletes the other's documents and the household, one pantry at a time. Any error before
+  that deletes nothing and says so (re-running is safe: the same ids are written again). Only the owner of a pantry that
+  would be deleted may merge it away (the rules: household delete is owner only); otherwise it says "Ask <owner> to merge
+  them". No rules change. Tests: `test/merge.test.mjs`, and the merge section of `test/sync.e2e.mjs` (merge, non-owner,
+  failed copy).
+
 ## How to test
 
 ```
@@ -185,11 +235,12 @@ node pantry/test/quick.test.mjs        # Say or type: dates, places, quantities,
 node pantry/test/tour.test.mjs         # first steps: quick-start list, checklist ticks
 node pantry/test/places.test.mjs       # places: defaults, rename/move/remove, used-but-unlisted, Say or type matching
 node pantry/test/people.test.mjs       # names for the family: cleaning, setting, labels
+node pantry/test/merge.test.mjs        # merging duplicate pantries: members, who may, settings
 node pantry/test/scan.test.mjs         # the barcode look-up chain with a stubbed fetch (plain node)
 node pantry/test/photo.test.mjs        # thumbnail and photo sizes, stepping down to fit the limits (plain node)
 node pantry/test/config.test.mjs       # set-config, sign-in choice, plain-word errors, sw.js rules
 node pantry/test/e2e.mjs               # phone browser test with axe; SHOTS=<dir> saves screenshots
-pantry/test/run-sync.sh                # family sharing, the rules (photo size caps, places and names too) and moving old-style photos in the
+pantry/test/run-sync.sh                # sign-in by email link and password (signin.e2e.mjs), family sharing, the rules (photo size caps, places and names too) and moving old-style photos in the
                                        # local emulators (demo-pantry, fake accounts)
 node tools/check.mjs && node tools/stamp-versions.mjs --check
 ```
