@@ -75,11 +75,24 @@ Lasting decisions and how to test. What's going on now: [STATUS.md](STATUS.md). 
   - **Who added and last changed an item** (`createdBy`, `updatedBy`), in its details.
   - **"Use soon" setting** (Settings → Reminders: 3 days, 1 week or 2 weeks; default 2 weeks as before; per phone).
 
+- **16 Oct 2026, hands-on first steps** (owner: "the pantry needs a better walkthrough"; `js/tour.js`):
+  - The welcome is two cards for someone new ("what it's for", then "fill it in a minute"); the home-screen and family
+    cards became checklist steps. Invited people keep their short version ending at Sign in.
+  - **Quick start** ("What do you have?"): about 26 everyday Singapore goods as chips grouped by where they're kept;
+    tapped ones go in with their catalogue details and a rough best-before date (a typical shelf life), so an empty
+    pantry is useful in under a minute. Things already in the pantry show "at home" and can't be picked twice.
+  - **Getting started checklist** on Home: add what you have, say what you bought, mark one used, look at the
+    shopping list, home screen, share with the family (only when sharing is set up). Each ticks itself from the data
+    or a per-phone flag; "Show me" opens the right screen and rings the button (`pa-spot`, no animation with reduced
+    motion). Only for people who start with this version (`pantry:tour` = 'on', set on the first welcome) or who turn
+    it on in Settings → Help: families already using the pantry see nothing new. Hide puts it away for good.
+
 ## How to test
 
 ```
 node pantry/test/logic.test.mjs        # logic, catalogue, backups (plain node; also in the repo Checks)
 node pantry/test/quick.test.mjs        # Say or type: dates, places, quantities, matching
+node pantry/test/tour.test.mjs         # first steps: quick-start list, checklist ticks
 node pantry/test/config.test.mjs       # set-config, sign-in choice, plain-word errors, sw.js rules
 node pantry/test/e2e.mjs               # phone browser test with axe; SHOTS=<dir> saves screenshots
 pantry/test/run-sync.sh                # family sharing and the rules in the local emulators (demo-pantry, fake accounts)

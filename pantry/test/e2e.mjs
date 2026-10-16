@@ -88,13 +88,17 @@ try {
     // first open: the welcome, once per phone
     await waitWelcome(page);
     ok(await cardTitle(page) === 'Welcome to the pantry', 'first open shows the welcome');
-    ok(await welcomeSheet(page).locator('.pa-dot').count() === 4, 'four cards in a browser tab');
+    ok(await welcomeSheet(page).locator('.pa-dot').count() === 2, 'two cards for someone new');
     await shot(page, 'w0-first-open');
     await welcomeSheet(page).locator('.ha-sheet-head [data-ha-close]', { hasText: 'Skip' }).click(); await settle(page);
     ok(await welcomeSheet(page).count() === 0 && hash(page) === '#/', 'Skip closes it and stays on Home');
     ok(await page.evaluate(() => localStorage.getItem('pantry:welcomed')) === 'true', 'Skip remembers it');
     await page.reload(); await page.locator('.ha-large-title').waitFor(); await page.waitForTimeout(900);
     ok(await welcomeSheet(page).count() === 0, 'the welcome does not come back after a reload');
+    // a first-time user gets the Getting started checklist on Home; hiding it puts it away (Settings can bring it back)
+    ok(await page.locator('#h-tour').count() === 1, 'first open: Getting started on Home');
+    await page.click('[data-act="tour-hide"]'); await settle(page);
+    ok(await page.locator('#h-tour').count() === 0, 'Hide this list hides it');
     ok(await page.locator('.ha-empty-title', { hasText: 'Nothing here yet' }).isVisible(), 'empty pantry says so');
     ok(await page.locator('.ha-empty a[href="#/guide"]').isVisible(), 'empty Home links to the guide');
     await go(page, '#/shop');
@@ -315,28 +319,22 @@ try {
     ok(await welcomeSheet(page).locator('[data-pa-w="prev"]').isHidden(), 'no Back on the first card');
     await axe(page, 'welcome card 1');
     await shot(page, 'w1-intro');
-    for (let i = 2; i <= 4; i++) {
-      await welcomeSheet(page).locator('[data-pa-w="next"]').click(); await settle(page);
-      titles.push(await cardTitle(page));
-      ok(await welcomeSheet(page).locator('.pa-dot.is-current').count() === 1
-        && await welcomeSheet(page).locator('.pa-dot').nth(i - 1).evaluate(d => d.classList.contains('is-current')), `dot ${i} is current`);
-      ok(await page.evaluate(() => document.activeElement?.classList.contains('pa-wtitle')), `card ${i}: focus moves to its title`);
-      await axe(page, `welcome card ${i}`);
-      await shot(page, `w${i}-${['', '', 'install', 'family', 'first'][i]}`);
-    }
-    ok(JSON.stringify(titles) === JSON.stringify(['Welcome to the pantry', 'Put it on your home screen', 'Share it with the family', 'Add your first item']), `cards in order: ${titles}`);
+    await welcomeSheet(page).locator('[data-pa-w="next"]').click(); await settle(page);
+    titles.push(await cardTitle(page));
+    ok(await welcomeSheet(page).locator('.pa-dot').nth(1).evaluate(d => d.classList.contains('is-current')), 'dot 2 is current');
+    ok(await page.evaluate(() => document.activeElement?.classList.contains('pa-wtitle')), 'card 2: focus moves to its title');
+    await axe(page, 'welcome card 2');
+    await shot(page, 'w2-fill');
+    ok(JSON.stringify(titles) === JSON.stringify(['Welcome to the pantry', 'Fill it in a minute']), `cards in order: ${titles}`);
     ok(await welcomeSheet(page).locator('[data-pa-w="next"]').count() === 0, 'no Next on the last card');
     ok(await welcomeSheet(page).locator('.ha-sheet-head [data-ha-close]').textContent() === 'Close', 'the last card says Close, not Skip');
-    // Back goes to the previous card, Next returns
     await welcomeSheet(page).locator('[data-pa-w="prev"]').click(); await settle(page);
-    ok(await cardTitle(page) === 'Share it with the family', 'Back shows the previous card');
+    ok(await cardTitle(page) === 'Welcome to the pantry', 'Back shows the previous card');
     await welcomeSheet(page).locator('[data-pa-w="next"]').click(); await settle(page);
     ok(await welcomeSheet(page).locator('[data-pa-w="done"]').textContent() === 'Look around first', 'a quiet Look around first');
-    await welcomeSheet(page).locator('[data-pa-w="add"]').click(); await settle(page);
-    ok(hash(page) === '#/add' && await welcomeSheet(page).count() === 0, 'Add my first item lands on Add');
+    await welcomeSheet(page).locator('[data-pa-w="start"]').click(); await settle(page);
+    ok(await page.locator('dialog.ha-sheet[open] .ha-sheet-title').textContent() === 'What do you have?', 'Pick what you have opens the quick start');
     ok(await page.evaluate(() => localStorage.getItem('pantry:welcomed')) === null, 'the demo saves no flag');
-    await page.goBack(); await settle(page);
-    ok(hash(page) === '#/', 'back from Add returns to Home, not to the welcome');
     ok(errors.length === 0, `welcome: console errors ${errors.join('; ')}`);
     await ctx.close();
   }
@@ -344,9 +342,9 @@ try {
     // installed (opened from the home screen): no home-screen card
     const { ctx, page } = await open(390, 844, BASE + '?demo&welcome', { init: () => Object.defineProperty(navigator, 'standalone', { get: () => true }) });
     await waitWelcome(page);
-    ok(await welcomeSheet(page).locator('.pa-dot').count() === 3, 'installed: three cards');
-    for (let i = 0; i < 2; i++) { await welcomeSheet(page).locator('[data-pa-w="next"]').click(); await settle(page); }
-    ok(await cardTitle(page) === 'Add your first item', 'installed: the home-screen card is skipped');
+    ok(await welcomeSheet(page).locator('.pa-dot').count() === 2, 'installed: two cards');
+    await welcomeSheet(page).locator('[data-pa-w="next"]').click(); await settle(page);
+    ok(await cardTitle(page) === 'Fill it in a minute', 'installed: straight to filling it in');
     await ctx.close();
   }
   {
@@ -367,10 +365,10 @@ try {
   for (const [w, h] of [[390, 844], [360, 780], [320, 640]]) {
     const { ctx, page, errors } = await open(w, h, BASE + '?demo&welcome');
     await waitWelcome(page);
-    for (let i = 1; i <= 4; i++) {
+    for (let i = 1; i <= 2; i++) {
       await noSideways(page, `welcome ${w} card ${i}`);
       if (w !== 390) await axe(page, `welcome ${w} card ${i}`);
-      if (i < 4) { await welcomeSheet(page).locator('[data-pa-w="next"]').click(); await settle(page); }
+      if (i < 2) { await welcomeSheet(page).locator('[data-pa-w="next"]').click(); await settle(page); }
     }
     await welcomeSheet(page).locator('[data-pa-w="done"]').click(); await settle(page);
     ok(await welcomeSheet(page).count() === 0 && hash(page) === '#/', `welcome ${w}: Look around first closes it`);
@@ -401,17 +399,84 @@ try {
       await page.evaluate(() => { document.documentElement.style.fontSize = '212.5%'; });
       await noSideways(page, 'guide 200%');
       await page.click('[data-act="welcome"]'); await waitWelcome(page);
-      for (let i = 1; i <= 4; i++) {
+      for (let i = 1; i <= 2; i++) {
         await noSideways(page, `welcome 200% card ${i}`);
         const r = await welcomeSheet(page).evaluate(d => ({ sw: d.querySelector('.ha-sheet-body').scrollWidth, cw: d.querySelector('.ha-sheet-body').clientWidth }));
         ok(r.sw <= r.cw, `welcome 200% card ${i}: no sideways scroll in the sheet`);
-        if (i === 4) await shot(page, 'w6-200pc');
-        if (i < 4) { await welcomeSheet(page).locator('[data-pa-w="next"]').click(); await settle(page); }
+        if (i === 2) await shot(page, 'w6-200pc');
+        if (i < 2) { await welcomeSheet(page).locator('[data-pa-w="next"]').click(); await settle(page); }
       }
     }
     ok(errors.length === 0, `welcome and guide ${w}: console errors ${errors.join('; ')}`);
     await ctx.close();
     console.log(`  welcome and guide ${w}: ok`);
+  }
+
+  // ---------- first steps: the quick start and the Getting started checklist, on a fresh phone ----------
+  {
+    const { ctx, page, errors } = await open(390, 844);
+    await waitWelcome(page);
+    await welcomeSheet(page).locator('[data-pa-w="next"]').click(); await settle(page);
+    await welcomeSheet(page).locator('[data-pa-w="start"]').click(); await settle(page);
+    const sheet = page.locator('dialog.ha-sheet[open]');
+    ok(await sheet.locator('.pa-start-chips .ha-chip').count() >= 20, 'the quick start offers everyday things');
+    for (const n of ['Fresh milk', 'Eggs', 'Thai hom mali rice', 'Bathroom tissue']) await sheet.locator('.pa-start-chips .ha-chip', { hasText: n }).first().click();
+    ok(await page.locator('#pa-start-go').textContent() === 'Add 4 items', 'the button counts the picks');
+    await axe(page, 'quick start');
+    await shot(page, 't1-quick-start');
+    await page.click('#pa-start-go'); await settle(page);
+    ok((await toast(page).textContent()).includes('Added 4 items'), 'adds them');
+    ok(await page.evaluate(() => window.__pantry.S.items.size) === 4, 'four items in the pantry');
+    const milk = await page.evaluate(() => [...window.__pantry.S.items.values()].find(i => i.name === 'Fresh milk'));
+    ok(milk.batches[0].expiry && milk.location === 'Fridge', 'with a rough date and its usual place');
+    const count = async () => (await page.locator('#h-tour .ha-num').textContent()).trim();
+    const total = await page.locator('#h-tour').locator('xpath=..').locator('.pa-tour-row').count();
+    ok(await count() === `1 of ${total}`, `the checklist ticks "Add what you have" (${await count()})`);
+    await axe(page, 'home with the checklist');
+    await shot(page, 't2-checklist', true);
+    // Show me: Used 1 is pointed at on an item
+    await page.click('[data-act="tour-show"][data-task="use"]'); await settle(page);
+    ok(/^#\/item\//.test(hash(page)), 'Show me opens an item');
+    await page.waitForSelector('.pa-spot');
+    ok(await page.locator('[data-act="use"].pa-spot').count() === 1, 'and rings Used 1');
+    await shot(page, 't3-show-me');
+    await page.locator('[data-act="use"]').first().click(); await settle(page);
+    await page.click('.ha-back'); await settle(page);
+    ok(await count() === `2 of ${total}`, 'Used 1 ticks it');
+    // the shopping list, the home-screen tip, and Say or type
+    await page.click('[data-act="tour-show"][data-task="shop"]'); await settle(page);
+    ok(hash(page) === '#/shop', 'Show me opens the shopping list');
+    await page.click('.ha-tabbar a[href="#/"]'); await settle(page);
+    await page.click('[data-act="tour-show"][data-task="install"]'); await settle(page);
+    ok(await page.locator('dialog.ha-sheet[open] .ha-sheet-title').textContent() === 'On your home screen', 'the home-screen steps');
+    await page.click('dialog.ha-sheet[open] [data-ha-close]'); await settle(page);
+    await page.click('[data-act="tour-show"][data-task="say"]'); await settle(page);
+    await page.fill('#pa-quick-text', 'kaya in the fridge');
+    await settle(page);
+    await page.click('#pa-quick-go'); await settle(page);
+    ok(await count() === `5 of ${total}`, `shopping, home screen and Say or type tick (${await count()})`);
+    if (total === 6) {
+      await page.click('[data-act="tour-show"][data-task="family"]'); await settle(page);
+      ok(hash(page) === '#/settings', 'Show me for the family opens Settings');
+      await page.waitForSelector('.pa-spot');
+      ok(await page.locator('.pa-spot').count() === 1, 'and rings the sign-in button');
+    }
+    // hide it, then bring it back from Settings
+    await go(page, '#/');
+    await page.click('[data-act="tour-hide"]'); await settle(page);
+    await go(page, '#/settings');
+    await page.click('[data-act="tour-on"]'); await settle(page);
+    ok(hash(page) === '#/' && await page.locator('#h-tour').count() === 1, 'Settings brings the checklist back');
+    ok(errors.length === 0, `first steps: console errors ${errors.join('; ')}`);
+    await ctx.close();
+    console.log('  first steps: ok');
+  }
+  // an existing family (items already on the phone, from before the checklist): nothing new shows
+  {
+    const { ctx, page } = await open(390, 844, BASE, { init: () => { localStorage.setItem('pantry:welcomed', 'true'); } });
+    await page.waitForTimeout(700);
+    ok(await page.locator('#h-tour').count() === 0, 'no checklist for someone already using it');
+    await ctx.close();
   }
 
   // ---------- demo mode, every screen at 390, 360 and 320 ----------

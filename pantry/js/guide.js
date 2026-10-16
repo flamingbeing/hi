@@ -1,6 +1,7 @@
 // Pantry: help for first-time users. Two parts, kept here so app.js stays small:
-// 1. The welcome: a short, skippable sheet of three or four cards (what it's for, the home screen, family sharing,
-//    the first item), shown once per phone (localStorage 'pantry:welcomed'). Never in ?demo unless ?welcome is added;
+// 1. The welcome: a short, skippable sheet, shown once per phone. New users get two cards (what it's for, then "fill
+//    it in a minute", which opens the quick start in tour.js); the home screen and family sharing are steps in the
+//    Home checklist instead (tour.js). Shown once per phone (localStorage 'pantry:welcomed'). Never in ?demo unless ?welcome is added;
 //    never for someone who already uses the app (items, a family pantry or a name on this phone). Someone opening an
 //    invite (the link ends #/settings) gets a shorter version that ends at Sign in. Skip, back, Escape or dragging
 //    the sheet down all close it, and it never comes back on its own ("Show the welcome again" in Settings).
@@ -29,6 +30,7 @@ const FOR = list([
   row('box', 'What’s at home', 'In the fridge, freezer and cupboards'),
   row('clock', 'What to use first', 'Things near their date come to the top'),
   row('cart', 'What to buy', 'Running low goes on the shopping list'),
+  row('mic', 'Quick to fill in', 'Tap what you have, say it, or scan the barcode'),
 ]);
 const CARDS = {
   intro: {
@@ -59,12 +61,12 @@ const CARDS = {
     ]),
   },
   first: {
-    icon: 'plus', title: 'Add your first item',
-    text: 'Start with a few things you use every week. You can add the rest as you go.',
+    icon: 'plus', title: 'Fill it in a minute',
+    text: 'Tap the everyday things you have at home and they go straight in, with a rough best-before date you can change later.',
     body: list([
-      row('search', 'Tap + and search', 'Type soy sauce, Milo, eggs… Common Singapore products fill in the details.'),
-      row('barcode', 'Or scan the barcode', 'Point the camera at it.'),
-      row('calendar', 'Set the best-before date', 'From the pack, or a rough one like 1 month.'),
+      row('check', 'Tap what you have', 'Rice, eggs, milk, soy sauce, tissue… grouped by where they’re kept.'),
+      row('mic', 'Or say it', 'The microphone on Home: “2 Meiji milk in the fridge expires 25 Oct”.'),
+      row('list', 'Then a short checklist', 'Home shows a few first steps, each with a Show me button.'),
     ]),
   },
   signin: {
@@ -79,11 +81,11 @@ const CARDS = {
 
 // Which cards: invited people get a short version ending at Sign in; someone signed in already skips sharing.
 export function welcomeCards({ invited = false, signedIn = false, isInstalled = installed() } = {}) {
-  const ids = invited ? ['invited', 'install', 'signin'] : signedIn ? ['intro', 'install', 'first'] : ['intro', 'install', 'family', 'first'];
+  const ids = invited ? ['invited', 'install', 'signin'] : ['intro', 'first'];
   return ids.filter(id => id !== 'install' || !isInstalled);
 }
 
-// Open the welcome sheet. onDone(choice) runs after it closes: 'add' (Add my first item), 'signin' (Go to sign in) or
+// Open the welcome sheet. onDone(choice) runs after it closes: 'start' (Pick what you have), 'signin' (Go to sign in) or
 // undefined (skipped or Look around first). The flag is set however it closes (unless save is false: the demo).
 export function openWelcome({ invited = false, signedIn = false, save = true, onDone } = {}) {
   const ids = welcomeCards({ invited, signedIn });
@@ -113,7 +115,7 @@ export function openWelcome({ invited = false, signedIn = false, save = true, on
       : invited
         ? `<button type="button" class="ha-btn ha-btn--primary ha-btn--block" data-pa-w="signin">Go to sign in</button>
            <button type="button" class="ha-btn ha-btn--plain ha-btn--block" data-pa-w="done">Look around first</button>`
-        : `<button type="button" class="ha-btn ha-btn--primary ha-btn--block" data-pa-w="add">Add my first item</button>
+        : `<button type="button" class="ha-btn ha-btn--primary ha-btn--block" data-pa-w="start">Pick what you have</button>
            <button type="button" class="ha-btn ha-btn--plain ha-btn--block" data-pa-w="done">Look around first</button>`;
     el.querySelector('.ha-sheet-body').scrollTop = 0;
     if (focus) { el.querySelector('.pa-wtitle').focus({ preventScroll: true }); }
