@@ -11,6 +11,9 @@
 export const SITES = {
   // the Koh family home design system's own guide pages (static, no data)
   'design.flamingbeing.com': { root: 'homedesign/' },
+  // the family pantry (saves data, signs in): Firebase's sign-in helper pages and the project's init.json on its own
+  // address, so sign-in never leaves it (authDomain is pantry.flamingbeing.com)
+  'pantry.flamingbeing.com': { root: 'pantry/', also: { '/__/auth/': '__/auth/', '/__/firebase/': 'pantry/auth/firebase/' } },
 };
 
 // Shared by every host as it is: the design system (styles, icons and the app kit script; no data), so an app links

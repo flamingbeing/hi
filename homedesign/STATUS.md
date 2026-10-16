@@ -12,7 +12,6 @@
 
 ## Next
 
-- The pantry app adopts the kit (links `/homedesign/…`, adds the four kit files to its service worker `SHELL`).
 - Kit notes from the pantry go in "Decisions" below, with fixes made here rather than in the app.
 - Later, if the owner wants it: a dark colour set as one `:root` block (every colour is already a token).
 
@@ -38,3 +37,6 @@
   version" checks `sw.js` with `no-store` first, then removes only that app's worker and caches.
 - 16 Oct 2026: Tests: `contrast.test.mjs` (plain node, also checks DESIGN.md's table matches tokens.css) runs in the
   repo Checks; `e2e.mjs` (Playwright + axe) runs in `homedesign-checks.yml` on PRs touching `homedesign/`.
+- 16 Oct 2026: **22 more icons** for household things and actions (from the pantry): bottle, jar, tin, bowl, cup,
+  carton, bread, leaf, fish, snowflake, cookie, sparkle, roll, droplet, pill, paw, heart, download, upload, external,
+  refresh, cloud (46 in all). The guide and specimen list them; the e2e test counts the sprite instead of a fixed 24.

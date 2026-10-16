@@ -194,7 +194,8 @@
 <script>
   // the icon grid, from the sprite's ids
   const names = ['home', 'list', 'plus', 'minus', 'cart', 'settings', 'search', 'camera', 'barcode', 'check', 'close', 'chevron-right',
-    'chevron-left', 'trash', 'edit', 'share', 'calendar', 'clock', 'box', 'bell', 'user', 'users', 'info', 'alert'];
+    'chevron-left', 'trash', 'edit', 'share', 'calendar', 'clock', 'box', 'bell', 'user', 'users', 'info', 'alert',
+    'bottle', 'jar', 'tin', 'bowl', 'cup', 'carton', 'bread', 'leaf', 'fish', 'snowflake', 'cookie', 'sparkle', 'roll', 'droplet', 'pill', 'paw', 'heart', 'download', 'upload', 'external', 'refresh', 'cloud'];
   document.getElementById('icons-grid').innerHTML = names.map(n =>
     `<li><svg class="home-icon" aria-hidden="true"><use href="icons.svg#i-${n}"/></svg><span>${n}</span></li>`).join('');
 </script>
