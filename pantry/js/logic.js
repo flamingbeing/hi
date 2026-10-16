@@ -36,10 +36,14 @@ export const totalQty = item => (item.batches || []).reduce((n, b) => n + (Numbe
 
 // The date a batch should be used by: the printed date, or "opened on + keeps N days after opening",
 // whichever comes first.
+// A frozen batch keeps its frozen date (opening doesn't count in the freezer); once thawed, an opened one counts its
+// days from the thaw.
 export function batchUseBy(batch, item) {
   let d = batch.expiry || null;
+  if (batch.frozenAt) return d;
   if (batch.openedAt && item.openDays > 0) {
-    const o = addDays(batch.openedAt, Number(item.openDays));
+    const from = batch.thawedAt && batch.thawedAt > batch.openedAt ? batch.thawedAt : batch.openedAt;
+    const o = addDays(from, Number(item.openDays));
     if (!d || o < d) d = o;
   }
   return d;
@@ -129,6 +133,33 @@ export function openOne(item, { by, at, today = ymd(), batchId = null } = {}) {
   return { item: { ...item, batches }, event: ev(item, 'open', 1, by, at) };
 }
 
+// Staples (rice, oil, salt, wet-market vegetables) can be kept as Plenty / Low / Out instead of a count: the item has
+// measure 'level' and level 'plenty' | 'low' | 'out' (no batches needed). Low and Out put it on the shopping list.
+export const LEVELS = ['plenty', 'low', 'out'];
+export const isStaple = it => it?.measure === 'level';
+export const levelOf = it => (LEVELS.includes(it?.level) ? it.level : 'plenty');
+export function setLevel(item, { level = 'plenty', by, at } = {}) {
+  if (!LEVELS.includes(level)) return { item, event: null };
+  return { item: { ...item, level }, event: ev(item, 'level', 1, by, at, { level }) };
+}
+
+// Freeze one batch: it moves to `place` (the item's place, as places belong to items), keeps until the later of its
+// own date and `days` from today, and is marked frozen on today. Thaw: back to `place`, use within `days`.
+// Each returns { item, event } like the others (event types 'freeze' and 'thaw', counted nowhere but the history).
+export function freezeBatch(item, { batchId, days = 91, place, by, at, today = ymd() } = {}) {
+  const b = (item.batches || []).find(x => x.id === batchId) || fefo(item).find(x => !x.frozenAt);
+  if (!b || b.frozenAt) return { item, event: null };
+  const keep = addDays(today, days), was = batchUseBy(b, item);
+  const batches = item.batches.map(x => x.id === b.id ? { ...x, frozenAt: today, thawedAt: null, expiry: was && was > keep ? was : keep } : x);
+  return { item: { ...item, batches, location: place || item.location }, event: ev(item, 'freeze', b.qty, by, at) };
+}
+export function thawBatch(item, { batchId, days = 2, place, by, at, today = ymd() } = {}) {
+  const b = (item.batches || []).find(x => x.id === batchId);
+  if (!b) return { item, event: null };
+  const batches = item.batches.map(x => x.id === b.id ? { ...x, frozenAt: null, thawedAt: today, expiry: addDays(today, days) } : x);
+  return { item: { ...item, batches, location: place || item.location }, event: ev(item, 'thaw', b.qty, by, at) };
+}
+
 // ---- consumption patterns ------------------------------------------------------------------------------------
 
 // Thrown away, for whatever reason ('expired': it was already past its date).
@@ -194,6 +225,11 @@ export function toBuy(items, eventsByItem, { days = 7, now = new Date() } = {}) 
   const out = [];
   for (const it of items) {
     if (it.archived || it.noRestock) continue;
+    if (isStaple(it)) {
+      const l = levelOf(it);
+      if (l !== 'plenty') out.push({ item: it, why: l === 'out' ? 'out' : 'low', runOut: null, qty: 0, staple: true });
+      continue;
+    }
     const q = totalQty(it);
     const low = Number(it.lowAt) || 0;
     const u = usage(eventsByItem.get(it.id) || [], now);
@@ -211,7 +247,7 @@ export function toBuy(items, eventsByItem, { days = 7, now = new Date() } = {}) 
 // Items whose next use-by date is past or within `days`.
 export function expiring(items, { days = 14, today = ymd() } = {}) {
   return items
-    .filter(it => !it.archived && totalQty(it) > 0)
+    .filter(it => !it.archived && !isStaple(it) && totalQty(it) > 0)
     .map(it => ({ item: it, date: nextUseBy(it) }))
     .filter(x => x.date && daysBetween(today, x.date) <= days)
     .sort((a, b) => (a.date < b.date ? -1 : 1));
@@ -260,7 +296,8 @@ export function toCsv(items, today = ymd()) {
   for (const it of items) {
     if (it.archived) continue;
     const d = nextUseBy(it);
-    rows.push([it.name, it.brand, it.size, it.category, it.location, totalQty(it), d || '', d ? expiryLabel(d, today) : '', it.barcode]);
+    const q = isStaple(it) ? levelOf(it).replace(/^./, c => c.toUpperCase()) : totalQty(it);
+    rows.push([it.name, it.brand, it.size, it.category, it.location, q, isStaple(it) ? '' : d || '', d && !isStaple(it) ? expiryLabel(d, today) : '', it.barcode]);
   }
   return rows.map(r => r.map(csvCell).join(',')).join('\n');
 }
@@ -282,6 +319,7 @@ export function shortLabel(date, today = ymd()) {
 
 // Why something is on the shopping list, in words.
 export function whyText(b, today = ymd()) {
+  if (b.staple) return b.why === 'out' ? 'Out' : 'Running low';
   if (b.why === 'out') return 'None left';
   if (b.why === 'low') return `Only ${b.qty} left`;
   const d = daysBetween(today, b.runOut);
@@ -308,6 +346,45 @@ export function recent(items, { days = 7, now = new Date() } = {}) {
   return items.filter(it => !it.archived && (it.createdAt || '') >= since).sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1));
 }
 
+// ---- since you last looked (Home) ------------------------------------------------------------------------------
+
+const SINCE_TYPES = new Set(['add', 'use', 'discard', 'expired', 'open', 'freeze', 'thaw', 'level']);
+// What the rest of the family did after `since` (an ISO time: when this phone last looked): history and shopping-list
+// lines signed by someone for whom isMe(by) is false, newest first, as { by, type, name, qty, level?, at }.
+export function sinceLast({ events = [], shop = [], since, isMe = () => false } = {}) {
+  if (!since) return [];
+  const out = [];
+  for (const e of events) if (e.at > since && e.by && !isMe(e.by) && SINCE_TYPES.has(e.type)) out.push({ by: e.by, type: e.type, name: e.name, qty: Number(e.qty) || 1, level: e.level, at: e.at });
+  for (const m of shop) if ((m.at || '') > since && m.by && !isMe(m.by)) out.push({ by: m.by, type: 'list', name: m.name, qty: 1, at: m.at });
+  return out.sort((a, b) => (a.at < b.at ? 1 : -1));
+}
+// One line of it, after the person's name: "bought 2 Fresh milk", "added Bananas to the shopping list".
+export function sinceText(x) {
+  const n = (x.qty > 1 ? `${x.qty} ` : '') + x.name;
+  return {
+    add: `bought ${n}`, use: `used up ${n}`, discard: `threw away ${n}`, expired: `threw away ${n} (expired)`, open: `opened ${x.name}`,
+    freeze: `froze ${n}`, thaw: `thawed ${n}`, level: `marked ${x.name} ${x.level === 'out' ? 'as out' : x.level === 'low' ? 'as low' : 'as plenty'}`,
+    list: `added ${x.name} to the shopping list`,
+  }[x.type] || `changed ${x.name}`;
+}
+// "just now", "5 min ago", "3 h ago", "yesterday", "4 days ago".
+export function agoText(iso, now = new Date()) {
+  const m = Math.max(0, Math.round((now - new Date(iso)) / 60000));
+  if (m < 2) return 'just now';
+  if (m < 60) return `${m} min ago`;
+  if (m < 24 * 60) return `${Math.round(m / 60)} h ago`;
+  const d = Math.round(m / (24 * 60));
+  return d === 1 ? 'yesterday' : `${d} days ago`;
+}
+
+// ---- sharing as plain text (WhatsApp, Notes) ---------------------------------------------------------------------
+
+// A WhatsApp link that opens a message with this text, for the person to pick the chat (no number, nothing sent by us).
+export const waLink = text => 'https://wa.me/?text=' + encodeURIComponent(text);
+// "Use this week" from Home's list: [{ item, date }] with a date formatter.
+export function useWeekText(list, fmt = d => d) {
+  return 'Use this week\n' + list.map(x => `- ${[x.item.brand, x.item.name].filter(Boolean).join(' ')}, by ${fmt(x.date)}`).join('\n');
+}
 // The shopping list as plain text to share (WhatsApp, Notes).
 export function shareText(lines) {
   return 'Shopping list\n' + (lines.length ? lines.map(l => '- ' + l).join('\n') : '(nothing to buy)');

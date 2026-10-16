@@ -10,6 +10,7 @@
 //   households/{hid}/events/{id}     bought / opened / used up / thrown away, for the consumption pattern
 //   households/{hid}/shop/{id}       things added to the shopping list by hand
 //   households/{hid}/settings/places the family's list of places ({ id: 'places', list: [names], updatedAt }; places.js)
+//   households/{hid}/settings/people the names members give each other ({ id: 'people', names: { email: name }, updatedAt }; people.js)
 //
 // Sign-in happens on the app's own address: authDomain is pantry.flamingbeing.com (config.js, written by
 // tools/set-config.mjs), and the Worker serves Firebase's helper pages at /__/auth/ and the project's init.json at

@@ -8,6 +8,8 @@
 // photos (a thumbnail on the item, the photo in photos/<id> read when the item opens, remove, delete, backup, an
 // old-style item moved by itself; prints the measured sizes); places (Settings → Places: the defaults with counts,
 // add, rename with Undo, reorder, remove with items asking where they go, not-in-your-list places, Say or type);
+// names for the family, Since you last looked, guessed dates, Freeze and Thaw, Leftovers, the shopping list (aisles, Buy
+// again, the mic, Going shopping, Put away), Plenty / Low / Out and Scan many (demo, faked camera and speech);
 // and at 390, 360 and 320px: no sideways scroll and axe clean on every screen, the welcome and the guide.
 // Needs Playwright (PLAYWRIGHT_PATH) and axe-core (AXE_PATH, or node_modules/axe-core found from the repo or cwd).
 const { chromium } = await import(process.env.PLAYWRIGHT_PATH || '/opt/node22/lib/node_modules/playwright/index.mjs');
@@ -183,23 +185,49 @@ try {
     await page.click('[data-act="back"]'); await settle(page);
     ok(hash(page) === '#/', 'Cancel goes back');
 
-    // shopping: add a line by hand, tick the pantry item -> Bought more sheet
+    // shopping: add a line by hand, grouped by aisle; tick the pantry item and the bananas -> In the trolley -> Put away
     await page.click('.ha-tabbar a[href="#/shop"]'); await settle(page);
     await page.fill('#pa-shop-text', 'Bananas');
     await page.click('#pa-shop-add button[type=submit]'); await settle(page);
     ok(await page.locator('#pa-shop .ha-row-title', { hasText: 'Bananas' }).count() === 1, 'a line added by hand');
-    await page.locator('#pa-shop label', { hasText: 'Kikkoman Light soy sauce' }).locator('input').check(); await settle(page);
-    ok(await page.locator('dialog.ha-sheet[open] .ha-sheet-title').textContent() === 'Bought more', 'ticking a pantry item asks what was bought');
-    await page.click('dialog.ha-sheet[open] [data-act="date"]:has-text("1 month")');
-    await page.click('dialog.ha-sheet[open] .ha-sheet-foot .ha-btn--primary'); await settle(page);
+    ok((await page.locator('#pa-shop .pa-aisle').allTextContents()).join('|') === 'Sauces & condiments|Fresh produce', 'lines grouped by aisle, in the catalogue’s order');
+    await page.locator('#pa-shop label', { hasText: 'Kikkoman Light soy sauce' }).locator('input').click(); await settle(page);
+    ok(await page.locator('dialog.ha-sheet[open]').count() === 0, 'ticking asks nothing');
+    ok(await page.locator('#pa-shop-done label.is-done', { hasText: 'Light soy sauce' }).count() === 1, 'a ticked line goes in the trolley, struck through');
+    ok(await page.locator('[data-act="put-away"]').textContent() === 'Put away 1 thing', 'Put away counts the ticked lines');
+    ok(/^https:\/\/wa\.me\/\?text=Going%20shopping%20now/.test(await page.locator('#pa-wa-going').getAttribute('href')), 'Going shopping now opens WhatsApp with a message');
+    await page.locator('#pa-shop label', { hasText: 'Bananas' }).locator('input').click(); await settle(page);
+    ok(await page.locator('#pa-shop-done label.is-done').count() === 2, 'two in the trolley');
+    ok(await page.locator('#pa-wa-going').count() === 0, 'nothing left to buy: no Going shopping');
+    await page.click('[data-act="put-away"]'); await settle(page);
+    const pa = page.locator('dialog.ha-sheet[open]');
+    ok(await pa.locator('.ha-sheet-title').textContent() === 'Put away', 'Put away opens one sheet');
+    ok(await pa.locator('.pa-pa').count() === 2, 'with a row per ticked line');
+    ok((await pa.locator('.pa-pa', { hasText: 'Bananas' }).innerText()).includes('New item · Fresh produce'), 'a typed line becomes a new item from the catalogue');
+    ok(await pa.locator('.pa-pa', { hasText: 'Bananas' }).locator('[name="expiry"]').inputValue() === ymdPlus(5), 'with a guessed date');
+    await pa.locator('.pa-pa', { hasText: 'Light soy sauce' }).locator('[name="qty"]').fill('2');
+    await axe(page, 'put away sheet');
+    await shot(page, '05a-put-away');
+    const n0 = await page.evaluate(() => window.__pantry.S.items.size);
+    await page.click('#pa-pa-go'); await settle(page);
     ok(await page.locator('dialog.ha-sheet[open]').count() === 0, 'the sheet closes');
-    ok((await toast(page).textContent()).includes('Added 1 Light soy sauce'), 'stock added');
-    ok(await page.locator('#pa-shop label.is-done', { hasText: 'Light soy sauce' }).count() === 1, 'ticked line struck through');
-    // remove a line, then Undo
-    await page.click('#pa-shop [data-act="shop-del"][aria-label="Remove Bananas"]'); await settle(page);
-    ok(await page.locator('#pa-shop .ha-row-title', { hasText: 'Bananas' }).count() === 0, 'bin removes a line');
+    ok((await toast(page).textContent()).includes('Put away 2 things'), 'both put away');
+    ok(await page.evaluate(() => window.__pantry.S.items.size) === n0 + 1, 'bananas are a new item');
+    ok(await page.locator('#pa-shop-done').count() === 0 && await page.locator('#pa-shop .ha-row-title', { hasText: 'Bananas' }).count() === 0, 'put-away lines leave the list');
+    const soy = await page.evaluate(() => [...window.__pantry.S.items.values()].find(i => i.name === 'Light soy sauce'));
+    ok(soy.batches.reduce((n, b) => n + b.qty, 0) === 4, 'two more soy sauce in stock');
     await toast(page).locator('.ha-toast-action').click(); await settle(page);
-    ok(await page.locator('#pa-shop .ha-row-title', { hasText: 'Bananas' }).count() === 1, 'Undo brings it back');
+    ok(await page.evaluate(() => window.__pantry.S.items.size) === n0 && await page.locator('#pa-shop-done label.is-done').count() === 2, 'Undo takes it all back');
+    await page.click('[data-act="put-away"]'); await settle(page);
+    await page.locator('dialog.ha-sheet[open] .pa-pa', { hasText: 'Light soy sauce' }).locator('input[type=checkbox]').uncheck();
+    ok(await page.locator('#pa-pa-go').textContent() === 'Put away 1 thing', 'unticking leaves one out');
+    await page.click('#pa-pa-go'); await settle(page);
+    ok(await page.locator('#pa-shop-done label.is-done', { hasText: 'Light soy sauce' }).count() === 1, 'the unticked one stays in the trolley');
+    // remove a line, then Undo
+    await page.click('#pa-shop-done [data-act="shop-del"][aria-label="Remove Kikkoman Light soy sauce"]'); await settle(page);
+    ok(await page.locator('#pa-shop-done').count() === 0, 'bin removes a line');
+    await toast(page).locator('.ha-toast-action').click(); await settle(page);
+    ok(await page.locator('#pa-shop-done .ha-row-title', { hasText: 'Light soy sauce' }).count() === 1, 'Undo brings it back');
     await axe(page, 'shopping');
     await shot(page, '05-shop', true);
 
@@ -277,7 +305,7 @@ try {
     ok(await welcomeSheet(page).count() === 0 && hash(page) === '#/settings', 'back closes the welcome');
     const [dl] = await Promise.all([page.waitForEvent('download'), page.click('[data-act="backup"]')]);
     const backup = JSON.parse(fs.readFileSync(await dl.path(), 'utf8'));
-    ok(backup.app === 'pantry' && backup.items.length >= 14 && backup.events.length > 10 && backup.shop.length === 2, 'backup holds items, history and the list');
+    ok(backup.app === 'pantry' && backup.items.length >= 14 && backup.events.length > 10 && backup.shop.length === 1, 'backup holds items, history and the list');
     // the service worker has installed by now: reload so it controls the page, then the version lines show
     await page.evaluate(() => navigator.serviceWorker.ready);
     await page.reload(); await page.locator('.ha-large-title').waitFor(); await settle(page);
@@ -924,6 +952,215 @@ try {
     ok(errors.length === 0, `barcode: console errors ${errors.join('; ')}`);
     await ctx.close();
     console.log('  barcode look-ups: ok');
+  }
+
+  // ---------- 16 Oct 2026 features (demo): names, since you last looked, guessed dates, freeze and thaw, leftovers,
+  // the shopping list (aisles, Buy again, mic, Going shopping), Plenty / Low / Out, scan many ----------
+  {
+    const init = () => {
+      window.__scanCode = null;
+      globalThis.BarcodeDetector = class {
+        static async getSupportedFormats() { return ['ean_13']; }
+        async detect() { const c = window.__scanCode; window.__scanCode = null; return c ? [{ rawValue: c }] : []; }
+      };
+      navigator.mediaDevices.getUserMedia = async () => {
+        const c = document.createElement('canvas'); c.width = c.height = 16; c.getContext('2d').fillRect(0, 0, 16, 16);
+        return c.captureStream();
+      };
+      // the phone's speech-to-text: "hears" window.__said, then ends (twice, as some browsers do)
+      window.SpeechRecognition = window.webkitSpeechRecognition = class {
+        start() { setTimeout(() => { this.onresult?.({ results: [Object.assign([{ transcript: window.__said || '' }], { isFinal: true })] }); setTimeout(() => { this.onend?.(); this.onend?.(); }, 50); }, 100); }
+        stop() { this.onend?.(); }
+      };
+    };
+    const { ctx, page, errors } = await open(390, 844, BASE + '?demo', { init });
+    const S = (fn, arg) => page.evaluate(fn, arg);
+    const idOf = name => S(n => [...window.__pantry.S.items.values()].find(i => i.name === n)?.id, name);
+
+    // Home: since you last looked (Dad's last few days in the demo), and "use this week" on WhatsApp
+    const since = page.locator('#h-since').locator('xpath=..');
+    ok(await since.locator('.ha-row-title').count() === 3, 'Since you last looked: three things Dad did');
+    ok((await since.innerText()).includes('Dad threw away Wholemeal bread') && (await since.innerText()).includes('Dad bought Eggs (10)'), 'in words, with names');
+    const wa = await page.locator('#pa-wa-week').getAttribute('href');
+    ok(wa.startsWith('https://wa.me/?text=') && decodeURIComponent(wa.split('text=')[1]).startsWith('Use this week\n- Meiji Fresh milk, by '), 'use this week as a WhatsApp message');
+    ok(await page.locator('#pa-wa-week').getAttribute('target') === '_blank', 'opens WhatsApp in a new tab');
+    await axe(page, 'home with since you last looked');
+    await shot(page, 'n01-home-since');
+    await page.click('[data-act="since-ok"]'); await settle(page);
+    ok(await page.locator('#h-since').count() === 0, 'Got it clears it');
+
+    // names: the family list shows names with the email underneath; a contact sheet per person
+    await go(page, '#/settings');
+    const fam = page.locator('#h-family').locator('xpath=..');
+    ok(await fam.locator('[data-act="person"][data-v="dad@example.com"] .ha-row-title').textContent() === 'Dad', 'a named member shows the name');
+    ok((await fam.locator('[data-act="person"][data-v="dad@example.com"] .ha-row-sub').textContent()).includes('dad@example.com'), 'with the email under it');
+    ok(await fam.locator('[data-act="person"][data-v="grandma@example.com"] .ha-row-title').textContent() === 'grandma@example.com', 'no name: the email');
+    await axe(page, 'settings with the family');
+    await shot(page, 'n02-family-list');
+    await page.click('[data-act="person"][data-v="grandma@example.com"]'); await settle(page);
+    const person = page.locator('dialog.ha-sheet[open]');
+    ok(await person.locator('.ha-sheet-title').textContent() === 'Family member', 'the contact sheet');
+    ok((await person.locator('a', { hasText: 'Email an invite' }).getAttribute('href')).startsWith('mailto:grandma%40example.com'), 'Email an invite');
+    ok(await person.locator('[data-pp="remove"]').count() === 1, 'Stop sharing for someone else');
+    await page.fill('#pa-person-name', '  Grandma   Lim ');
+    await axe(page, 'contact sheet');
+    await shot(page, 'n03-contact-sheet');
+    await person.locator('button[type=submit]').click(); await settle(page);
+    ok(await fam.locator('[data-act="person"][data-v="grandma@example.com"] .ha-row-title').textContent() === 'Grandma Lim', 'the name shows in the list');
+    ok(await S(() => window.__pantry.S.settings.get('people').names['grandma@example.com']) === 'Grandma Lim', 'saved in settings/people');
+    await page.click('[data-act="person"][data-v="mum@example.com"]'); await settle(page);
+    ok(await page.locator('dialog.ha-sheet[open] [data-pp="remove"]').count() === 0 && await page.locator('dialog.ha-sheet[open] a', { hasText: 'Email an invite' }).count() === 0, 'your own sheet: no invite, no Stop sharing');
+    await page.goBack(); await settle(page);
+    await page.click('[data-act="person"][data-v="grandma@example.com"]'); await settle(page);
+    await page.click('dialog.ha-sheet[open] [data-pp="remove"]'); await settle(page);
+    await page.locator('dialog.ha-sheet[open] .ha-btn--danger', { hasText: 'Stop sharing' }).click(); await settle(page); await settle(page);
+    ok(await fam.locator('[data-act="person"][data-v="grandma@example.com"]').count() === 0, 'Stop sharing removes her');
+    ok(await S(() => !('grandma@example.com' in window.__pantry.S.settings.get('people').names)), 'and her name');
+
+    // Add: picking a product guesses its best-before date, as a selected chip
+    await go(page, '#/add');
+    await page.fill('#pa-find', 'magnolia fresh milk');
+    await page.locator('#pa-sugg [data-act="sugg"]').first().click(); await settle(page);
+    ok(await page.inputValue('#pa-form [name="expiry"]') === ymdPlus(7), 'fresh milk: a week, guessed');
+    ok(await page.locator('.pa-guess').getAttribute('aria-pressed') === 'true' && await page.locator('.pa-guess').textContent() === 'About 1 week', 'shown as a selected About 1 week chip');
+    ok((await page.locator('.pa-guess-hint').textContent()).includes('a guess'), 'said to be a guess');
+    await page.selectOption('#pa-form [name="location"]', 'Freezer'); await settle(page);
+    ok(await page.inputValue('#pa-form [name="expiry"]') === ymdPlus(91), 'in the freezer it keeps three months');
+    await page.selectOption('#pa-form [name="location"]', 'Fridge'); await settle(page);
+    await page.fill('#pa-form [name="expiry"]', ymdPlus(10));
+    await page.selectOption('#pa-form [name="category"]', 'Drinks'); await settle(page);
+    ok(await page.inputValue('#pa-form [name="expiry"]') === ymdPlus(10), 'a date someone typed stays');
+    await page.selectOption('#pa-form [name="category"]', 'Dairy & eggs'); await settle(page);
+    await page.click('.pa-guess'); await settle(page);
+    await page.locator('#h-f-stock').scrollIntoViewIfNeeded();
+    await axe(page, 'add with a guessed date');
+    await shot(page, 'n04-add-guess');
+    await page.click('[data-act="back"]'); await settle(page);
+
+    // Freeze and Thaw on a batch
+    const milk = await idOf('Fresh milk');
+    await go(page, '#/item/' + milk);
+    await page.click('[data-act="freeze"]'); await settle(page);
+    ok((await toast(page).textContent()).startsWith('Frozen: moved to Freezer, keeps till'), 'Freeze says where and till when');
+    let m = await S(id => window.__pantry.S.items.get(id), milk);
+    ok(m.location === 'Freezer' && m.batches[0].frozenAt === ymdPlus(0) && m.batches[0].expiry === ymdPlus(91), 'frozen: in the freezer, three months, frozen today');
+    ok(await page.locator('.pa-batch .ha-row-title').first().textContent() === '1 frozen' && (await page.locator('.pa-batch .ha-row-sub').first().textContent()).startsWith('Frozen '), 'the batch says frozen, and when');
+    await axe(page, 'item frozen');
+    await shot(page, 'n05-item-frozen');
+    await page.click('[data-act="thaw"]'); await settle(page);
+    m = await S(id => window.__pantry.S.items.get(id), milk);
+    ok(m.location === 'Fridge' && !m.batches[0].frozenAt && m.batches[0].expiry === ymdPlus(2), 'thawed: back in the fridge, two days');
+    ok((await page.locator('#h-history').locator('xpath=..').innerText()).includes('Thawed'), 'the history says thawed');
+    await shot(page, 'n06-item-thawed');
+    await toast(page).locator('.ha-toast-action').click(); await settle(page);
+    ok(await S(id => window.__pantry.S.items.get(id).location, milk) === 'Freezer', 'Undo puts it back in the freezer');
+        await go(page, '#/item/' + await idOf('Laundry liquid'));
+    ok(await page.locator('[data-act="freeze"]').count() === 0, 'no Freeze for laundry liquid');
+
+    // Leftovers: a name, the fridge, three days
+    await go(page, '#/');
+    await page.click('.pa-quickrow [data-act="leftovers"]'); await settle(page);
+    const left = page.locator('dialog.ha-sheet[open]');
+    ok(await left.locator('.ha-sheet-title').textContent() === 'Leftovers' && await left.locator('[name="location"]').inputValue() === 'Fridge', 'Leftovers: the fridge already chosen');
+    await left.locator('.ha-sheet-foot .ha-btn--primary').click();
+    ok(await page.locator('#pa-left-err').isVisible(), 'a name is needed');
+    await page.fill('#pa-left-name', 'Chicken curry');
+    await axe(page, 'leftovers sheet');
+    await shot(page, 'n07-leftovers');
+    await left.locator('.ha-sheet-foot .ha-btn--primary').click(); await settle(page);
+    const curry = await S(() => [...window.__pantry.S.items.values()].find(i => i.name === 'Chicken curry'));
+    ok(curry && curry.category === 'Leftovers' && curry.location === 'Fridge' && curry.noRestock && curry.batches[0].expiry === ymdPlus(3), 'in the fridge, use within 3 days, never on the list');
+    ok(await page.locator('#h-use-soon').locator('xpath=..').locator('.ha-row', { hasText: 'Chicken curry' }).count() === 1, 'under Use soon');
+
+    // Plenty / Low / Out for a staple
+    const rice = await idOf('Thai hom mali rice');
+    await go(page, '#/edit/' + rice);
+    await page.click('.pa-track .ha-seg:has(input[value="level"])'); await settle(page);
+    await page.click('#pa-save'); await settle(page);
+    ok(await page.locator('.pa-level').count() === 1 && await page.locator('.pa-level input[value="plenty"]').isChecked(), 'a staple shows Plenty / Low / Out');
+    ok(await page.locator('[data-act="bought"]').count() === 0 && await page.locator('#h-stock .ha-num').count() === 0, 'no count, no Bought more');
+    await page.click('.pa-level .ha-seg:has(input[value="low"])'); await settle(page);
+    ok((await toast(page).textContent()).includes('low, on the shopping list'), 'Low puts it on the list');
+    ok(await S(id => [...window.__pantry.S.shop.values()].some(x => x.itemId === id && !x.done), rice), 'a line on the list');
+    ok((await page.locator('#h-history').locator('xpath=..').innerText()).includes('Marked low'), 'the history says Marked low');
+    await axe(page, 'staple item');
+    await shot(page, 'n08-staple');
+    await toast(page).locator('.ha-toast-action').click(); await settle(page);
+    ok(await S(id => !window.__pantry.S.items.get(id).level || window.__pantry.S.items.get(id).level === 'plenty', rice) && await S(id => ![...window.__pantry.S.shop.values()].some(x => x.itemId === id), rice), 'Undo: plenty again, off the list');
+    await page.click('.pa-level .ha-seg:has(input[value="out"])'); await settle(page);
+    await go(page, '#/items');
+    ok((await page.locator('#pa-items-list .ha-row', { hasText: 'Thai hom mali rice' }).locator('.ha-row-sub').textContent()).startsWith('Out'), 'Items says Out');
+
+    // the shopping list: aisles, Buy again, the mic, Going shopping
+    await go(page, '#/shop');
+    ok(await page.locator('.pa-again .ha-chip').count() >= 2, 'Buy again chips');
+    const again = (await page.locator('.pa-again .ha-chip').first().textContent()).trim();
+    await page.locator('.pa-again .ha-chip').first().click(); await settle(page);
+    ok(await page.locator('#pa-shop .ha-row-title', { hasText: again }).count() === 1, 'a Buy again chip adds it');
+    ok(await page.locator('.pa-again .ha-chip', { hasText: again }).count() === 0, 'and leaves the chips');
+    await page.evaluate(() => { window.__said = 'bananas, cream crackers and dishwashing liquid'; });
+    await page.click('#pa-shop-mic'); await page.waitForTimeout(700); await settle(page);
+    ok((await toast(page).textContent()).includes('Added 3 things to the list'), 'the mic adds each thing said, once');
+    const aisles = await page.locator('#pa-shop .pa-aisle').allTextContents();
+    ok(aisles.includes('Fresh produce') && aisles.includes('Snacks') && aisles.includes('Laundry & cleaning'), 'grouped by aisle: ' + aisles.join(', '));
+    ok(aisles.indexOf('Snacks') < aisles.indexOf('Laundry & cleaning'), 'in the catalogue’s order');
+    const going = decodeURIComponent((await page.locator('#pa-wa-going').getAttribute('href')).split('text=')[1]);
+    ok(going.startsWith('Going shopping now. Anything to add?\n\nShopping list\n- ') && going.includes('Bananas'), 'Going shopping now: the list as a WhatsApp message');
+    await page.evaluate(() => scrollTo(0, 0));
+    await axe(page, 'shopping, grouped');
+    await shot(page, 'n09-shop', true);
+    await page.locator('#pa-shop label', { hasText: 'Bananas' }).locator('input').click(); await settle(page);
+    await page.locator('#pa-shop label', { hasText: 'Thai hom mali rice' }).locator('input').click(); await settle(page);
+    await page.click('[data-act="put-away"]'); await settle(page);
+    ok((await page.locator('dialog.ha-sheet[open] .pa-pa', { hasText: 'Thai hom mali rice' }).innerText()).includes('Back to plenty'), 'Put away: a staple goes back to plenty');
+    await shot(page, 'n10-put-away');
+    await page.click('#pa-pa-go'); await settle(page);
+    ok(await S(id => window.__pantry.S.items.get(id).level, rice) === 'plenty', 'rice: plenty again');
+
+    // scan many: Bought, Used up, Add to list, and a barcode not in the pantry
+    await S(() => { const S = window.__pantry.S; for (const [n, c] of [['Kaya', '4900000000011'], ['Fresh milk', '4900000000028']]) { const it = [...S.items.values()].find(i => i.name === n); S.items.set(it.id, { ...it, barcode: c }); } });
+    const kaya = await idOf('Kaya');
+    const kayaQty = () => S(id => window.__pantry.S.items.get(id).batches.reduce((n, b) => n + b.qty, 0), kaya);
+    const q0 = await kayaQty();
+    await go(page, '#/');
+    await page.click('.pa-quickrow [data-act="scan-many"]'); await settle(page);
+    const sm = page.locator('dialog.ha-sheet[open]');
+    ok(await sm.locator('.ha-sheet-title').textContent() === 'Scan many' && await sm.locator('[name="pa-sm-mode"][value="add"]').isChecked(), 'Scan many opens on Bought');
+    const scanOne = async c => { await page.evaluate(x => { window.__scanCode = x; }, c); await page.waitForTimeout(700); };
+    await scanOne('4900000000011'); await scanOne('4900000000028');
+    await page.waitForTimeout(2600); await scanOne('4900000000011');
+    await scanOne('5555555555555');
+    ok(await kayaQty() === q0 + 2, 'two kaya bought (each scan once)');
+    ok(await sm.locator('#pa-sm-n').textContent() === '4', 'the tally counts four scans');
+    ok((await sm.locator('#pa-sm-tally').innerText()).includes('× 2') && await sm.locator('[data-sm-new="5555555555555"]').count() === 1, 'kaya × 2, and the new barcode waits with Add it');
+    await sm.locator('.ha-seg:has(input[value="use"])').click();
+    await scanOne('4900000000011');
+    ok(await kayaQty() === q0 + 1, 'Used up takes one out');
+    await sm.locator('.ha-seg:has(input[value="list"])').click();
+    await scanOne('4900000000028');
+    ok(await S(() => [...window.__pantry.S.shop.values()].some(x => x.name.includes('Fresh milk') && !x.done)), 'Add to list puts it on the list');
+    await axe(page, 'scan many');
+    await noSideways(page, 'scan many');
+    await shot(page, 'n11-scan-many');
+    await sm.locator('.ha-sheet-foot [data-ha-close]').click(); await settle(page);
+    ok((await toast(page).textContent()).includes('Saved 5 scans'), 'Done: one toast for every scan (the new barcode waits)');
+    await toast(page).locator('.ha-toast-action').click(); await settle(page);
+    ok(await kayaQty() === q0 && await S(() => ![...window.__pantry.S.shop.values()].some(x => x.name.includes('Fresh milk') && !x.done)), 'one Undo takes every scan back');
+
+    // the new screens at 320px: no sideways scroll
+    await page.setViewportSize({ width: 320, height: 640 });
+    for (const h of ['#/', '#/shop', '#/settings', '#/item/' + rice, '#/item/' + milk]) { await go(page, h); await noSideways(page, `320 ${h}`); }
+    await go(page, '#/shop');
+    await page.locator('#pa-shop label').first().locator('input').click(); await settle(page);
+    await page.click('[data-act="put-away"]'); await settle(page);
+    await noSideways(page, '320 put away');
+    const r = await page.locator('dialog.ha-sheet[open]').evaluate(d => ({ sw: d.querySelector('.ha-sheet-body').scrollWidth, cw: d.querySelector('.ha-sheet-body').clientWidth }));
+    ok(r.sw <= r.cw, '320 put away: no sideways scroll in the sheet');
+    await axe(page, '320 put away');
+
+    ok(errors.length === 0, `new features: console errors ${errors.join('; ')}`);
+    await ctx.close();
+    console.log('  names, since, guesses, freeze, leftovers, shopping, staples, scan many: ok');
   }
   console.log(`pantry e2e: ok (${checks} checks)`);
 } finally {

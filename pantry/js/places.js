@@ -83,3 +83,10 @@ export function mergePlaces(a, b) {
 export const placesDoc = (list, at = new Date().toISOString()) => ({ id: PLACES_ID, list: list.map(cleanPlace).slice(0, MAX_PLACES), updatedAt: at });
 // Is this a well-formed places document (a backup's settings)?
 export const isPlacesDoc = o => !!o && o.id === PLACES_ID && Array.isArray(o.list) && o.list.length > 0 && o.list.every(x => typeof x === 'string' && cleanPlace(x));
+// The household's first place of a kind ('fridge', 'freezer'), by a whole word in its name ("Level 1 freezer"), else
+// the generic name (Freeze moves a batch to the freezer, Thaw and Leftovers to the fridge).
+export function placeOfKind(list, kind) {
+  const re = new RegExp(`\\b${kind}\\b`, 'i');
+  return list.find(p => re.test(p)) || kind.charAt(0).toUpperCase() + kind.slice(1);
+}
+export const isFreezer = name => /\bfreezer\b/i.test(name || '');

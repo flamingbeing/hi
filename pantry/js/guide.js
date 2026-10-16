@@ -163,7 +163,9 @@ export function viewGuide() {
       row('camera', 'Add a photo', 'So everyone knows which one it is.'),
       row('home', 'Places', 'Where things are kept, like Fridge or Level 1 freezer. In Settings, then Places: rename them, change their order, or add your own. The family shares one list.'),
       row('plus', 'How many', 'How many you have now. Tap + or − to change it.'),
-      row('calendar', 'Best before', 'Type the date on the pack, or tap 1 week, 1 month… for a rough one.'),
+      row('calendar', 'Best before', 'Picking a product guesses it from how long it usually keeps (“About 1 week”). Change it to the date on the pack, or tap 1 month… for a rough one.'),
+      row('bowl', 'Leftovers', 'On Home or Add: type what it is, and it goes in the fridge to use within 3 days. It never goes on the shopping list.'),
+      row('list', 'Plenty, low, out', 'For rice, oil or loose vegetables, choose “Plenty, low, out” instead of counting. Low or Out puts it on the shopping list.'),
       row('clock', 'Keeps once opened', 'How many days it lasts after opening, like 5 for milk. Leave it empty for things that don’t go off.'),
     ])}
     ${section('daily', 'Every day', [
@@ -172,25 +174,31 @@ export function viewGuide() {
       row('trash', 'Bin 1', 'Tap when one is thrown away. If it was past its date, it counts as expired. Home counts what gets wasted each month.'),
       row('refresh', 'Undo', 'Tapped the wrong thing? Tap Undo in the message at the bottom.'),
       row('cart', 'Bought more', 'On the item, add what you bought and its date.'),
+      row('snowflake', 'Freeze and Thaw', 'Freeze moves it to the freezer and keeps it about 3 months. Thaw moves it to the fridge: use within 2 days.'),
+      row('barcode', 'Scan many', 'On Home: choose Bought, Used up or Add to list, then scan one barcode after another. Done saves them all, with one Undo.'),
     ])}
     ${section('soon', 'Use soon and expired', [
       plainRow('Past its date', 'Use it today or throw it away.', badge('Expired', 'bad')),
       plainRow('Within a week', 'Use these first. Home lists everything due in the next two weeks.', badge('2 days', 'warn')),
       plainRow('Within a month', 'Fine for now.', badge('3 weeks')),
+      plainRow('Since you last looked', 'Home shows what the rest of the family bought, used or binned since you last opened the pantry.', ''),
+      plainRow('Send to WhatsApp', 'Under Use soon, send the “use this week” list to the family chat.', ''),
     ], 'Opened items count down from the day they were opened, or to the printed date if that comes first.')}
     ${section('shop', 'Shopping list', [
       row('cart', 'It fills itself', 'Items land here when none are left, when they’re down to their “on the list when down to” number, or when they’ll run out within a week at your usual pace.'),
-      row('plus', 'Add anything', 'Type it at the top of the list.'),
-      row('check', 'Tick when bought', 'For a pantry item, it asks how many you bought and the new date.'),
+      row('plus', 'Add anything', 'Type it at the top of the list, say it with the microphone, or tap a Buy again chip.'),
+      row('list', 'By aisle', 'The list is grouped like the shop: sauces, rice, dairy and so on.'),
+      row('check', 'Tick, then Put away', 'Tick things as they go in the trolley. At home, Put away lists them all with their place and date; one tap adds them to the pantry.'),
       row('external', 'Buy online', 'Each item links to FairPrice, Sheng Siong, Cold Storage and Shopee search.'),
-      row('share', 'Share the list', 'Tap Share at the top to send it in WhatsApp or a message.'),
+      row('share', 'Share the list', 'Tap Share at the top to send it in a message, or Going shopping now to tell the family on WhatsApp.'),
     ])}
     ${section('pace', 'How fast we use it', [
       row('clock', 'Two “Used 1”s', 'After the second, the item shows how long one lasts and when it will run out, and puts it on the list in time.'),
     ])}
     ${section('family', 'Family sharing', [
       row('user', 'Start it', 'One person: Settings, Sign in with Google, then Start our family pantry.'),
-      row('users', 'Add the family', 'Type each person’s Gmail and tap Add. The envelope emails them the link.'),
+      row('users', 'Add the family', 'Type each person’s Gmail and tap Add, then tap them to email the link.'),
+      row('edit', 'Names', 'Tap someone to give them a name, like Mum. Everyone sees it instead of the email, in history and on the list.'),
       row('mail', 'When you’re invited', 'Open the link, then Settings, Sign in with Google, using the Gmail that was added.'),
       row('info', 'Who can see it', 'Only the people added. Whoever started it can stop sharing with anyone else.'),
     ])}

@@ -1,6 +1,14 @@
 // Made-up sample items (with a few months of history, so the consumption patterns show) for trying the app.
 import { uid, ymd, addDays } from './logic.js';
 
+// The demo's made-up family (?demo; never real people): Mum is "this phone", Dad made the last few days' changes, and
+// Grandma has no name yet, so the family list shows her email.
+export const DEMO_ME = 'mum@example.com';
+export const DEMO_FAMILY = { id: 'demo', name: 'Our pantry', owner: DEMO_ME, members: [DEMO_ME, 'dad@example.com', 'grandma@example.com'] };
+export const DEMO_NAMES = { 'mum@example.com': 'Mum', 'dad@example.com': 'Dad' };
+export const demoBy = daysAgo => (daysAgo <= 3 ? 'Dad' : 'Mum');
+
+// by: who the history is signed with, a name or a function of how many days ago (the demo's family).
 export function sampleData(by = 'Sample') {
   const t = ymd();
   const now = Date.now();
@@ -9,7 +17,7 @@ export function sampleData(by = 'Sample') {
   const add = (f, batches, history = []) => {
     const it = { id: uid(), brand: '', size: '', lowAt: 0, barcode: '', openDays: null, createdAt: ago(200), sample: true, ...f, batches: batches.map(b => ({ id: uid(), openedAt: null, addedAt: t, ...b })) };
     items.push(it);
-    for (const [type, d, qty = 1] of history) events.push({ id: uid(), itemId: it.id, name: it.name, type, qty, at: ago(d), by });
+    for (const [type, d, qty = 1] of history) events.push({ id: uid(), itemId: it.id, name: it.name, type, qty, at: ago(d), by: typeof by === 'function' ? by(d) : by });
   };
   add({ name: 'Light soy sauce', brand: 'Kikkoman', size: '500 ml', category: 'Sauces & condiments', location: 'Kitchen cabinet', openDays: 90, lowAt: 1 },
     [{ qty: 1, expiry: addDays(t, 300), openedAt: addDays(t, -80) }, { qty: 1, expiry: addDays(t, 420) }],

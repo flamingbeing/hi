@@ -6,7 +6,7 @@
 export const CATEGORIES = [
   'Sauces & condiments', 'Rice, noodles & grains', 'Canned & jarred', 'Cooking & baking', 'Breakfast & spreads',
   'Drinks', 'Dairy & eggs', 'Bread & bakery', 'Fresh produce', 'Meat & seafood', 'Frozen', 'Snacks', 'Baby',
-  'Laundry & cleaning', 'Kitchen & paper', 'Toiletries', 'Medicine & first aid', 'Pet', 'Other',
+  'Laundry & cleaning', 'Kitchen & paper', 'Toiletries', 'Medicine & first aid', 'Pet', 'Leftovers', 'Other',
 ];
 export const LOCATIONS = ['Kitchen cabinet', 'Fridge', 'Freezer', 'Store room', 'Bathroom', 'Laundry', 'Medicine box', 'Other'];
 
@@ -196,6 +196,36 @@ Garlic|Fresh (generic)|3 bulbs|Fresh produce|Kitchen cabinet|
 Onions|Fresh (generic)|1 kg|Fresh produce|Kitchen cabinet|
 Potatoes|Fresh (generic)|1 kg|Fresh produce|Kitchen cabinet|
 `;
+
+// ---- how long things usually keep (a guessed best-before date on Add, Bought more, Put away and Say or type) ----
+// Rough, unopened, from the shelf: the label always wins, and the date is shown as a guess the person can change.
+// null: no date that matters (salt, tissue, soap). A product's own line first (by its name), then its category.
+const SHELF_BY_NAME = [
+  [/^(salt|(fine |brown |rock )?sugar)\b/i, null],
+  [/\bfresh milk\b|\bmilk \(fresh\)/i, 7], [/\buht\b/i, 180], [/yoghurt|yogurt/i, 10], [/cultured milk|yakult/i, 21],
+  [/\beggs?\b/i, 14], [/tofu/i, 4], [/butter|margarine/i, 60], [/cheese/i, 30], [/\bkaya\b/i, 30],
+  [/\b(bread|buns?|wraps?|pau)\b/i, 5], [/banana/i, 5], [/\b(garlic|onions?|potato(es)?)\b/i, 30],
+  [/ice cream/i, 180], [/instant noodles?|mee goreng/i, 240], [/\b(sardines|tuna|baked beans|luncheon meat)\b/i, 730],
+  [/\b(chicken|pork|beef|mutton|fish|prawns?|salmon|minced)\b/i, 2],
+];
+const SHELF_BY_CATEGORY = {
+  'Sauces & condiments': 365, 'Rice, noodles & grains': 365, 'Canned & jarred': 730, 'Cooking & baking': 365,
+  'Breakfast & spreads': 180, Drinks: 270, 'Dairy & eggs': 14, 'Bread & bakery': 5, 'Fresh produce': 7, 'Meat & seafood': 2,
+  Frozen: 180, Snacks: 180, Baby: 365, 'Laundry & cleaning': null, 'Kitchen & paper': null, Toiletries: null,
+  'Medicine & first aid': 730, Pet: 365, Leftovers: 3, Other: null,
+};
+// Days a product usually keeps from the day it's bought ({ name, category }), or null when no date matters or is known.
+// Frozen goods and things in a freezer keep FROZEN_DAYS.
+export function shelfDays({ name = '', category = '' } = {}) {
+  if (category !== 'Frozen') for (const [re, d] of SHELF_BY_NAME) if (re.test(name)) return d;   // frozen nuggets aren't 2-day chicken
+  return category in SHELF_BY_CATEGORY ? SHELF_BY_CATEGORY[category] : null;
+}
+// Freezing pauses the clock: frozen, most food keeps about 3 months (bread about 1); thawed, use within 2 days.
+export const FROZEN_DAYS = 91, THAW_DAYS = 2;
+export const freezeDays = ({ name = '', category = '' } = {}) => (category === 'Bread & bakery' || /\bbread\b/i.test(name) ? 30 : FROZEN_DAYS);
+// Things it makes sense to freeze (food); household goods, medicine and pet food don't get Freeze.
+const NOT_FOOD = new Set(['Laundry & cleaning', 'Kitchen & paper', 'Toiletries', 'Medicine & first aid', 'Pet']);
+export const freezable = ({ category = '' } = {}) => !NOT_FOOD.has(category);
 
 export const CATALOGUE = RAW.trim().split('\n').map((line, i) => {
   const [name, brand, size, category, location, open] = line.split('|');

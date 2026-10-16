@@ -4,7 +4,9 @@
 // outsiders can't; thumbnails over 12 KB and photos over 150 KB are refused; no item may gain or change an old-style
 // `photo` (keeping or removing one is fine); and an old-style item in the family pantry is moved by the app itself.
 // Places: settings/places for members only (that id and fields only, at most 40 names of 1-40 characters), and a
-// rename on one phone shows on the other, items included.
+// rename on one phone shows on the other, items included. Names: settings/people for members only (that id, exactly
+// id/names/updatedAt, at most 20 names of 1-40 characters on one line, keyed by emails); a name given on one phone
+// shows on the other, and signs that person's changes.
 // Run: pantry/test/run-sync.sh
 import assert from 'node:assert/strict';
 import { serve } from './serve.mjs';
@@ -47,17 +49,32 @@ try {
   await mum.fill('#pa-member-email', 'Dad@Example.com');
   await mum.click('#pa-member-add button[type=submit]');
   await mum.locator('#main .ha-row-title', { hasText: 'dad@example.com' }).waitFor();
-  // an invite from Mum's own mail app: the toast offers it, and Dad's row keeps an envelope for later
+  // an invite from Mum's own mail app: the toast offers it, and Dad's contact sheet keeps it for later
   await mum.locator('.ha-toast-action', { hasText: 'Email invite' }).waitFor();
-  const invite = await mum.getAttribute('a[aria-label="Email an invite to dad@example.com"]', 'href');
+  await mum.click('[data-act="person"][data-v="dad@example.com"]'); await settle(mum);
+  const card = mum.locator('dialog.ha-sheet[open]');
+  assert.equal(await card.locator('.ha-sheet-title').textContent(), 'Family member');
+  assert.equal(await card.locator('[data-pp="remove"]').count(), 1, 'Stop sharing on someone else');
+  const invite = await card.locator('a', { hasText: 'Email an invite' }).getAttribute('href');
   assert.match(invite, /^mailto:dad%40example\.com\?subject=Our%20family%20pantry&body=/);
   assert.match(decodeURIComponent(invite), /Sign in with Google, using this account \(dad@example\.com\)/);
+  // name him: the list shows the name with the email underneath
+  await mum.fill('#pa-person-name', '  Dad  ');
+  await card.locator('button[type=submit]').click(); await settle(mum);
+  await mum.locator('[data-act="person"][data-v="dad@example.com"] .ha-row-title', { hasText: 'Dad' }).waitFor();
+  assert.match(await mum.locator('[data-act="person"][data-v="dad@example.com"] .ha-row-sub').textContent(), /dad@example\.com/);
+  // the owner's own card: no Stop sharing
+  await mum.click('[data-act="person"][data-v="mum@example.com"]'); await settle(mum);
+  assert.equal(await mum.locator('dialog.ha-sheet[open] [data-pp="remove"]').count(), 0, 'the owner can’t be removed');
+  await mum.click('dialog.ha-sheet[open] [data-ha-close]'); await settle(mum);
   assert.equal(await mum.inputValue('#pa-member-email'), '');
   await mum.click('[data-act="sample"]');
   await settle(mum);
 
   const dad = await person('dad@example.com');
   await dad.locator('#main .ha-row-title', { hasText: 'Our pantry' }).waitFor();
+  // the name reached Dad's phone too, and his changes now carry it
+  await dad.locator('[data-act="person"][data-v="dad@example.com"] .ha-row-title', { hasText: 'Dad' }).waitFor();
   await go(dad, '#/items');
   await dad.locator('#pa-items-list .ha-row', { hasText: 'Kaya' }).waitFor();
   // dad uses up the kaya; mum's screen follows
@@ -69,7 +86,7 @@ try {
   // and the history says who
   const kaya = await mum.evaluate(() => [...window.__pantry.S.items.values()].find(i => i.name === 'Kaya').id);
   await go(mum, '#/item/' + kaya);
-  await mum.locator('#main .ha-row-sub', { hasText: 'dad' }).first().waitFor();
+  await mum.locator('#main .ha-row-sub', { hasText: 'Dad' }).first().waitFor();
 
   // an outsider is not in any pantry and can't read or join this one
   const stranger = await person('stranger@example.com');
@@ -86,9 +103,43 @@ try {
     try { await F.updateDoc(F.doc(db, 'households', hid), { members: ['stranger@example.com', 'mum@example.com'] }); out.push('wrote'); } catch (e) { out.push(e.code); }
     try { await F.setDoc(F.doc(db, 'households', 'fake'), { name: 'x', owner: 'mum@example.com', members: ['mum@example.com', 'stranger@example.com'] }); out.push('wrote'); } catch (e) { out.push(e.code); }
     try { await F.setDoc(F.doc(db, 'households', hid, 'items', 'evil'), { id: 'evil', name: 'x' }); out.push('wrote'); } catch (e) { out.push(e.code); }
+    try { await F.getDoc(F.doc(db, 'households', hid, 'settings', 'people')); out.push('read'); } catch (e) { out.push(e.code); }
+    try { await F.setDoc(F.doc(db, 'households', hid, 'settings', 'people'), { id: 'people', names: { 'stranger@example.com': 'x' }, updatedAt: 'x' }); out.push('wrote'); } catch (e) { out.push(e.code); }
+    try { await F.deleteDoc(F.doc(db, 'households', hid, 'settings', 'people')); out.push('deleted'); } catch (e) { out.push(e.code); }
     return out;
   }, hid);
-  assert.deepEqual(denied, Array(6).fill('permission-denied'), 'outsider denied: ' + denied.join(', '));
+  assert.deepEqual(denied, Array(9).fill('permission-denied'), 'outsider denied: ' + denied.join(', '));
+  // names: only settings/people, exactly id/names/updatedAt, at most 20 names of 1-40 characters on one line, keyed by emails
+  const peopleRules = await dad.evaluate(async hid => {
+    const F = await import('https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js');
+    const db = F.getFirestore(), d = id => F.doc(db, 'households', hid, 'settings', id);
+    const out = {};
+    const tryIt = async (name, fn) => { try { await fn(); out[name] = 'ok'; } catch (e) { out[name] = e.code; } };
+    const doc = names => ({ id: 'people', names, updatedAt: 'x' });
+    const many = n => Object.fromEntries(Array.from({ length: n }, (_, i) => [`p${i}@example.com`, String(i).padEnd(40, 'x')]));
+    await tryIt('20 names of 40 characters', () => F.setDoc(d('people'), doc(many(20))));
+    await tryIt('read', async () => { if (!(await F.getDoc(d('people'))).exists()) throw { code: 'missing' }; });
+    await tryIt('no names', () => F.setDoc(d('people'), doc({})));
+    await tryIt('21 names', () => F.setDoc(d('people'), doc(Object.fromEntries(Array.from({ length: 21 }, (_, i) => [`p${i}@example.com`, 'x'])))));
+    await tryIt('a 41-character name', () => F.setDoc(d('people'), doc({ 'a@example.com': 'A', 'b@example.com': 'x'.repeat(41) })));
+    await tryIt('an empty name', () => F.setDoc(d('people'), doc({ 'a@example.com': '' })));
+    await tryIt('a name with a newline', () => F.setDoc(d('people'), doc({ 'a@example.com': 'Ah\nMei' })));
+    await tryIt('a number', () => F.setDoc(d('people'), doc({ 'a@example.com': 3 })));
+    await tryIt('a key that is not an email', () => F.setDoc(d('people'), doc({ 'Mum': 'Mum' })));
+    await tryIt('not a map', () => F.setDoc(d('people'), doc(['Mum'])));
+    await tryIt('another field', () => F.setDoc(d('people'), { ...doc({ 'a@example.com': 'A' }), colour: 'red' }));
+    await tryIt('no updatedAt', () => F.setDoc(d('people'), { id: 'people', names: { 'a@example.com': 'A' } }));
+    await tryIt('a mismatched id field', () => F.setDoc(d('people'), { id: 'places', names: {}, updatedAt: 'x' }));
+    await tryIt('another id', () => F.setDoc(d('theme'), { id: 'people', names: {}, updatedAt: 'x' }));
+    await tryIt('back to Dad', () => F.setDoc(d('people'), doc({ 'dad@example.com': 'Dad' })));
+    return out;
+  }, hid);
+  assert.deepEqual(peopleRules, {
+    '20 names of 40 characters': 'ok', read: 'ok', 'no names': 'ok', '21 names': 'permission-denied', 'a 41-character name': 'permission-denied',
+    'an empty name': 'permission-denied', 'a name with a newline': 'permission-denied', 'a number': 'permission-denied',
+    'a key that is not an email': 'permission-denied', 'not a map': 'permission-denied', 'another field': 'permission-denied',
+    'no updatedAt': 'permission-denied', 'a mismatched id field': 'permission-denied', 'another id': 'permission-denied', 'back to Dad': 'ok',
+  }, 'people rules');
   // dad can't remove the owner, or hand the pantry to himself
   const ownerKept = await dad.evaluate(async hid => {
     const F = await import('https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js');

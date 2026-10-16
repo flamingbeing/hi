@@ -9,8 +9,8 @@
 // The memory backend (demo mode, ?demo) keeps made-up items in memory only: nothing is saved anywhere.
 // The cloud backend (cloud.js) keeps the family's shared copy in Firestore.
 
-// KINDS are loaded in full and kept in memory (settings holds one small document, `places`: the household's list of
-// places, places.js); photos (one per item with a picture, photos/<item id>) are read one at
+// KINDS are loaded in full and kept in memory (settings holds two small documents: `places`, the household's list of
+// places, places.js; and `people`, the names the family gives its members, people.js); photos (one per item with a picture, photos/<item id>) are read one at
 // a time, when their item is opened.
 export const KINDS = ['items', 'events', 'shop', 'settings'];
 export const PHOTOS = 'photos';
