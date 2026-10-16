@@ -63,6 +63,8 @@
   Delete and one Undo each) and Group by place. Commit 3: a grip on every row (drag onto a place heading or chip, a selection
   too; My order under Category, one number per move; Move up / Move down and Move to… without dragging); rules: `order` absent or a
   number (deploys on merge). Commit 4: the Bulk edit screen (`#/bulk`: pick, choose, Review, Save one batch, one Undo).
+  Commit 5: a listener watchdog (a phone whose connection died after an offline spell listens again, then restarts the connection if
+  nothing is unacknowledged; found by the live harness, seed 11).
 
 ## Waiting on the owner
 

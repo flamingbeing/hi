@@ -39,7 +39,7 @@ const S = {
   folded: new Set(prefs.get('folded', []) || []),   // place headings folded shut on Items (Group by place); per phone
   draft: null, dirty: false, pendingRender: false, syncError: false,
   refused: prefs.get('refused', []) || [],   // changes the family pantry refused, kept here until retried or discarded (sync.js)
-  sync: { pending: 0, cache: false, since: 0, list: [], heard: 0 },   // changes this phone made that the server hasn't confirmed yet (list: each in words' records), and when the family last answered
+  sync: { pending: 0, cache: false, since: 0, list: [], heard: 0, lastServerAt: 0, relistens: 0, cycles: 0 },   // changes this phone made that the server hasn't confirmed yet (list: each in words' records), and when the family last answered
   syncNow: { busy: false, result: null },   // Settings → Saving to the family → Sync now
   lastUndo: null,
   removedNotes: prefs.get('removedNotes', {}) || {},   // items another phone removed that this phone had changes on: id -> removedAt (until Recently removed is opened)
@@ -2341,6 +2341,7 @@ function drawSyncDetail() {
 async function syncNow({ cycle = false } = {}) {
   if (S.syncNow.busy || S.mode !== 'cloud' || !S.backend?.syncNow) return;
   S.syncNow = { busy: true, result: null }; drawSyncDetail(); haAnnounce(cycle ? 'Reconnecting…' : 'Checking…');
+  try { S.backend.nudge?.('syncnow'); } catch { /* not listening */ }
   let r;
   try { r = await S.backend.syncNow({ cycle }); } catch (err) { console.warn('sync now', err?.code || err?.message); r = { ok: false }; }
   S.syncNow = { busy: false, result: SY.syncNowResult(r, { refused: SY.refusedFor(S.refused, S.household?.id || '').length, pending: S.sync.pending }) };
@@ -2847,6 +2848,7 @@ function syncView() {
   return SY.syncState({
     refused: SY.refusedFor(S.refused, S.household?.id || '').length, pending: S.sync.pending, cache: S.sync.cache,
     offline: navigator.onLine === false, waited: S.sync.since ? Date.now() - S.sync.since : 0,
+    recent: !!S.sync.lastServerAt && Date.now() - S.sync.lastServerAt < 10000,
   });
 }
 const SYNC_BADGE = { saved: 'ha-badge--ok', waiting: 'ha-badge--warn', attention: 'ha-badge--bad' };
@@ -2874,7 +2876,7 @@ function drawSync() {
 // stays unconfirmed for a moment turns the chip to "Waiting for signal"; a normal save confirms before that.
 function onSyncState(st) {
   const was = S.sync.pending;
-  S.sync = { pending: st.pending, cache: st.cache, since: st.pending > 0 ? (was > 0 ? S.sync.since : Date.now()) : 0, list: st.list || [], heard: st.heard || S.sync.heard || 0 };
+  S.sync = { pending: st.pending, cache: st.cache, since: st.pending > 0 ? (was > 0 ? S.sync.since : Date.now()) : 0, list: st.list || [], heard: st.heard || S.sync.heard || 0, lastServerAt: st.lastServerAt || 0, relistens: st.relistens || 0, cycles: st.cycles || 0 };
   drawSync(); drawSyncDetail();
   adoptName();
   clearTimeout(syncTimer);
@@ -2918,7 +2920,7 @@ async function useHousehold(h) {
   S.household = h; S.lost = null;
   prefs.set('household', h.id);
   S.backend?.close?.();
-  S.sync = { pending: 0, cache: false, since: 0, list: [], heard: 0 }; S.syncNow = { busy: false, result: null };
+  S.sync = { pending: 0, cache: false, since: 0, list: [], heard: 0, lastServerAt: 0, relistens: 0, cycles: 0 }; S.syncNow = { busy: false, result: null };
   S.backend = await S.cloud.openCloud(h.id, onWriteError, onSyncState);
   S.mode = 'cloud';
   S.pics.clear();
@@ -3225,7 +3227,11 @@ async function start() {
   document.addEventListener('change', onChange);
   document.addEventListener('input', onInput);
   document.addEventListener('submit', onSubmit);
-  addEventListener('online', () => { if (S.user && !S.household && S.lookupFailed && S.cloud) handleUser(S.user); else redraw(); });
+  // the listener watchdog (cloud.js, listen-watch.js): a moment the phone came back is when a dead listener is most likely
+  const resumed = () => { try { S.backend?.nudge?.('resume'); } catch { /* not listening */ } };
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') resumed(); });
+  addEventListener('pageshow', resumed);
+  addEventListener('online', () => { resumed(); if (S.user && !S.household && S.lookupFailed && S.cloud) handleUser(S.user); else redraw(); });
   addEventListener('offline', redraw);
   R = haRouter({
     render: r => draw(r),

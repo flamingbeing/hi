@@ -11,11 +11,12 @@ const MAX_BYTES = 200000;
 
 // The chip near the top of Home and Settings: Saved, Waiting for signal (N changes), or Needs attention.
 // `pending`: changes made here that the server hasn't confirmed; `cache`: the phone is showing its own copy (no
-// connection to the server); `waited`: ms since the oldest unconfirmed change (a normal save is confirmed in well under
+// connection to the server); `recent`: the server was heard from within the last few seconds; `waited`: ms since the oldest unconfirmed change (a normal save is confirmed in well under
 // a second, which isn't worth a "waiting" chip).
-export function syncState({ refused = 0, pending = 0, cache = false, offline = false, waited = 0 } = {}) {
+export function syncState({ refused = 0, pending = 0, cache = false, offline = false, waited = 0, recent = false } = {}) {
   if (refused > 0) return { kind: 'attention', text: refused === 1 ? 'Needs attention' : `Needs attention (${refused})` };
-  if (pending > 0 && (cache || offline || waited >= 1500)) return { kind: 'waiting', text: `Waiting for signal (${pending} ${pending === 1 ? 'change' : 'changes'})` };
+  // (`recent`: a snapshot came from the server a moment ago, so a listener that still says "my own copy" is behind, not the connection)
+  if (pending > 0 && ((cache && !recent) || offline || waited >= 1500)) return { kind: 'waiting', text: `Waiting for signal (${pending} ${pending === 1 ? 'change' : 'changes'})` };
   return { kind: 'saved', text: 'Saved' };
 }
 

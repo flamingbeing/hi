@@ -1316,6 +1316,63 @@ try {
     proxy.close();
   }
 
+  // ---- the listener watchdog: a phone whose listen stream died (nothing tells it) hears again within seconds ----
+  {
+    const proxy = await stallProxy();
+    const wUrl = srv.url + `/pantry/?emulator=${proxy.port}:9099`;
+    const wa = await person('watcha@example.com', wUrl);   // the phone behind the proxy
+    await wa.click('[data-act="hh-create"]');
+    await wa.locator('#main .ha-row-title', { hasText: 'Our pantry' }).waitFor();
+    const wid = await wa.evaluate(() => window.__pantry.S.household.id);
+    await admin.put(`households/${wid}`, { name: 'Our pantry', owner: 'watcha@example.com', members: ['watcha@example.com', 'watchb@example.com'], createdAt: '2026-10-16T00:00:00.000Z' });
+    const base2 = { category: 'Other', location: 'Fridge', brand: '', size: '', barcode: '', lowAt: 0, openDays: 7, createdAt: '2026-10-16T00:00:00.000Z', createdBy: 'Mum' };
+    for (const id of ['wd1', 'wd2']) await admin.put(`households/${wid}/items/${id}`, { id, name: 'Watch ' + id, ...base2, batches: { a: { qty: 5, expiry: null, openedAt: null, addedAt: '2026-10-01' } } });
+    await wa.waitForFunction(() => window.__pantry.S.items.has('wd1') && window.__pantry.S.items.has('wd2'));
+    const wb = await person('watchb@example.com');   // the other phone, straight to the emulator
+    await wb.waitForFunction(i => window.__pantry.S.household?.id === i, wid);
+    await wb.waitForFunction(() => window.__pantry.S.items.has('wd1'));
+    const nameOn = (p, id) => p.evaluate(i => window.__pantry.S.items.get(i)?.name, id);
+    // (1) the stream dies; the other phone changes an item; this phone hears nothing. It comes back (online): it listens again and catches up
+    proxy.set({ dropListen: true });
+    await settle(wa);
+    await act(wb, 'set', 'wd1', 'name', 'Watch one, renamed by B'); await drain(wb);
+    await wa.waitForTimeout(12000);   // (long enough for "nothing heard for 10 s" to be true)
+    assert.equal(await nameOn(wa, 'wd1'), 'Watch wd1', 'a dead stream: the phone does not hear the change');
+    assert.equal(await wa.evaluate(() => window.__pantry.S.sync.relistens), 0, 'and has not listened again yet (a quiet household is not a sign)');
+    proxy.set({ dropListen: false });
+    const t0 = Date.now();
+    await wa.evaluate(() => dispatchEvent(new Event('online')));
+    await wa.waitForFunction(() => window.__pantry.S.items.get('wd1')?.name === 'Watch one, renamed by B', null, { timeout: 15000 });
+    assert.ok(Date.now() - t0 < 15000, 'caught up within 15 s');
+    assert.equal(await wa.evaluate(() => window.__pantry.S.sync.relistens), 1, 'by listening again, once');
+    // after listening again it keeps hearing: another change arrives without any nudge
+    await act(wb, 'set', 'wd1', 'name', 'Watch one, again'); await drain(wb);
+    await wa.waitForFunction(() => window.__pantry.S.items.get('wd1')?.name === 'Watch one, again', null, { timeout: 10000 });
+    // not twice in a row: the throttle holds a second nudge for 30 s
+    await wa.evaluate(() => dispatchEvent(new Event('online')));
+    await wa.waitForTimeout(500);
+    assert.equal(await wa.evaluate(() => window.__pantry.S.sync.relistens), 1, 'at most one re-listen every 30 s');
+    // (2) a document still flagged pending long after its write was acknowledged: no event needed. The stream dies, this phone writes
+    // (the write is acknowledged on its own stream), the other phone changes another item; within about 15 s it listens again by itself
+    await wa.waitForTimeout(31000);   // (past the throttle)
+    proxy.set({ dropListen: true });
+    await settle(wa);
+    await act(wa, 'set', 'wd2', 'notes', 'from A');
+    await wa.waitForFunction(() => window.__pantry.S.sync.pending === 0, null, { timeout: 8000 });
+    await act(wb, 'set', 'wd1', 'name', 'Watch one, third'); await drain(wb);
+    proxy.set({ dropListen: false });
+    const t1 = Date.now();
+    await wa.waitForFunction(() => window.__pantry.S.items.get('wd1')?.name === 'Watch one, third', null, { timeout: 25000 });
+    assert.ok(Date.now() - t1 < 22000, 'caught up on its own: ' + (Date.now() - t1) + ' ms');
+    const acts = await wa.evaluate(() => [window.__pantry.S.sync.relistens, window.__pantry.S.sync.cycles]);
+    assert.ok(acts[0] + acts[1] >= 2, 'the watchdog acted again by itself (listened again, or restarted the connection): ' + JSON.stringify(acts));
+    assert.equal((await admin.get(`households/${wid}/items/wd2`)).notes, 'from A', 'its own change is on the server');
+    assert.equal(await wa.evaluate(() => window.__pantry.S.refused.length), 0);
+    // the chip says Saved throughout
+    assert.equal(await wa.evaluate(() => window.__pantry.S.sync.pending), 0);
+    proxy.close();
+  }
+
   // ---- a pantry that goes away under an open phone (the owner merges or deletes it; evidence: 16 Oct, rules errors when a phone
   // resumed on a deleted household) ----
   {

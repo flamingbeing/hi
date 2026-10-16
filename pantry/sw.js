@@ -35,6 +35,7 @@ const SHELL = [
   'js/order.js',
   'js/drag.js',
   'js/bulk-items.js',
+  'js/listen-watch.js',
   'icons/icon.svg',
   'icons/apple-touch-icon.png',
   'icons/icon-192.png',
