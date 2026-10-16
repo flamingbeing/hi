@@ -27,6 +27,10 @@ Lasting decisions and how to test. Now: [STATUS.md](STATUS.md). Setup: [SETUP.md
   "who" have something to show.
 - **Not built (needs a server or AI):** push reminders, photo or receipt reading, learned recommendations, linked
   households and roles (the proposal's release 2).
+- **Hands-on first steps** (16 Oct, same as the pantry's; `js/tour.js`): a two-card welcome ending at a quick start
+  ("What do you have?": everyday goods as chips, added with a rough best-before date) and a Getting started
+  checklist on Home whose steps tick themselves off, each with Show me. Only for new users or when turned on in
+  Settings → Help.
 - Everything else as in `pantry/NOTES.md` (stock as batches, undo over confirm, a household member's change never
   wipes what someone is typing, sign-in on the app's own address, the service worker waits to take over, rules deploy
   on merge with the `KAKIHOME_FIREBASE_PROJECT` variable).
@@ -36,6 +40,7 @@ Lasting decisions and how to test. Now: [STATUS.md](STATUS.md). Setup: [SETUP.md
 ```
 node kakihome/test/logic.test.mjs      # logic, measures, catalogue, backups
 node kakihome/test/quick.test.mjs      # Say or type: dates, places, quantities, matching
+node kakihome/test/tour.test.mjs       # first steps: quick-start list, checklist ticks
 node kakihome/test/config.test.mjs     # set-config, sign-in choice, plain-word errors, sw.js rules
 node kakihome/test/e2e.mjs             # phone browser test with axe; SHOTS=<dir> saves screenshots
 kakihome/test/run-sync.sh              # household sharing and the rules in the local emulators (demo-kakihome)

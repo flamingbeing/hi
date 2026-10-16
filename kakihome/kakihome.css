@@ -78,3 +78,14 @@ label.ha-row:focus-within:has(.kh-file){outline:2px solid var(--home-focus);outl
 .kh-gagain{margin:var(--home-s2) 0 var(--home-s6)}
 .kh-stat{color:inherit;text-decoration:none}
 .kh-stat .ha-stat-value{color:var(--home-accent)}
+/* first steps (js/tour.js): the Getting started checklist, the quick start chips, and the Show me ring */
+.kh-tour-mark{flex:none;display:grid;place-items:center;width:26px;height:26px;border:2px solid var(--home-line-strong);border-radius:50%;color:#fff}
+.kh-tour-row.is-done .kh-tour-mark{border-color:var(--home-ok);background:var(--home-ok)}
+.kh-tour-mark .ha-icon{width:16px;height:16px}
+.kh-tour-row.is-done .ha-row-title{color:var(--home-muted);text-decoration:line-through}
+.kh-tour-foot{margin:var(--home-s1) 0 0;text-align:right}
+.kh-start-intro{margin:0 0 var(--home-s3)}
+.kh-start-chips .ha-chip[disabled]{opacity:.6}
+.kh-spot{outline:3px solid var(--home-accent);outline-offset:3px;animation:kh-spot 1.2s ease-in-out 3}
+@keyframes kh-spot{50%{outline-offset:7px}}
+@media (prefers-reduced-motion:reduce){.kh-spot{animation:none}}
