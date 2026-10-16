@@ -135,7 +135,11 @@ assert.equal(L.shareText(['Milk', 'Eggs']), 'Shopping list\n- Milk\n- Eggs');
 
 // backups: round trip, and anything else is refused in plain words
 const b = L.backup({ items: [{ id: 'a', name: 'x' }], events: [], shop: [{ id: 's' }] }, '2026-10-16T00:00:00Z');
-assert.deepEqual(L.parseBackup(JSON.stringify(b)), { items: [{ id: 'a', name: 'x' }], events: [], shop: [{ id: 's' }] });
+assert.deepEqual(L.parseBackup(JSON.stringify(b)), { items: [{ id: 'a', name: 'x' }], events: [], shop: [{ id: 's' }], photos: [] });
+// photos travel in backups too (only pictures, nothing else)
+const pb = L.backup({ items: [{ id: 'a', thumb: 'data:image/jpeg;base64,t', hasPhoto: true }], photos: [{ id: 'a', data: 'data:image/jpeg;base64,p' }, { id: 'b', data: 'javascript:x' }, { id: 'c' }] });
+assert.deepEqual(L.parseBackup(JSON.stringify(pb)).photos, [{ id: 'a', data: 'data:image/jpeg;base64,p' }]);
+assert.deepEqual(L.parseBackup(JSON.stringify({ app: 'pantry', items: [] })).photos, [], 'an old backup has no photos');
 assert.deepEqual(L.parseBackup(JSON.stringify({ app: 'pantry', items: [{ id: 'ok' }, { id: 'a/b' }, { name: 'no id' }, null] })).items, [{ id: 'ok' }]);
 assert.throws(() => L.parseBackup('{"app":"other"}'), /not a pantry backup/);
 assert.throws(() => L.parseBackup('nonsense'), /not a pantry backup/);

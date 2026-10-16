@@ -5,6 +5,8 @@
 // through the service worker; the welcome on first open (Skip, Next through every card, Add my first item, once per
 // phone, never in plain ?demo, no home-screen card when installed, the short invite version) and the guide screen;
 // barcode look-ups (three databases routed to fake answers, a fake camera; the unknown-barcode sheet);
+// photos (a thumbnail on the item, the photo in photos/<id> read when the item opens, remove, delete, backup, an
+// old-style item moved by itself; prints the measured sizes);
 // and at 390, 360 and 320px: no sideways scroll and axe clean on every screen, the welcome and the guide.
 // Needs Playwright (PLAYWRIGHT_PATH) and axe-core (AXE_PATH, or node_modules/axe-core found from the repo or cwd).
 const { chromium } = await import(process.env.PLAYWRIGHT_PATH || '/opt/node22/lib/node_modules/playwright/index.mjs');
@@ -519,6 +521,136 @@ try {
     ok(errors.length === 0, `demo ${w}: console errors ${errors.join('; ')}`);
     await ctx.close();
     console.log(`  demo ${w}: ok`);
+  }
+
+  // ---------- photos: a tiny thumbnail on the item, the photo itself read only when the item opens (this phone) ----------
+  {
+    const init = () => { try { localStorage.setItem('pantry:welcomed', 'true'); localStorage.setItem('pantry:tour', '"off"'); } catch { /* none */ } };
+    const { ctx, page, errors } = await open(390, 844, BASE, { init });
+    // a photo-like test picture (colours, shapes, text, a little grain), or pure noise for the worst case
+    const picture = (w, h, noise = false) => page.evaluate(async ([w, h, noise]) => {
+      const c = document.createElement('canvas'); c.width = w; c.height = h; const g = c.getContext('2d');
+      let seed = 7; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+      const gr = g.createLinearGradient(0, 0, w, h); gr.addColorStop(0, '#c0392b'); gr.addColorStop(0.5, '#f1c40f'); gr.addColorStop(1, '#2c3e50');
+      g.fillStyle = gr; g.fillRect(0, 0, w, h);
+      for (let i = 0; i < 60; i++) { g.fillStyle = `hsl(${rnd() * 360},60%,${30 + rnd() * 40}%)`; g.beginPath(); g.arc(rnd() * w, rnd() * h, 20 + rnd() * w / 6, 0, 7); g.fill(); }
+      g.font = `bold ${Math.round(h / 8)}px sans-serif`; g.fillStyle = '#fff'; g.fillText('SOY SAUCE 500 ml', w * 0.1, h * 0.55);
+      const img = g.getImageData(0, 0, w, h), d = img.data;
+      for (let i = 0; i < d.length; i += 4) { const n = noise ? 0 : (rnd() - 0.5) * 24; for (let k = 0; k < 3; k++) d[i + k] = noise ? rnd() * 255 : d[i + k] + n; }
+      g.putImageData(img, 0, 0);
+      const b = await new Promise(r => c.toBlob(r, 'image/jpeg', 0.92));
+      return [...new Uint8Array(await b.arrayBuffer())];
+    }, [w, h, noise]).then(a => Buffer.from(a));
+    const idb = (key, val) => page.evaluate(([k, v]) => new Promise((res, rej) => {
+      const r = indexedDB.open('pantry');
+      r.onsuccess = () => {
+        const t = r.result.transaction('docs', v === undefined ? 'readonly' : 'readwrite'), st = t.objectStore('docs');
+        const q = v === undefined ? st.get(k) : st.put(v, k);
+        t.oncomplete = () => { r.result.close(); res(v === undefined ? q.result ?? null : null); };
+        t.onerror = () => rej(t.error);
+      };
+    }), [key, val]);
+    const item = id => page.evaluate(id => window.__pantry.S.items.get(id) || null, id);
+
+    // an item saved before 16 Oct 2026, with the whole photo inside it, moves to a thumbnail + photos/<id> by itself
+    const legacy = await page.evaluate(async () => {
+      const { pictures } = await import('/pantry/js/photo.js');
+      const c = document.createElement('canvas'); c.width = 640; c.height = 480; const g = c.getContext('2d');
+      g.fillStyle = '#2a7'; g.fillRect(0, 0, 640, 480); g.fillStyle = '#fff'; g.fillRect(100, 100, 300, 200);
+      const b = await new Promise(r => c.toBlob(r, 'image/png'));
+      return (await pictures(b)).photo;
+    });
+    await idb('items/legacy1', { id: 'legacy1', name: 'Old photo item', brand: '', size: '', category: 'Other', location: 'Kitchen cabinet', openDays: null, lowAt: 0, barcode: '', photo: legacy, batches: [], createdAt: '2026-10-01T00:00:00Z' });
+    await page.reload(); await page.locator('.ha-large-title').waitFor();
+    await page.waitForFunction(() => { const i = window.__pantry.S.items.get('legacy1'); return i && !('photo' in i) && i.hasPhoto; }, null, { timeout: 8000 });
+    await page.waitForTimeout(300);
+    const migrated = await idb('items/legacy1'), legacyDoc = await idb('photos/legacy1');
+    ok(migrated && !('photo' in migrated) && migrated.hasPhoto === true && migrated.thumb.startsWith('data:image/jpeg') && migrated.thumb.length <= 12288, 'old photo moved: the saved item keeps only a thumbnail');
+    ok(legacyDoc?.data === legacy, 'and its photo, unchanged, is in photos/<id>');
+    ok(migrated.name === 'Old photo item' && migrated.updatedBy === undefined, 'nothing else about the item changed');
+
+    // add an item with a camera picture
+    const jpeg = await picture(1600, 1200);
+    await go(page, '#/add');
+    await page.fill('#pa-form [name="name"]', 'Photo test sauce');
+    await page.setInputFiles('#pa-photo-file', { name: 'camera.jpg', mimeType: 'image/jpeg', buffer: jpeg });
+    await page.locator('.pa-photo img').waitFor();
+    ok(await page.locator('[data-act="photo-del"]').isVisible(), 'the form offers Remove photo');
+    await page.click('#pa-save'); await settle(page);
+    const id = hash(page).split('/')[2];
+    const added = await item(id), doc = await idb('photos/' + id);
+    ok(added.hasPhoto === true && !('photo' in added) && added.thumb.startsWith('data:image/jpeg'), 'the item holds a thumbnail, not the photo');
+    ok(doc && doc.id === id && doc.data.startsWith('data:image/jpeg') && doc.data.length > added.thumb.length * 3, 'the photo is saved on its own');
+    const dims = await page.evaluate(async ([a, b]) => {
+      const size = src => new Promise(r => { const i = new Image(); i.onload = () => r([i.naturalWidth, i.naturalHeight]); i.src = src; });
+      return [await size(a), await size(b)];
+    }, [added.thumb, doc.data]);
+    ok(dims[0][0] === 96 && dims[0][1] === 72 && dims[1][0] === 480 && dims[1][1] === 360, `thumbnail 96x72, photo 480x360 (${dims.join(' / ')})`);
+    await page.waitForFunction(d => document.querySelector('#pa-hero')?.src === d, doc.data);
+    ok(true, 'the item screen shows the photo');
+    await axe(page, 'item with a photo');
+    await noSideways(page, 'item with a photo');
+    await shot(page, '30-item-photo');
+    // lists use the thumbnail
+    await go(page, '#/items');
+    ok(await page.locator('#pa-items-list a.ha-row', { hasText: 'Photo test sauce' }).locator('img.ha-row-thumb').getAttribute('src') === added.thumb, 'the list shows the thumbnail');
+    ok(await page.locator('#pa-items-list a.ha-row', { hasText: 'Old photo item' }).locator('img.ha-row-thumb').getAttribute('src') === migrated.thumb, 'and the moved item its thumbnail');
+    await go(page, '#/');
+    ok(await page.evaluate(() => [...document.querySelectorAll('img')].every(i => !i.src.startsWith('data:') || i.src.length <= 12288)), 'Home has no full photos');
+
+    // a fresh start reads the photo only when the item opens
+    await page.reload(); await page.locator('.ha-large-title').waitFor(); await settle(page);
+    ok(await page.evaluate(() => window.__pantry.S.pics.size) === 0, 'nothing but thumbnails loaded at start');
+    await go(page, '#/item/' + id);
+    await page.waitForFunction(d => document.querySelector('#pa-hero')?.src === d, doc.data);
+    ok(await page.evaluate(id => window.__pantry.S.pics.get(id)?.data?.length, id) === doc.data.length, 'opening the item fetched its photo');
+
+    // remove the photo: both go
+    await page.click('[data-act="edit"]'); await settle(page);
+    ok(await page.locator('.pa-photo img').getAttribute('src') === added.thumb, 'edit shows the thumbnail');
+    await page.click('[data-act="photo-del"]'); await settle(page);
+    await page.click('#pa-save'); await settle(page);
+    const bare = await item(id);
+    ok(!bare.thumb && !bare.hasPhoto && !('photo' in bare), 'Remove photo clears the thumbnail');
+    ok(await idb('photos/' + id) === null, 'and deletes the photo');
+    ok(await page.locator('#pa-hero').count() === 0, 'the item shows no picture');
+
+    // a new photo again, then delete the item: its photo goes too, and Undo brings both back
+    await page.click('[data-act="edit"]'); await settle(page);
+    await page.setInputFiles('#pa-photo-file', { name: 'camera.jpg', mimeType: 'image/jpeg', buffer: jpeg });
+    await page.locator('.pa-photo img').waitFor();
+    await page.click('#pa-save'); await settle(page);
+    const again = await idb('photos/' + id);
+    ok(again?.data?.startsWith('data:image/jpeg'), 'a new photo is saved');
+    await page.click('[data-act="delete"]'); await settle(page);
+    ok(await idb('photos/' + id) === null && await idb('items/' + id) === null, 'deleting the item deletes its photo');
+    await toast(page).locator('.ha-toast-action').click(); await settle(page);
+    ok((await idb('photos/' + id))?.data === again.data && (await idb('items/' + id))?.hasPhoto, 'Undo brings the item and its photo back');
+    await go(page, '#/item/' + id);
+    await page.click('[data-act="delete"]'); await settle(page);
+    ok(await idb('photos/' + id) === null, 'deleted again: the photo is gone');
+
+    // the backup holds the photos
+    await go(page, '#/settings');
+    const [dl] = await Promise.all([page.waitForEvent('download'), page.click('[data-act="backup"]')]);
+    const backup = JSON.parse(fs.readFileSync(await dl.path(), 'utf8'));
+    ok(backup.photos?.length === 1 && backup.photos[0].id === 'legacy1' && backup.photos[0].data === legacy, 'the backup includes the photos');
+    ok(backup.items.find(i => i.id === 'legacy1')?.thumb === migrated.thumb, 'and the items their thumbnails');
+
+    // sizes, for the record: a photo-like camera picture and pure noise (the worst case)
+    const noise = await picture(1600, 1200, true);
+    const sizes = await page.evaluate(async bufs => {
+      const { pictures } = await import('/pantry/js/photo.js');
+      const out = [];
+      for (const b of bufs) { const p = await pictures(new Blob([new Uint8Array(b)], { type: 'image/jpeg' })); out.push([p.thumb.length, p.photo.length]); }
+      return out;
+    }, [[...jpeg], [...noise]]);
+    ok(sizes.every(([t, p]) => t <= 12288 && p <= 153600), 'every picture fits the rules');
+    console.log(`  photo sizes (data URL bytes): camera-like 1600x1200 JPEG (${jpeg.length} B) -> thumb ${added.thumb.length}, photo ${doc.data.length}; noise (${noise.length} B) -> thumb ${sizes[1][0]}, photo ${sizes[1][1]}; old item -> thumb ${migrated.thumb.length}`);
+
+    ok(errors.length === 0, `photos: console errors ${errors.join('; ')}`);
+    await ctx.close();
+    console.log('  photos: ok');
   }
 
   // ---------- barcode look-ups: three databases, and naming an unknown barcode (demo, no real camera or network) ----------

@@ -18,6 +18,10 @@
 - 16 Oct 2026: hands-on walkthrough for first-time users (PR "Pantry: hands-on walkthrough for first-time users"): two-card
   welcome, quick start chips, Getting started checklist with Show me.
 
+- 16 Oct 2026: photos (PR "Pantry: small thumbnails in lists, full photos only when opened, size caps in the rules"):
+  items keep a ~2 KB thumbnail, the photo is read only when its item opens; old-style photos move by themselves; the
+  rules cap thumbnails at 12 KB and photos at 150 KB (deploy on merge).
+
 ## Waiting on the owner
 
 - Billing: waiting on the owner (Blaze), then the US$5 budget and daily backups.
@@ -33,6 +37,9 @@
   accepted on "add" events), receipt photo to items, more catalogue lines, share "use this week" to WhatsApp.
 
 ## Decisions
+
+- 16 Oct 2026: thumbnails on items, photos in `photos/<id>` read only when an item opens, to stay inside Firestore's
+  free downloads (NOTES.md).
 
 - 16 Oct 2026: first-time help is a once-per-phone welcome sheet plus a guide screen, no popups elsewhere (NOTES.md).
 
