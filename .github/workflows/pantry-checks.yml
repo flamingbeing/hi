@@ -1,0 +1,29 @@
+# Tests for the pantry app on every PR that touches it.
+name: Pantry checks
+on:
+  pull_request:
+    paths: ['pantry/**', '.github/workflows/pantry-checks.yml']
+  push:
+    branches: [main]
+    paths: ['pantry/**']
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+      - run: npm install --no-save playwright@1.56.1 && npx playwright install --with-deps chromium
+      - run: node pantry/test/logic.test.mjs
+      - run: node pantry/test/version.test.mjs
+      - run: node pantry/test/e2e.mjs
+        env:
+          PLAYWRIGHT_PATH: ${{ github.workspace }}/node_modules/playwright/index.mjs
+      - run: pantry/test/run-sync.sh
+        env:
+          PLAYWRIGHT_PATH: ${{ github.workspace }}/node_modules/playwright/index.mjs

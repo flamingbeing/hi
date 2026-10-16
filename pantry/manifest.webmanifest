@@ -1,0 +1,20 @@
+{
+  "name": "Pantry",
+  "short_name": "Pantry",
+  "description": "Our family's pantry: what's at home, what expires soon and what to buy.",
+  "start_url": "./#home",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#f5f3ee",
+  "theme_color": "#1e6b4a",
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "icons/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" },
+    { "src": "icons/icon.svg", "sizes": "any", "type": "image/svg+xml" }
+  ],
+  "shortcuts": [
+    { "name": "Add an item", "url": "./#add" },
+    { "name": "Shopping list", "url": "./#shop" }
+  ]
+}

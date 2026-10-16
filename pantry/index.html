@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en-SG">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<meta name="description" content="Our family's pantry: what's at home, what expires soon and what to buy.">
+<meta name="theme-color" content="#1e6b4a">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Pantry">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<title>Pantry</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icons/icon-180.png">
+<link rel="stylesheet" href="app.css">
+</head>
+<body>
+<header class="top">
+  <a href="#home" class="brand"><img src="icons/icon.svg" alt="" width="28" height="28"> Pantry</a>
+  <span id="sync" class="sync">This phone</span>
+</header>
+<main id="view" tabindex="-1"><p class="muted center">Loading…</p></main>
+<div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+<dialog id="sheet" aria-label="Bought"></dialog>
+<nav class="tabs" aria-label="Main">
+  <a href="#home" data-tab="home"><span aria-hidden="true">🏠</span>Home</a>
+  <a href="#items" data-tab="items"><span aria-hidden="true">🧺</span>Items</a>
+  <a href="#add" data-tab="add" class="add"><span aria-hidden="true">＋</span>Add</a>
+  <a href="#shop" data-tab="shop"><span aria-hidden="true">🛒</span>Shopping</a>
+  <a href="#settings" data-tab="settings"><span aria-hidden="true">⚙️</span>Settings</a>
+</nav>
+<script type="module" src="js/app.js"></script>
+</body>
+</html>
