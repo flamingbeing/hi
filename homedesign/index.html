@@ -1,0 +1,202 @@
+<!doctype html>
+<html lang="en-SG">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<meta name="color-scheme" content="light">
+<meta name="theme-color" content="#ffffff">
+<meta name="description" content="The Koh family home design system: tokens, web components and the phone app kit.">
+<title>Home design system</title>
+<link rel="stylesheet" href="tokens.css">
+<link rel="stylesheet" href="web.css">
+</head>
+<body class="h-body">
+<a class="h-skip" href="#main">Skip to content</a>
+
+<header class="h-header">
+  <div class="h-wrap h-header-row">
+    <a class="h-brand" href="./"><span class="h-brand-mark"><svg class="home-icon" aria-hidden="true"><use href="icons.svg#i-home"/></svg></span>Home design</a>
+    <nav class="h-nav" aria-label="Site">
+      <a href="./" aria-current="page">Web</a>
+      <a href="app.html">Phone app</a>
+    </nav>
+  </div>
+</header>
+
+<main class="h-main" id="main">
+  <div class="h-wrap">
+    <ol class="h-crumbs"><li><a href="./">Home design</a></li><li aria-current="page">Web guide</li></ol>
+    <p class="h-kicker">Design system</p>
+    <h1 class="h-title">Calm, clear and quiet</h1>
+    <p class="h-lead">The shared look for the Koh family home apps: mostly white and soft greys, one slate-blue accent, generous space and the phone’s own font.</p>
+    <div class="h-btn-row">
+      <a class="h-btn h-btn--primary h-btn--large" href="app.html">Open the phone app kit</a>
+      <a class="h-btn h-btn--large" href="#colour">Browse the tokens</a>
+    </div>
+
+    <div class="h-split" style="margin-top:var(--home-s12)">
+      <nav class="h-toc" aria-label="On this page">
+        <a href="#colour">Colour</a><a href="#type">Type</a><a href="#space">Space and shape</a><a href="#buttons">Buttons and links</a>
+        <a href="#cards">Cards and badges</a><a href="#tables">Tables</a><a href="#forms">Forms</a><a href="#notes">Notes</a><a href="#icons">Icons</a><a href="#prose">Prose</a>
+      </nav>
+
+      <div>
+        <section class="h-section" id="colour" aria-labelledby="h-colour">
+          <h2 class="h-h2" id="h-colour">Colour</h2>
+          <p class="h-muted">Every colour is a <code>--home-*</code> custom property. Ratios are against white unless noted; the test checks them.</p>
+          <ul class="h-swatches">
+            <li class="h-swatch"><div class="h-swatch-chip" style="background:var(--home-accent)"></div><span class="h-swatch-name">accent</span><span class="h-swatch-value">#3a6390 · 6.2:1</span></li>
+            <li class="h-swatch"><div class="h-swatch-chip" style="background:var(--home-accent-soft)"></div><span class="h-swatch-name">accent-soft</span><span class="h-swatch-value">#e8eef5</span></li>
+            <li class="h-swatch"><div class="h-swatch-chip" style="background:var(--home-ink)"></div><span class="h-swatch-name">ink</span><span class="h-swatch-value">#1d1d1f · 16.8:1</span></li>
+            <li class="h-swatch"><div class="h-swatch-chip" style="background:var(--home-ink-2)"></div><span class="h-swatch-name">ink-2</span><span class="h-swatch-value">#3c3c43 · 10.9:1</span></li>
+            <li class="h-swatch"><div class="h-swatch-chip" style="background:var(--home-muted)"></div><span class="h-swatch-name">muted</span><span class="h-swatch-value">#636368 · 6.0:1</span></li>
+            <li class="h-swatch"><div class="h-swatch-chip" style="background:var(--home-control)"></div><span class="h-swatch-name">control</span><span class="h-swatch-value">#8a8a91 · 3.4:1</span></li>
+            <li class="h-swatch"><div class="h-swatch-chip" style="background:var(--home-line)"></div><span class="h-swatch-name">line</span><span class="h-swatch-value">#e3e3e8</span></li>
+            <li class="h-swatch"><div class="h-swatch-chip" style="background:var(--home-fill)"></div><span class="h-swatch-name">fill</span><span class="h-swatch-value">#ececf0</span></li>
+            <li class="h-swatch"><div class="h-swatch-chip" style="background:var(--home-bg)"></div><span class="h-swatch-name">bg</span><span class="h-swatch-value">#f5f5f7</span></li>
+            <li class="h-swatch"><div class="h-swatch-chip" style="background:var(--home-surface)"></div><span class="h-swatch-name">surface</span><span class="h-swatch-value">#ffffff</span></li>
+            <li class="h-swatch"><div class="h-swatch-chip" style="background:var(--home-ok-bg);box-shadow:inset 0 -12px 0 var(--home-ok)"></div><span class="h-swatch-name">ok on ok-bg</span><span class="h-swatch-value">#1e6b3c · 5.7:1</span></li>
+            <li class="h-swatch"><div class="h-swatch-chip" style="background:var(--home-warn-bg);box-shadow:inset 0 -12px 0 var(--home-warn)"></div><span class="h-swatch-name">warn on warn-bg</span><span class="h-swatch-value">#8a5300 · 5.6:1</span></li>
+            <li class="h-swatch"><div class="h-swatch-chip" style="background:var(--home-bad-bg);box-shadow:inset 0 -12px 0 var(--home-bad)"></div><span class="h-swatch-name">bad on bad-bg</span><span class="h-swatch-value">#b3261e · 5.5:1</span></li>
+          </ul>
+        </section>
+
+        <section class="h-section" id="type" aria-labelledby="h-type">
+          <h2 class="h-h2" id="h-type">Type</h2>
+          <p class="h-muted">The phone’s own font: San Francisco on Apple devices, Segoe on Windows, Roboto on Android. No font files to load.</p>
+          <div class="h-demo h-demo--white h-stack">
+            <p style="margin:0;font-size:var(--home-t-display);font-weight:700;letter-spacing:-.025em;line-height:1.15">Display 40</p>
+            <p style="margin:0;font-size:var(--home-t-title1);font-weight:700;letter-spacing:-.02em;line-height:1.2">Title 28</p>
+            <p style="margin:0;font-size:var(--home-t-title2);font-weight:600;line-height:1.25">Title 22</p>
+            <p style="margin:0;font-size:var(--home-t-title3);color:var(--home-ink-2)">Lead 20</p>
+            <p style="margin:0">Body 17. The quick brown fox jumps over the lazy dog.</p>
+            <p class="h-small h-muted" style="margin:0">Small 16, the floor for any sentence.</p>
+            <p class="h-kicker" style="margin:0">Label 13, short labels only</p>
+          </div>
+        </section>
+
+        <section class="h-section" id="space" aria-labelledby="h-space">
+          <h2 class="h-h2" id="h-space">Space and shape</h2>
+          <p class="h-muted">A 4px grid: 4, 8, 12, 16, 20, 24, 32, 40, 48, 64. Corners: 6 badges, 8 thumbnails, 12 buttons and inputs, 16 cards, 24 sheets.</p>
+          <div class="h-demo h-demo--white" style="display:flex;flex-wrap:wrap;gap:var(--home-s4);align-items:flex-end">
+            <span style="width:32px;height:32px;border-radius:var(--home-r-xs);background:var(--home-accent-soft)" title="6"></span>
+            <span style="width:40px;height:40px;border-radius:var(--home-r-sm);background:var(--home-accent-soft)" title="8"></span>
+            <span style="width:48px;height:48px;border-radius:var(--home-r-md);background:var(--home-accent-soft)" title="12"></span>
+            <span style="width:56px;height:56px;border-radius:var(--home-r-lg);background:var(--home-accent-soft)" title="16"></span>
+            <span style="width:64px;height:64px;border-radius:var(--home-r-xl);background:var(--home-accent-soft)" title="24"></span>
+          </div>
+        </section>
+
+        <section class="h-section" id="buttons" aria-labelledby="h-buttons">
+          <h2 class="h-h2" id="h-buttons">Buttons and links</h2>
+          <div class="h-demo h-demo--white">
+            <div class="h-btn-row" style="margin-top:0">
+              <button type="button" class="h-btn h-btn--primary">Save</button>
+              <button type="button" class="h-btn">Secondary</button>
+              <button type="button" class="h-btn h-btn--outline">Outline</button>
+              <button type="button" class="h-btn h-btn--plain">Plain</button>
+              <button type="button" class="h-btn h-btn--danger"><svg class="home-icon" aria-hidden="true"><use href="icons.svg#i-trash"/></svg>Delete</button>
+              <button type="button" class="h-btn" disabled>Disabled</button>
+            </div>
+            <p style="margin:0">A <a class="h-link" href="#prose">link in a sentence</a> is underlined. A standalone action:
+              <a class="h-link-arrow" href="app.html">See the phone kit<svg class="home-icon" aria-hidden="true"><use href="icons.svg#i-chevron-right"/></svg></a></p>
+          </div>
+        </section>
+
+        <section class="h-section" id="cards" aria-labelledby="h-cards">
+          <h2 class="h-h2" id="h-cards">Cards and badges</h2>
+          <div class="h-grid">
+            <a class="h-card" href="app.html">
+              <span class="h-card-icon"><svg class="home-icon" aria-hidden="true"><use href="icons.svg#i-box"/></svg></span>
+              <h3 class="h-card-title">Pantry</h3>
+              <p class="h-card-text">What is in the fridge, freezer and cupboards, and what to use first.</p>
+              <div class="h-card-foot"><span class="h-badge h-badge--accent">Coming</span></div>
+            </a>
+            <div class="h-card">
+              <span class="h-card-icon"><svg class="home-icon" aria-hidden="true"><use href="icons.svg#i-calendar"/></svg></span>
+              <h3 class="h-card-title">A plain card</h3>
+              <p class="h-card-text">Hairline edge on white; a soft shadow on the grey page.</p>
+              <div class="h-card-foot"><span class="h-badge h-badge--ok">Fresh</span><span class="h-badge h-badge--warn">2 days</span><span class="h-badge h-badge--bad">Expired</span><span class="h-badge">Draft</span></div>
+            </div>
+          </div>
+        </section>
+
+        <section class="h-section" id="tables" aria-labelledby="h-tables">
+          <h2 class="h-h2" id="h-tables">Tables</h2>
+          <div class="h-table-wrap">
+            <table class="h-table">
+              <caption>Sample items (made up)</caption>
+              <thead><tr><th scope="col">Item</th><th scope="col">Place</th><th scope="col" class="h-num">Left</th><th scope="col">Status</th></tr></thead>
+              <tbody>
+                <tr><td>Oat milk</td><td>Fridge</td><td class="h-num">1</td><td><span class="h-badge h-badge--bad">Expired</span></td></tr>
+                <tr><td>Baby spinach</td><td>Fridge</td><td class="h-num">1</td><td><span class="h-badge h-badge--warn">2 days</span></td></tr>
+                <tr><td>Basmati rice</td><td>Cupboard</td><td class="h-num">1</td><td><span class="h-badge h-badge--ok">Fresh</span></td></tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="h-section" id="forms" aria-labelledby="h-forms">
+          <h2 class="h-h2" id="h-forms">Forms</h2>
+          <form class="h-form" onsubmit="return false">
+            <div class="h-field"><label class="h-label" for="f-name">Name</label><input class="h-input" id="f-name" placeholder="For example, oat milk"></div>
+            <div class="h-field"><label class="h-label" for="f-place">Place</label><select class="h-select" id="f-place"><option>Fridge</option><option>Freezer</option><option>Cupboard</option></select></div>
+            <div class="h-field"><label class="h-label" for="f-date">Use by</label><input class="h-input" id="f-date" type="date" value="2026-10-20"><span class="h-hint">Leave blank if it keeps.</span></div>
+            <div class="h-field"><label class="h-label" for="f-qty">Quantity</label><input class="h-input" id="f-qty" inputmode="numeric" value="0" aria-invalid="true" aria-describedby="f-qty-err">
+              <p class="h-error" id="f-qty-err"><svg class="home-icon" aria-hidden="true"><use href="icons.svg#i-alert"/></svg>Enter 1 or more</p></div>
+            <div class="h-field"><label class="h-label" for="f-note">Note</label><textarea class="h-textarea" id="f-note" placeholder="Anything to remember"></textarea></div>
+            <fieldset class="h-fieldset"><legend>Remind me</legend>
+              <label class="h-check"><input type="checkbox" checked>The day before</label>
+              <label class="h-check"><input type="checkbox">On the day</label>
+            </fieldset>
+            <div><button type="submit" class="h-btn h-btn--primary h-btn--large">Save</button></div>
+          </form>
+        </section>
+
+        <section class="h-section" id="notes" aria-labelledby="h-notes">
+          <h2 class="h-h2" id="h-notes">Notes</h2>
+          <div class="h-note"><svg class="home-icon" aria-hidden="true"><use href="icons.svg#i-info"/></svg><p><span class="h-note-title">Note</span>A quiet aside on the grey ground.</p></div>
+          <div class="h-note h-note--info"><svg class="home-icon" aria-hidden="true"><use href="icons.svg#i-info"/></svg><p><span class="h-note-title">Tip</span>Add the app to your home screen to use it offline.</p></div>
+          <div class="h-note h-note--ok"><svg class="home-icon" aria-hidden="true"><use href="icons.svg#i-check"/></svg><p><span class="h-note-title">Done</span>Everything is up to date.</p></div>
+          <div class="h-note h-note--warn"><svg class="home-icon" aria-hidden="true"><use href="icons.svg#i-clock"/></svg><p><span class="h-note-title">Soon</span>Three things need using this week.</p></div>
+          <div class="h-note h-note--bad"><svg class="home-icon" aria-hidden="true"><use href="icons.svg#i-alert"/></svg><p><span class="h-note-title">Problem</span>The list could not be saved. Check your signal and try again.</p></div>
+        </section>
+
+        <section class="h-section" id="icons" aria-labelledby="h-icons">
+          <h2 class="h-h2" id="h-icons">Icons</h2>
+          <p class="h-muted">24 line icons in <code>icons.svg</code>: 24px, 1.75 stroke, round ends, drawn in the text colour.</p>
+          <ul class="h-icon-grid" id="icons-grid"></ul>
+        </section>
+
+        <section class="h-section" id="prose" aria-labelledby="h-prose">
+          <h2 class="h-h2" id="h-prose">Prose</h2>
+          <div class="h-prose">
+            <p>Long reading sits in <code>.h-prose</code>: 17px, lines of at most 68 characters and a little more line height. Write plainly, in British English and sentence case.</p>
+            <h3>A smaller heading</h3>
+            <ul><li>Lists keep their bullets.</li><li>Links are <a href="#colour">underlined in the accent</a>, never colour alone.</li></ul>
+            <blockquote>Quiet by default; the accent marks what you can do.</blockquote>
+            <hr>
+            <p class="h-muted">How to use the files: <a href="README.md">README.md</a>. The rules: <a href="DESIGN.md">DESIGN.md</a> and <a href="DESIGN-APP.md">DESIGN-APP.md</a>.</p>
+          </div>
+        </section>
+      </div>
+    </div>
+  </div>
+</main>
+
+<footer class="h-footer">
+  <div class="h-wrap">
+    <p>Koh family home design system. Light only, made for phones first.</p>
+    <p>Questions about a page? Ask whoever sent you the link.</p>
+  </div>
+</footer>
+<script>
+  // the icon grid, from the sprite's ids
+  const names = ['home', 'list', 'plus', 'minus', 'cart', 'settings', 'search', 'camera', 'barcode', 'check', 'close', 'chevron-right',
+    'chevron-left', 'trash', 'edit', 'share', 'calendar', 'clock', 'box', 'bell', 'user', 'users', 'info', 'alert'];
+  document.getElementById('icons-grid').innerHTML = names.map(n =>
+    `<li><svg class="home-icon" aria-hidden="true"><use href="icons.svg#i-${n}"/></svg><span>${n}</span></li>`).join('');
+</script>
+</body>
+</html>

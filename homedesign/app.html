@@ -1,0 +1,511 @@
+<!doctype html>
+<html lang="en-SG" class="ha">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<meta name="color-scheme" content="light">
+<meta name="theme-color" content="#f5f5f7">
+<meta name="description" content="The Koh family home app kit, working: tabs, lists, sheets, toasts and every control.">
+<title>Home app kit</title>
+<link rel="stylesheet" href="tokens.css">
+<link rel="stylesheet" href="app.css">
+<style>
+  /* specimen-only layout: an app would put styles like these under its own prefix */
+  .demo-grid{display:grid;gap:var(--home-s2);grid-template-columns:repeat(auto-fill,minmax(64px,1fr));margin:0;padding:var(--home-s3);list-style:none;background:var(--home-surface);border-radius:var(--home-r-lg)}
+  .demo-grid li{display:flex;flex-direction:column;align-items:center;gap:6px;padding:var(--home-s2) 0;color:var(--home-ink);font-size:var(--home-t-label);text-align:center;overflow-wrap:anywhere}
+  .demo-wrap{display:flex;flex-wrap:wrap;gap:var(--home-s2);align-items:center}
+  .demo-pad{padding:var(--home-s4);background:var(--home-surface);border-radius:var(--home-r-lg)}
+  .demo-pad>*:first-child{margin-top:0}.demo-pad>*:last-child{margin-bottom:0}
+</style>
+</head>
+<body class="ha-body ha-has-tabbar">
+<a class="ha-skip" href="#main">Skip to content</a>
+
+<header class="ha-bar">
+  <div class="ha-bar-row">
+    <div class="ha-bar-lead" id="bar-lead"></div>
+    <div class="ha-bar-title" id="bar-title" aria-hidden="true">Pantry</div>
+    <div class="ha-bar-trail" id="bar-trail"></div>
+  </div>
+</header>
+
+<main class="ha-main" id="main" tabindex="-1">
+
+  <!-- ===== Home ===== -->
+  <section class="ha-screen" data-screen="home" aria-labelledby="t-home">
+    <h1 class="ha-large-title" id="t-home">Pantry</h1>
+    <p class="ha-large-sub">Made-up sample items, to show the kit.</p>
+
+    <div class="ha-search" role="search">
+      <svg class="ha-icon" aria-hidden="true"><use href="icons.svg#i-search"/></svg>
+      <input type="search" id="search" placeholder="Search the pantry" aria-label="Search the pantry" autocomplete="off">
+      <button type="button" class="ha-search-clear" aria-label="Clear search"><svg class="ha-icon" aria-hidden="true"><use href="icons.svg#i-close"/></svg></button>
+    </div>
+
+    <div class="ha-chips" role="group" aria-label="Filter by place" id="filters">
+      <button type="button" class="ha-chip" aria-pressed="true" data-place="">All <span class="ha-chip-count" data-count=""></span></button>
+      <button type="button" class="ha-chip" aria-pressed="false" data-place="Fridge">Fridge <span class="ha-chip-count" data-count="Fridge"></span></button>
+      <button type="button" class="ha-chip" aria-pressed="false" data-place="Freezer">Freezer <span class="ha-chip-count" data-count="Freezer"></span></button>
+      <button type="button" class="ha-chip" aria-pressed="false" data-place="Cupboard">Cupboard <span class="ha-chip-count" data-count="Cupboard"></span></button>
+    </div>
+
+    <div class="ha-stats" aria-label="Summary">
+      <div class="ha-stat"><span class="ha-stat-value" id="stat-items">0</span><span class="ha-stat-label">Items</span></div>
+      <div class="ha-stat"><span class="ha-stat-value" id="stat-soon">0</span><span class="ha-stat-label">Use soon</span></div>
+      <div class="ha-stat"><span class="ha-stat-value" id="stat-expired">0</span><span class="ha-stat-label">Expired</span></div>
+    </div>
+
+    <section class="ha-section" aria-labelledby="h-items">
+      <h2 class="ha-section-header" id="h-items"><span>Items</span><span class="ha-num" id="items-count"></span></h2>
+      <ul class="ha-list" id="items"></ul>
+      <div class="ha-empty" id="items-empty" hidden>
+        <span class="ha-empty-icon"><svg class="ha-icon" aria-hidden="true"><use href="icons.svg#i-search"/></svg></span>
+        <p class="ha-empty-title">Nothing found</p>
+        <p class="ha-empty-text">No items match. Try another word or place.</p>
+      </div>
+    </section>
+
+    <section class="ha-section" aria-labelledby="h-used">
+      <h2 class="ha-section-header" id="h-used">Used most this month</h2>
+      <div class="ha-card">
+        <ul class="ha-chart" aria-label="Times used this month">
+          <li class="ha-chart-row"><span class="ha-chart-label">Eggs</span><span class="ha-chart-track"><span class="ha-chart-fill" style="--v:100%"></span></span><span class="ha-chart-value">18</span></li>
+          <li class="ha-chart-row"><span class="ha-chart-label">Oat milk</span><span class="ha-chart-track"><span class="ha-chart-fill" style="--v:72%"></span></span><span class="ha-chart-value">13</span></li>
+          <li class="ha-chart-row"><span class="ha-chart-label">Bread</span><span class="ha-chart-track"><span class="ha-chart-fill" style="--v:56%"></span></span><span class="ha-chart-value">10</span></li>
+          <li class="ha-chart-row"><span class="ha-chart-label">Basmati rice</span><span class="ha-chart-track"><span class="ha-chart-fill ha-chart-fill--muted" style="--v:22%"></span></span><span class="ha-chart-value">4</span></li>
+        </ul>
+      </div>
+    </section>
+  </section>
+
+  <!-- ===== Item (a pushed screen) ===== -->
+  <section class="ha-screen" data-screen="item" aria-labelledby="t-item" hidden>
+    <h1 class="ha-large-title" id="t-item">Item</h1>
+    <p class="ha-large-sub" id="item-sub"></p>
+    <section class="ha-section" aria-label="Details">
+      <ul class="ha-list">
+        <li><div class="ha-row"><span class="ha-row-icon"><svg class="ha-icon" aria-hidden="true"><use href="icons.svg#i-box"/></svg></span><span class="ha-row-body"><span class="ha-row-title">Place</span></span><span class="ha-row-value" id="item-place"></span></div></li>
+        <li><div class="ha-row"><span class="ha-row-icon"><svg class="ha-icon" aria-hidden="true"><use href="icons.svg#i-calendar"/></svg></span><span class="ha-row-body"><span class="ha-row-title">Use by</span></span><span id="item-badge"></span></div></li>
+        <li><div class="ha-row"><span class="ha-row-icon"><svg class="ha-icon" aria-hidden="true"><use href="icons.svg#i-list"/></svg></span><span class="ha-row-body"><span class="ha-row-title" id="qty-label">Quantity</span></span>
+          <div class="ha-stepper" role="group" aria-labelledby="qty-label" id="item-qty">
+            <button type="button" data-step="-1" aria-label="Fewer"><svg class="ha-icon" aria-hidden="true"><use href="icons.svg#i-minus"/></svg></button>
+            <output>1</output>
+            <button type="button" data-step="1" aria-label="More"><svg class="ha-icon" aria-hidden="true"><use href="icons.svg#i-plus"/></svg></button>
+          </div></div></li>
+      </ul>
+      <p class="ha-section-footer">Changes save as you make them.</p>
+    </section>
+    <div class="ha-btn-stack">
+      <button type="button" class="ha-btn ha-btn--secondary ha-btn--block" id="item-shop"><svg class="ha-icon" aria-hidden="true"><use href="icons.svg#i-cart"/></svg>Add to shopping list</button>
+      <button type="button" class="ha-btn ha-btn--danger ha-btn--block" id="item-remove"><svg class="ha-icon" aria-hidden="true"><use href="icons.svg#i-trash"/></svg>Remove from pantry</button>
+    </div>
+  </section>
+
+  <!-- ===== Shopping ===== -->
+  <section class="ha-screen" data-screen="shop" aria-labelledby="t-shop" hidden>
+    <h1 class="ha-large-title" id="t-shop">Shopping</h1>
+    <fieldset class="ha-segmented">
+      <legend>Show</legend>
+      <label class="ha-seg"><input type="radio" name="shopview" value="buy" checked><span>To buy</span></label>
+      <label class="ha-seg"><input type="radio" name="shopview" value="bought"><span>Bought</span></label>
+    </fieldset>
+    <div id="shop-buy">
+      <p class="ha-progress-label"><span>Bought this trip</span><span class="ha-num" id="shop-progress-text"></span></p>
+      <progress class="ha-progress" id="shop-progress" max="1" value="0" aria-label="Bought this trip"></progress>
+      <section class="ha-section" aria-labelledby="h-shop" style="margin-top:var(--home-s5)">
+        <h2 class="ha-section-header" id="h-shop">List</h2>
+        <ul class="ha-list" id="shop"></ul>
+        <p class="ha-section-footer">Tick things off as you shop. The bin removes a line.</p>
+      </section>
+    </div>
+    <div id="shop-bought" hidden>
+      <div class="ha-empty">
+        <span class="ha-empty-icon"><svg class="ha-icon" aria-hidden="true"><use href="icons.svg#i-cart"/></svg></span>
+        <p class="ha-empty-title">Nothing bought yet</p>
+        <p class="ha-empty-text">Things you tick off on the list show here until the next trip.</p>
+        <button type="button" class="ha-btn ha-btn--secondary" id="back-to-list">Go to the list</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== Kit: every component ===== -->
+  <section class="ha-screen" data-screen="kit" aria-labelledby="t-kit" hidden>
+    <h1 class="ha-large-title" id="t-kit">Kit</h1>
+    <p class="ha-large-sub">Every component, working. DESIGN-APP.md explains each one.</p>
+
+    <section class="ha-section" aria-labelledby="k-btn">
+      <h2 class="ha-section-header" id="k-btn">Buttons</h2>
+      <div class="demo-pad">
+        <div class="ha-btn-stack">
+          <button type="button" class="ha-btn ha-btn--primary ha-btn--block">Primary</button>
+          <button type="button" class="ha-btn ha-btn--secondary ha-btn--block">Secondary</button>
+          <button type="button" class="ha-btn ha-btn--outline ha-btn--block">Outline</button>
+        </div>
+        <div class="ha-btn-row">
+          <button type="button" class="ha-btn ha-btn--plain">Plain</button>
+          <button type="button" class="ha-btn ha-btn--danger">Delete</button>
+        </div>
+        <div class="demo-wrap">
+          <button type="button" class="ha-btn ha-btn--compact">Compact</button>
+          <button type="button" class="ha-btn ha-btn--small">Small</button>
+          <button type="button" class="ha-btn ha-btn--secondary ha-btn--icon" aria-label="Share"><svg class="ha-icon" aria-hidden="true"><use href="icons.svg#i-share"/></svg></button>
+          <button type="button" class="ha-btn ha-btn--compact" disabled>Disabled</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="ha-section" aria-labelledby="k-float">
+      <h2 class="ha-section-header" id="k-float">Sheets and toasts</h2>
+      <ul class="ha-list">
+        <li><button type="button" class="ha-row" id="demo-sheet"><span class="ha-row-icon"><svg class="ha-icon" aria-hidden="true"><use href="icons.svg#i-list"/></svg></span><span class="ha-row-body"><span class="ha-row-title">Open a sheet</span></span><svg class="ha-icon ha-row-chevron" aria-hidden="true"><use href="icons.svg#i-chevron-right"/></svg></button></li>
+        <li><button type="button" class="ha-row" id="demo-sheet-large"><span class="ha-row-icon"><svg class="ha-icon" aria-hidden="true"><use href="icons.svg#i-list"/></svg></span><span class="ha-row-body"><span class="ha-row-title">Open a large sheet</span></span><svg class="ha-icon ha-row-chevron" aria-hidden="true"><use href="icons.svg#i-chevron-right"/></svg></button></li>
+        <li><button type="button" class="ha-row" id="demo-confirm"><span class="ha-row-icon ha-row-icon--bad"><svg class="ha-icon" aria-hidden="true"><use href="icons.svg#i-alert"/></svg></span><span class="ha-row-body"><span class="ha-row-title">Ask a yes/no question</span></span><svg class="ha-icon ha-row-chevron" aria-hidden="true"><use href="icons.svg#i-chevron-right"/></svg></button></li>
+        <li><button type="button" class="ha-row" id="demo-toast"><span class="ha-row-icon ha-row-icon--grey"><svg class="ha-icon" aria-hidden="true"><use href="icons.svg#i-info"/></svg></span><span class="ha-row-body"><span class="ha-row-title">Show a toast</span></span></button></li>
+        <li><button type="button" class="ha-row" id="demo-toast-undo"><span class="ha-row-icon ha-row-icon--grey"><svg class="ha-icon" aria-hidden="true"><use href="icons.svg#i-trash"/></svg></span><span class="ha-row-body"><span class="ha-row-title">Show a toast with Undo</span></span></button></li>
+      </ul>
+    </section>
+
+    <section class="ha-section" aria-labelledby="k-ctl">
+      <h2 class="ha-section-header" id="k-ctl">Controls</h2>
+      <fieldset class="ha-segmented">
+        <legend>Sort by</legend>
+        <label class="ha-seg"><input type="radio" name="sort" value="date" checked><span>Use by</span></label>
+        <label class="ha-seg"><input type="radio" name="sort" value="name"><span>Name</span></label>
+        <label class="ha-seg"><input type="radio" name="sort" value="place"><span>Place</span></label>
+      </fieldset>
+      <ul class="ha-list">
+        <li><label class="ha-row"><span class="ha-row-body"><span class="ha-row-title">Switch</span></span><input type="checkbox" role="switch" class="ha-switch" checked></label></li>
+        <li><div class="ha-row"><span class="ha-row-body"><span class="ha-row-title" id="k-step-l">Stepper</span></span>
+          <div class="ha-stepper" role="group" aria-labelledby="k-step-l" id="k-step"><button type="button" data-step="-1" aria-label="Fewer"><svg class="ha-icon" aria-hidden="true"><use href="icons.svg#i-minus"/></svg></button><output>2</output><button type="button" data-step="1" aria-label="More"><svg class="ha-icon" aria-hidden="true"><use href="icons.svg#i-plus"/></svg></button></div></div></li>
+        <li><label class="ha-row"><input type="checkbox" checked><span class="ha-row-body"><span class="ha-row-title">Checkbox row</span></span></label></li>
+        <li><label class="ha-row"><input type="radio" name="k-radio" checked><span class="ha-row-body"><span class="ha-row-title">Radio row, picked</span></span></label></li>
+        <li><label class="ha-row"><input type="radio" name="k-radio"><span class="ha-row-body"><span class="ha-row-title">Radio row</span></span></label></li>
+      </ul>
+      <div class="ha-chips" role="group" aria-label="Example chips">
+        <button type="button" class="ha-chip" aria-pressed="true">Vegetarian</button>
+        <button type="button" class="ha-chip" aria-pressed="false">Quick</button>
+        <button type="button" class="ha-chip" aria-pressed="false">Leftovers <span class="ha-chip-count">4</span></button>
+        <button type="button" class="ha-chip" aria-pressed="false">Baking</button>
+        <button type="button" class="ha-chip" aria-pressed="false">Snacks</button>
+      </div>
+    </section>
+
+    <section class="ha-section" aria-labelledby="k-badge">
+      <h2 class="ha-section-header" id="k-badge">Badges and pills</h2>
+      <div class="demo-pad demo-wrap">
+        <span class="ha-badge ha-badge--bad">Expired</span>
+        <span class="ha-badge ha-badge--warn">2 days</span>
+        <span class="ha-badge ha-badge--ok">Fresh</span>
+        <span class="ha-badge ha-badge--accent">New</span>
+        <span class="ha-badge">Frozen</span>
+        <span class="ha-pill">3 of 7</span>
+      </div>
+    </section>
+
+    <section class="ha-section" aria-labelledby="k-field">
+      <h2 class="ha-section-header" id="k-field">Fields</h2>
+      <div class="demo-pad">
+        <label class="ha-field"><span class="ha-field-label">Text</span><input class="ha-input" type="text" placeholder="For example, oat milk"></label>
+        <label class="ha-field"><span class="ha-field-label">Select</span><select class="ha-select"><option>Fridge</option><option>Freezer</option><option>Cupboard</option></select></label>
+        <label class="ha-field"><span class="ha-field-label">Date</span><input class="ha-input" type="date" value="2026-10-20"></label>
+        <label class="ha-field"><span class="ha-field-label">Note</span><textarea class="ha-input" rows="3" placeholder="Anything to remember"></textarea></label>
+        <label class="ha-field" style="margin-bottom:0"><span class="ha-field-label">With an error</span><input class="ha-input" type="text" value="" aria-invalid="true" aria-describedby="k-err">
+          <span class="ha-field-error" id="k-err"><svg class="ha-icon" aria-hidden="true"><use href="icons.svg#i-alert"/></svg>Give it a name</span></label>
+      </div>
+    </section>
+
+    <section class="ha-section" aria-labelledby="k-prog">
+      <h2 class="ha-section-header" id="k-prog">Progress and charts</h2>
+      <div class="demo-pad">
+        <p class="ha-progress-label"><span>Syncing</span><span class="ha-num">60%</span></p>
+        <progress class="ha-progress" max="100" value="60" aria-label="Syncing"></progress>
+        <p class="ha-progress-label" style="margin-top:var(--home-s4)"><span>All bought</span><span class="ha-num">100%</span></p>
+        <progress class="ha-progress ha-progress--ok" max="100" value="100" aria-label="All bought"></progress>
+        <p class="ha-small ha-muted" style="margin:var(--home-s5) 0 var(--home-s2)" id="k-cols-l">Items used each day this week</p>
+        <ul class="ha-cols" aria-labelledby="k-cols-l">
+          <li class="ha-col"><span class="ha-col-value">4</span><span class="ha-col-bar" style="--v:40%"></span><span>Mon</span></li>
+          <li class="ha-col"><span class="ha-col-value">6</span><span class="ha-col-bar" style="--v:60%"></span><span>Tue</span></li>
+          <li class="ha-col"><span class="ha-col-value">3</span><span class="ha-col-bar" style="--v:30%"></span><span>Wed</span></li>
+          <li class="ha-col"><span class="ha-col-value">8</span><span class="ha-col-bar" style="--v:80%"></span><span>Thu</span></li>
+          <li class="ha-col is-current"><span class="ha-col-value">5</span><span class="ha-col-bar" style="--v:50%"></span><span>Fri<span class="ha-sr"> (today)</span></span></li>
+          <li class="ha-col"><span class="ha-col-value">0</span><span class="ha-col-bar" style="--v:0%"></span><span>Sat</span></li>
+          <li class="ha-col"><span class="ha-col-value">0</span><span class="ha-col-bar" style="--v:0%"></span><span>Sun</span></li>
+        </ul>
+      </div>
+    </section>
+
+    <section class="ha-section" aria-labelledby="k-card">
+      <h2 class="ha-section-header" id="k-card">Card</h2>
+      <div class="ha-card">
+        <p class="ha-card-kicker">This week</p>
+        <h3 class="ha-card-title">Two things to use up</h3>
+        <p class="ha-card-text">Spinach and yoghurt are close to their dates. Plan a meal around them.</p>
+        <div class="ha-card-actions"><button type="button" class="ha-btn ha-btn--secondary ha-btn--compact">See them</button></div>
+      </div>
+      <div class="ha-panel">A panel: a quiet note inside a screen.</div>
+    </section>
+
+    <section class="ha-section" aria-labelledby="k-load">
+      <h2 class="ha-section-header" id="k-load">Loading</h2>
+      <ul class="ha-list" aria-busy="true" aria-label="Loading example">
+        <li><div class="ha-row"><span class="ha-skeleton ha-skeleton--thumb"></span><span class="ha-row-body"><span class="ha-skeleton ha-skeleton--line"></span><span class="ha-skeleton ha-skeleton--short"></span></span></div></li>
+        <li><div class="ha-row"><span class="ha-skeleton ha-skeleton--thumb"></span><span class="ha-row-body"><span class="ha-skeleton ha-skeleton--line"></span><span class="ha-skeleton ha-skeleton--short"></span></span></div></li>
+      </ul>
+    </section>
+
+    <section class="ha-section" aria-labelledby="k-empty">
+      <h2 class="ha-section-header" id="k-empty">Empty state</h2>
+      <div class="ha-card ha-empty">
+        <span class="ha-empty-icon"><svg class="ha-icon" aria-hidden="true"><use href="icons.svg#i-box"/></svg></span>
+        <p class="ha-empty-title">No items yet</p>
+        <p class="ha-empty-text">Add what is in the fridge and cupboards to start.</p>
+        <button type="button" class="ha-btn ha-btn--primary" data-open-add>Add an item</button>
+      </div>
+    </section>
+
+    <section class="ha-section" aria-labelledby="k-icons">
+      <h2 class="ha-section-header" id="k-icons">Icons</h2>
+      <ul class="demo-grid" id="icon-grid"></ul>
+    </section>
+  </section>
+
+  <!-- ===== Settings ===== -->
+  <section class="ha-screen" data-screen="settings" aria-labelledby="t-settings" hidden>
+    <h1 class="ha-large-title" id="t-settings">Settings</h1>
+    <section class="ha-section" aria-labelledby="s-remind">
+      <h2 class="ha-section-header" id="s-remind">Reminders</h2>
+      <ul class="ha-list">
+        <li><label class="ha-row"><span class="ha-row-icon"><svg class="ha-icon" aria-hidden="true"><use href="icons.svg#i-bell"/></svg></span><span class="ha-row-body"><span class="ha-row-title">Use-by reminders</span></span><input type="checkbox" role="switch" class="ha-switch" checked></label></li>
+        <li><button type="button" class="ha-row" id="remind-when"><span class="ha-row-icon"><svg class="ha-icon" aria-hidden="true"><use href="icons.svg#i-clock"/></svg></span><span class="ha-row-body"><span class="ha-row-title">Remind me</span></span><span class="ha-row-value" id="remind-value">2 days before</span><svg class="ha-icon ha-row-chevron" aria-hidden="true"><use href="icons.svg#i-chevron-right"/></svg></button></li>
+      </ul>
+      <p class="ha-section-footer">Reminders come once a day, in the morning.</p>
+    </section>
+    <section class="ha-section" aria-labelledby="s-home">
+      <h2 class="ha-section-header" id="s-home">Household</h2>
+      <ul class="ha-list">
+        <li><a class="ha-row" href="#/kit"><span class="ha-row-icon"><svg class="ha-icon" aria-hidden="true"><use href="icons.svg#i-users"/></svg></span><span class="ha-row-body"><span class="ha-row-title">People</span><span class="ha-row-sub">Who can see and change the pantry</span></span><span class="ha-row-value">3</span><svg class="ha-icon ha-row-chevron" aria-hidden="true"><use href="icons.svg#i-chevron-right"/></svg></a></li>
+        <li><button type="button" class="ha-row ha-row--action" id="export"><span class="ha-row-body"><span class="ha-row-title">Export as CSV</span></span></button></li>
+        <li><button type="button" class="ha-row ha-row--danger" id="clear"><span class="ha-row-body"><span class="ha-row-title">Clear all items</span></span></button></li>
+      </ul>
+    </section>
+    <div id="version"></div>
+  </section>
+</main>
+
+<nav class="ha-tabbar" aria-label="Tabs">
+  <div class="ha-tabbar-inner">
+    <a class="ha-tab" href="#/"><span class="ha-tab-icon"><svg class="ha-icon" aria-hidden="true"><use href="icons.svg#i-home"/></svg></span><span class="ha-tab-label">Pantry</span></a>
+    <a class="ha-tab" href="#/shop"><span class="ha-tab-icon"><svg class="ha-icon" aria-hidden="true"><use href="icons.svg#i-cart"/></svg><span class="ha-tab-badge" id="shop-badge" aria-hidden="true"></span></span><span class="ha-tab-label">Shopping</span><span class="ha-sr" id="shop-sr"></span></a>
+    <button type="button" class="ha-tab ha-tab--action" data-open-add><span class="ha-tab-icon"><svg class="ha-icon" aria-hidden="true"><use href="icons.svg#i-plus"/></svg></span><span class="ha-tab-label">Add item</span></button>
+    <a class="ha-tab" href="#/kit"><span class="ha-tab-icon"><svg class="ha-icon" aria-hidden="true"><use href="icons.svg#i-box"/></svg></span><span class="ha-tab-label">Kit</span></a>
+    <a class="ha-tab" href="#/settings"><span class="ha-tab-icon"><svg class="ha-icon" aria-hidden="true"><use href="icons.svg#i-settings"/></svg></span><span class="ha-tab-label">Settings</span></a>
+  </div>
+</nav>
+
+<script type="module">
+import { haRouter, haGo, haBack, haSheet, haCloseSheet, haConfirm, haToast, haStepper, haVersion, haIcon, haEsc, haAnnounce } from './app.js';
+
+// made-up sample data (never real household data in this public repo)
+const items = [
+  { id: 'milk', name: 'Oat milk', place: 'Fridge', qty: 1, status: 'bad', due: 'Expired' },
+  { id: 'spinach', name: 'Baby spinach', place: 'Fridge', qty: 1, status: 'warn', due: '2 days' },
+  { id: 'yoghurt', name: 'Greek yoghurt', place: 'Fridge', qty: 2, status: 'warn', due: '3 days' },
+  { id: 'eggs', name: 'Eggs', place: 'Fridge', qty: 8, status: 'ok', due: 'Fresh' },
+  { id: 'peas', name: 'Frozen peas', place: 'Freezer', qty: 2, status: 'ok', due: 'Fresh' },
+  { id: 'dumplings', name: 'Dumplings', place: 'Freezer', qty: 1, status: 'ok', due: 'Fresh' },
+  { id: 'rice', name: 'Basmati rice', place: 'Cupboard', qty: 1, status: 'ok', due: 'Fresh' },
+  { id: 'oats', name: 'Rolled oats', place: 'Cupboard', qty: 1, status: 'ok', due: 'Fresh' },
+];
+let shop = [
+  { id: 's1', name: 'Bananas', note: '6', done: true },
+  { id: 's2', name: 'Bread', note: 'Wholemeal', done: false },
+  { id: 's3', name: 'Oat milk', note: '2 cartons', done: false },
+  { id: 's4', name: 'Tomatoes', note: '', done: false },
+  { id: 's5', name: 'Washing-up liquid', note: '', done: false },
+];
+const placeIcon = { Fridge: 'box', Freezer: 'box', Cupboard: 'box' };
+const ICON = n => `<svg class="ha-icon" aria-hidden="true"><use href="icons.svg#i-${n}"/></svg>`;
+const statusText = { bad: 'Expired', warn: 'Use soon', ok: 'Fresh' };
+const badge = it => `<span class="ha-badge ha-badge--${it.status}">${haEsc(it.due)}</span>`;
+
+// ---- home ----
+let filter = '', query = '';
+function drawHome() {
+  const q = query.trim().toLowerCase();
+  const list = items.filter(it => (!filter || it.place === filter) && (!q || it.name.toLowerCase().includes(q)));
+  const order = { bad: 0, warn: 1, ok: 2 };
+  list.sort((a, b) => order[a.status] - order[b.status]);
+  document.getElementById('items').innerHTML = list.map(it => `<li><a class="ha-row" href="#/item/${it.id}">
+    <span class="ha-row-thumb">${ICON(placeIcon[it.place])}</span>
+    <span class="ha-row-body"><span class="ha-row-title">${haEsc(it.name)}</span><span class="ha-row-sub">${it.place} · ${it.qty} left</span></span>
+    <span class="ha-row-trail">${badge(it)}<span class="ha-sr">, ${statusText[it.status]}</span></span>${ICON('chevron-right').replace('ha-icon', 'ha-icon ha-row-chevron')}</a></li>`).join('');
+  document.getElementById('items').hidden = !list.length;
+  document.getElementById('items-empty').hidden = !!list.length;
+  document.getElementById('items-count').textContent = list.length;
+  document.getElementById('stat-items').textContent = items.length;
+  document.getElementById('stat-soon').textContent = items.filter(i => i.status === 'warn').length;
+  document.getElementById('stat-expired').textContent = items.filter(i => i.status === 'bad').length;
+  for (const c of document.querySelectorAll('[data-count]')) c.textContent = items.filter(i => !c.dataset.count || i.place === c.dataset.count).length;
+}
+document.getElementById('search').addEventListener('input', e => { query = e.target.value; drawHome(); });
+document.querySelector('.ha-search-clear').addEventListener('click', () => { const s = document.getElementById('search'); s.value = ''; query = ''; drawHome(); s.focus(); });
+document.getElementById('filters').addEventListener('click', e => {
+  const c = e.target.closest('.ha-chip'); if (!c) return;
+  for (const o of document.querySelectorAll('#filters .ha-chip')) o.setAttribute('aria-pressed', String(o === c));
+  filter = c.dataset.place; drawHome();
+});
+// any other chip group toggles on and off
+document.addEventListener('click', e => {
+  const c = e.target.closest('.ha-chip'); if (!c || c.closest('#filters')) return;
+  c.setAttribute('aria-pressed', String(c.getAttribute('aria-pressed') !== 'true'));
+});
+
+// ---- item ----
+let itemId = null;
+const qty = haStepper(document.getElementById('item-qty'), { min: 0, max: 50, onChange: v => { const it = items.find(i => i.id === itemId); if (it) it.qty = v; } });
+function drawItem(id) {
+  const it = items.find(i => i.id === id);
+  if (!it) { haGo('#/', { replace: true, nav: 'pop' }); return false; }
+  itemId = id;
+  document.getElementById('t-item').textContent = it.name;
+  document.getElementById('item-sub').textContent = `${statusText[it.status]} · ${it.place}`;
+  document.getElementById('item-place').textContent = it.place;
+  document.getElementById('item-badge').innerHTML = badge(it);
+  qty.set(it.qty);
+  return it;
+}
+document.getElementById('item-remove').addEventListener('click', async () => {
+  const i = items.findIndex(x => x.id === itemId), it = items[i];
+  if (!it || !(await haConfirm({ title: `Remove ${it.name}?`, text: 'It comes off the pantry list. You can undo this for a few seconds.', ok: 'Remove', danger: true }))) return;
+  items.splice(i, 1);
+  haBack('#/');
+  haToast(`${it.name} removed`, { action: 'Undo', onAction: () => { items.splice(i, 0, it); drawHome(); haAnnounce(`${it.name} is back`); } });
+});
+document.getElementById('item-shop').addEventListener('click', () => {
+  const it = items.find(x => x.id === itemId);
+  shop.push({ id: 's' + Date.now(), name: it.name, note: '', done: false }); drawShop();
+  haToast(`${it.name} added to the shopping list`);
+});
+
+// ---- shopping ----
+function drawShop() {
+  const ul = document.getElementById('shop');
+  ul.innerHTML = shop.map(s => `<li><label class="ha-row${s.done ? ' is-done' : ''}">
+    <input type="checkbox" data-id="${s.id}"${s.done ? ' checked' : ''}>
+    <span class="ha-row-body"><span class="ha-row-title">${haEsc(s.name)}</span>${s.note ? `<span class="ha-row-sub">${haEsc(s.note)}</span>` : ''}</span>
+    <button type="button" class="ha-btn ha-btn--quiet ha-btn--icon" data-del="${s.id}" aria-label="Remove ${haEsc(s.name)}">${ICON('trash')}</button></label></li>`).join('');
+  const done = shop.filter(s => s.done).length, p = document.getElementById('shop-progress');
+  p.max = Math.max(1, shop.length); p.value = done;
+  document.getElementById('shop-progress-text').textContent = `${done} of ${shop.length}`;
+  const left = shop.length - done, b = document.getElementById('shop-badge');
+  b.textContent = left; b.hidden = !left;
+  document.getElementById('shop-sr').textContent = left ? `, ${left} to buy` : '';
+}
+document.getElementById('shop').addEventListener('change', e => {
+  const s = shop.find(x => x.id === e.target.dataset.id); if (!s) return;
+  s.done = e.target.checked; drawShop();
+});
+document.getElementById('shop').addEventListener('click', e => {
+  const b = e.target.closest('[data-del]'); if (!b) return;
+  e.preventDefault();
+  const i = shop.findIndex(x => x.id === b.dataset.del), s = shop[i];
+  shop.splice(i, 1); drawShop();
+  haToast(`${s.name} removed`, { action: 'Undo', onAction: () => { shop.splice(i, 0, s); drawShop(); } });
+});
+for (const r of document.querySelectorAll('input[name="shopview"]')) r.addEventListener('change', () => {
+  const bought = document.querySelector('input[name="shopview"]:checked').value === 'bought';
+  document.getElementById('shop-buy').hidden = bought; document.getElementById('shop-bought').hidden = !bought;
+});
+document.getElementById('back-to-list').addEventListener('click', () => { const r = document.querySelector('input[name="shopview"][value="buy"]'); r.checked = true; r.dispatchEvent(new Event('change')); });
+
+// ---- add sheet (the centre tab) ----
+function openAdd() {
+  const s = haSheet({
+    title: 'Add item', closeLabel: 'Cancel', detent: 'large', grey: true,
+    body: `<form id="add-form" novalidate>
+      <label class="ha-field"><span class="ha-field-label">Name</span><input class="ha-input" name="name" required autocomplete="off" placeholder="For example, basmati rice" aria-describedby="add-err"></label>
+      <p class="ha-field-error" id="add-err" hidden>${ICON('alert')}Give it a name</p>
+      <label class="ha-field"><span class="ha-field-label">Place</span><select class="ha-select" name="place"><option>Fridge</option><option>Freezer</option><option selected>Cupboard</option></select></label>
+      <label class="ha-field"><span class="ha-field-label">Use by</span><input class="ha-input" type="date" name="due"></label>
+      <fieldset class="ha-segmented"><legend>Counted in</legend>
+        <label class="ha-seg"><input type="radio" name="unit" value="items" checked><span>Items</span></label>
+        <label class="ha-seg"><input type="radio" name="unit" value="packs"><span>Packs</span></label>
+        <label class="ha-seg"><input type="radio" name="unit" value="kg"><span>Kilos</span></label></fieldset>
+      <ul class="ha-list"><li><div class="ha-row"><span class="ha-row-body"><span class="ha-row-title" id="add-qty-l">Quantity</span></span>
+        <div class="ha-stepper" role="group" aria-labelledby="add-qty-l" id="add-qty"><button type="button" data-step="-1" aria-label="Fewer">${ICON('minus')}</button><output>1</output><button type="button" data-step="1" aria-label="More">${ICON('plus')}</button></div></div></li></ul>
+      <div class="ha-btn-row" style="margin-top:var(--home-s4)"><button type="button" class="ha-btn ha-btn--secondary" id="add-scan">${ICON('barcode')}Scan</button><button type="button" class="ha-btn ha-btn--secondary" id="add-photo">${ICON('camera')}Photo</button></div>
+    </form>`,
+    footer: `<button type="submit" form="add-form" class="ha-btn ha-btn--primary ha-btn--block">Add to pantry</button>`,
+  });
+  const f = s.el.querySelector('#add-form'), q = haStepper(s.el.querySelector('#add-qty'), { min: 1, max: 99 });
+  for (const id of ['add-scan', 'add-photo']) s.el.querySelector('#' + id).addEventListener('click', () => haToast('The camera opens here in a real app'));
+  f.addEventListener('submit', e => {
+    e.preventDefault();
+    const name = f.name.value.trim();
+    if (!name) { f.name.setAttribute('aria-invalid', 'true'); s.el.querySelector('#add-err').hidden = false; f.name.focus(); return; }
+    const it = { id: 'i' + Date.now(), name, place: f.place.value, qty: q.get(), status: 'ok', due: 'Fresh' };
+    items.push(it); drawHome();
+    haCloseSheet(s.el);
+    haToast(`${name} added`, { action: 'Undo', onAction: () => { items.splice(items.indexOf(it), 1); drawHome(); } });
+  });
+}
+document.addEventListener('click', e => { if (e.target.closest('[data-open-add]')) openAdd(); });
+
+// ---- kit demos ----
+document.getElementById('demo-sheet').addEventListener('click', () => haSheet({ title: 'A sheet', body: '<p class="ha-text">Sheets slide up for short tasks: pick, add, confirm. Drag the top down, tap outside, press Escape or go back to close it.</p>', footer: '<button type="button" class="ha-btn ha-btn--primary ha-btn--block" data-ha-close>Got it</button>' }));
+document.getElementById('demo-sheet-large').addEventListener('click', () => haSheet({ title: 'A large sheet', detent: 'large', grey: true, body: `<section class="ha-section"><h3 class="ha-section-header">Rows inside a sheet</h3><ul class="ha-list">${['Fridge', 'Freezer', 'Cupboard', 'Spice rack', 'Garage shelf'].map(p => `<li><label class="ha-row"><input type="radio" name="pl"${p === 'Fridge' ? ' checked' : ''}><span class="ha-row-body"><span class="ha-row-title">${p}</span></span></label></li>`).join('')}</ul></section>` }));
+document.getElementById('demo-confirm').addEventListener('click', async () => haToast((await haConfirm({ title: 'Delete the list?', text: 'This removes every line on the shopping list.', ok: 'Delete', danger: true })) ? 'You chose Delete' : 'You chose Cancel'));
+document.getElementById('demo-toast').addEventListener('click', () => haToast('Saved'));
+document.getElementById('demo-toast-undo').addEventListener('click', () => haToast('Bread removed', { action: 'Undo', onAction: () => haToast('Bread is back') }));
+haStepper(document.getElementById('k-step'), { min: 0, max: 10 });
+document.getElementById('icon-grid').innerHTML = ['home', 'list', 'plus', 'minus', 'cart', 'settings', 'search', 'camera', 'barcode', 'check', 'close', 'chevron-right', 'chevron-left', 'trash', 'edit', 'share', 'calendar', 'clock', 'box', 'bell', 'user', 'users', 'info', 'alert']
+  .map(n => `<li>${haIcon(n)}<span>${n}</span></li>`).join('');
+
+// ---- settings ----
+const remindOpts = ['On the day', '1 day before', '2 days before', 'A week before'];
+document.getElementById('remind-when').addEventListener('click', () => {
+  const cur = document.getElementById('remind-value').textContent;
+  const s = haSheet({ title: 'Remind me', grey: true, body: `<ul class="ha-list">${remindOpts.map(o => `<li><label class="ha-row"><input type="radio" name="remind" value="${o}"${o === cur ? ' checked' : ''}><span class="ha-row-body"><span class="ha-row-title">${o}</span></span></label></li>`).join('')}</ul>` });
+  s.el.addEventListener('change', e => { document.getElementById('remind-value').textContent = e.target.value; haCloseSheet(s.el); });
+});
+document.getElementById('export').addEventListener('click', () => haToast('An app would save a CSV file here'));
+document.getElementById('clear').addEventListener('click', async () => {
+  if (await haConfirm({ title: 'Clear all items?', text: 'This can’t be undone. (Nothing happens in this specimen.)', ok: 'Clear', danger: true })) haToast('Nothing was cleared: this is a specimen');
+});
+// The version lines, as every app with a service worker shows them. This specimen has no service worker, so it makes
+// a sample cache named like the deploy's (demo only) to show the first line.
+(async () => {
+  try { if ('caches' in window && !(await caches.keys()).some(k => k.startsWith('homedemo-'))) await caches.open('homedemo-2026-10-16-3f9a2c1d'); } catch { /* no cache storage */ }
+  haVersion(document.getElementById('version'), 'homedemo');
+})();
+
+// ---- the bar and the router ----
+const titles = { home: 'Pantry', shop: 'Shopping', kit: 'Kit', settings: 'Settings' };
+function setBar(screen, title) {
+  document.getElementById('bar-title').textContent = title;
+  document.getElementById('bar-lead').innerHTML = screen === 'item'
+    ? `<button type="button" class="ha-bar-btn ha-back" id="back">${ICON('chevron-left')}<span>Pantry</span></button>` : '';
+  document.getElementById('bar-trail').innerHTML = screen === 'home'
+    ? `<button type="button" class="ha-bar-btn" id="scan" aria-label="Scan a barcode">${ICON('barcode')}</button>`
+    : screen === 'item' ? `<button type="button" class="ha-bar-btn" id="edit">Edit</button>` : '';
+  document.getElementById('back')?.addEventListener('click', () => haBack('#/'));
+  document.getElementById('scan')?.addEventListener('click', () => haToast('The camera opens here in a real app'));
+  document.getElementById('edit')?.addEventListener('click', () => haToast('Editing opens a sheet in a real app'));
+}
+haRouter({
+  tabOf: route => route.parts[0] === 'item' ? '#/' : route.hash,   // an item belongs to the Pantry tab
+  render(route) {
+    let screen = route.parts[0] || 'home';
+    if (!['home', 'item', 'shop', 'kit', 'settings'].includes(screen)) screen = 'home';
+    let title = titles[screen];
+    if (screen === 'item') { const it = drawItem(route.parts[1]); if (!it) return; title = it.name; }
+    for (const s of document.querySelectorAll('.ha-screen')) s.hidden = s.dataset.screen !== screen;
+    setBar(screen, title);
+    document.title = `${title} · Home app kit`;
+  },
+});
+drawHome(); drawShop();
+</script>
+</body>
+</html>
