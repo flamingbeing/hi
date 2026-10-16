@@ -110,19 +110,44 @@ export function plainItem(it) {
 // from a copy that may be stale: two phones each using one unit make two `inc -1`s, and the server adds them.
 
 export const emptyOps = () => ({ set: {}, inc: {}, del: [] });
-export const opsEmpty = o => !o || (!Object.keys(o.set || {}).length && !Object.keys(o.inc || {}).length && !(o.del || []).length);
+// A fourth kind of instruction, for a map whose KEYS are data, not field names (16 Oct 2026, PR-C: names): `keyed` is
+// `{ <field>: { set: { key: value }, del: [key] } }`, e.g. `{ names: { set: { 'mum@example.com': 'Mum' }, del: [] } }`. A key is
+// taken whole, never split at its dots (an email has dots): cloud.js sends it as the field path ['names', key] (a Firestore
+// FieldPath), so one person's name is one field and two people naming themselves never overwrite each other.
+export const keyedOps = (field, { set = {}, del = [] } = {}) => ({ set: {}, inc: {}, del: [], keyed: { [field]: { set, del } } });
+const keyedEmpty = o => Object.values(o?.keyed || {}).every(k => !Object.keys(k.set || {}).length && !(k.del || []).length);
+export const opsEmpty = o => !o || (!Object.keys(o.set || {}).length && !Object.keys(o.inc || {}).length && !(o.del || []).length && keyedEmpty(o));
 export const opsPaths = o => [...Object.keys(o?.set || {}), ...Object.keys(o?.inc || {}), ...(o?.del || [])];
-// True when no path is the same as, or inside, another (Firestore refuses an update that overlaps itself).
+// True when no path is the same as, or inside, another (Firestore refuses an update that overlaps itself). A keyed field
+// counts as the path to the map (nothing else may touch it), and its own set and del keys must be different keys.
 export function opsValid(o) {
-  const ps = opsPaths(o);
+  const ps = opsPaths(o), kf = Object.keys(o?.keyed || {});
+  const all = [...ps, ...kf];
   return ps.every(p => typeof p === 'string' && p && !p.startsWith('.') && !p.endsWith('.'))
-    && !ps.some((p, i) => ps.some((q, j) => i !== j && (p === q || p.startsWith(q + '.'))));
+    && !all.some((p, i) => all.some((q, j) => i !== j && (p === q || p.startsWith(q + '.'))))
+    && kf.every(f => { const k = o.keyed[f], keys = [...Object.keys(k.set || {}), ...(k.del || [])]; return keys.every(x => typeof x === 'string' && x) && new Set(keys).size === keys.length; });
 }
 // Two sets of instructions as one (they must not overlap): Put away sets the place and adds the stock.
 export function mergeOps(...list) {
   const out = emptyOps();
-  for (const o of list) { if (!o) continue; Object.assign(out.set, o.set); Object.assign(out.inc, o.inc); out.del.push(...(o.del || [])); }
+  for (const o of list) {
+    if (!o) continue;
+    Object.assign(out.set, o.set); Object.assign(out.inc, o.inc); out.del.push(...(o.del || []));
+    for (const [f, k] of Object.entries(o.keyed || {})) {
+      const t = (out.keyed ||= {})[f] ||= { set: {}, del: [] };
+      Object.assign(t.set, k.set); t.del.push(...(k.del || []));
+    }
+  }
   return out;
+}
+// The keyed instructions done to a plain object (a map field of a document): never changes the one given.
+function applyKeyed(out, ops) {
+  for (const [f, k] of Object.entries(ops.keyed || {})) {
+    const m = { ...(out[f] && typeof out[f] === 'object' && !Array.isArray(out[f]) ? out[f] : {}) };
+    for (const [key, v] of Object.entries(k.set || {})) m[key] = v;
+    for (const key of k.del || []) delete m[key];
+    out[f] = m;
+  }
 }
 const split = p => p.split('.');
 function getPath(item, path) {
@@ -162,6 +187,7 @@ export function applyOps(item, ops = {}) {
     if (a === 'batches') { if (id && f === undefined) bm.delete(id); else if (id && bm.has(id)) delete bm.get(id)[f]; }
     else deep(path, (o, k) => { delete o[k]; });
   }
+  applyKeyed(out, ops);
   out.batches = [...bm.values()].sort((x, y) => (x.id < y.id ? -1 : x.id > y.id ? 1 : 0)).map(b => ({ ...b, qty: clampQty(b.qty) }));
   out._arr = false;
   return out;
@@ -235,12 +261,13 @@ export function liveEvents(events, items) {
   const gone = new Set((items || []).filter(isRemoved).map(i => i.id));
   return [...(events || [])].filter(e => !gone.has(e.itemId));
 }
-// What this phone's daily sweep deletes: items and shopping lines removed more than 30 days ago, oldest first, at most
-// `max` in all (so the cost of a day is bounded, however long nobody swept). { items: [docs], shop: [docs] }.
-export function sweepDue(items, shop, now = Date.now(), max = SWEEP_MAX) {
-  const due = [...(items || []).map(d => ({ k: 'items', d })), ...(shop || []).map(d => ({ k: 'shop', d }))]
+// What this phone's daily sweep deletes: items, shopping lines and places removed more than 30 days ago, oldest first, at most
+// `max` in all (so the cost of a day is bounded, however long nobody swept). { items: [docs], shop: [docs], places: [docs] }.
+export function sweepDue(items, shop, now = Date.now(), max = SWEEP_MAX, places = []) {
+  const due = [...(items || []).map(d => ({ k: 'items', d })), ...(shop || []).map(d => ({ k: 'shop', d })), ...(places || []).map(d => ({ k: 'places', d }))]
     .filter(x => expiredRemoval(x.d, now)).sort((a, b) => (a.d.removedAt < b.d.removedAt ? -1 : a.d.removedAt > b.d.removedAt ? 1 : a.d.id < b.d.id ? -1 : 1)).slice(0, max);
-  return { items: due.filter(x => x.k === 'items').map(x => x.d), shop: due.filter(x => x.k === 'shop').map(x => x.d) };
+  const of = k => due.filter(x => x.k === k).map(x => x.d);
+  return { items: of('items'), shop: of('shop'), places: of('places') };
 }
 
 // Instructions on a plain document (a shopping line): the same set / inc / del as applyOps, without batches. Never
@@ -255,6 +282,7 @@ export function applyFieldOps(doc, ops = {}) {
   for (const [p, v] of Object.entries(ops.set || {})) deep(p, (o, k) => { o[k] = v; });
   for (const [p, n] of Object.entries(ops.inc || {})) deep(p, (o, k) => { o[k] = (Number(o[k]) || 0) + n; });
   for (const p of ops.del || []) deep(p, (o, k) => { delete o[k]; });
+  applyKeyed(out, ops);
   return out;
 }
 
@@ -650,14 +678,14 @@ export function shareText(lines) {
 export function keepLive(data, now = Date.now()) {
   const items = dropExpired(data.items, now), have = new Set(items.map(i => i.id)), gone = new Set((data.items || []).filter(i => !have.has(i.id)).map(i => i.id));
   return {
-    ...data, items, shop: dropExpired(data.shop, now),
+    ...data, items, shop: dropExpired(data.shop, now), places: dropExpired(data.places, now),
     events: (data.events || []).filter(e => !gone.has(e.itemId)),
     photos: (data.photos || []).filter(p => !gone.has(p.id)),
   };
 }
 export function backup(data, at = new Date().toISOString()) {
   const d = keepLive(data, new Date(at).getTime() || Date.now());
-  return { app: 'pantry', v: 1, at, items: (d.items || []).map(plainItem), events: d.events || [], shop: d.shop || [], settings: d.settings || [], photos: d.photos || [] };
+  return { app: 'pantry', v: 1, at, items: (d.items || []).map(plainItem), events: d.events || [], shop: d.shop || [], places: d.places || [], settings: d.settings || [], photos: d.photos || [] };
 }
 // Reads a backup file's text. Returns { items, events, shop, settings, photos } with only well-formed documents, or throws a plain
 // message when the file is not a pantry backup.
@@ -667,10 +695,11 @@ export function parseBackup(text) {
   if (!j || j.app !== 'pantry' || typeof j !== 'object') throw new Error('That file is not a pantry backup.');
   const ok = o => o && typeof o === 'object' && typeof o.id === 'string' && o.id && !o.id.includes('/');
   const out = {};
-  for (const k of ['items', 'events', 'shop', 'settings', 'photos']) out[k] = Array.isArray(j[k]) ? j[k].filter(ok) : [];
+  for (const k of ['items', 'events', 'shop', 'places', 'settings', 'photos']) out[k] = Array.isArray(j[k]) ? j[k].filter(ok) : [];
+  out.places = out.places.filter(p => typeof p.name === 'string' && p.name.trim() && Number.isFinite(p.order));   // one document a place (16 Oct 2026); older backups have none
   out.items = out.items.map(plainItem);   // either shape of batches in, an array with ids out
-  { const k = keepLive(out); out.items = k.items; out.shop = k.shop; out.events = k.events; out.photos = k.photos; }   // removed more than 30 days ago: not brought back
-  out.settings = out.settings.filter(isPlacesDoc);   // only the list of places (older backups have none)
+  { const k = keepLive(out); out.items = k.items; out.shop = k.shop; out.events = k.events; out.photos = k.photos; out.places = k.places; }   // removed more than 30 days ago: not brought back
+  out.settings = out.settings.filter(isPlacesDoc);   // an older backup's one list of places (it becomes place documents when restored)
   out.photos = out.photos.filter(p => typeof p.data === 'string' && p.data.startsWith('data:image/'));
   return out;
 }

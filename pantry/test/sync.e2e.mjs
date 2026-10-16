@@ -10,6 +10,7 @@
 // Run: pantry/test/run-sync.sh
 import assert from 'node:assert/strict';
 import { serve } from './serve.mjs';
+import { placeId as Lgp } from '../js/places.js';
 const { chromium } = await import(process.env.PLAYWRIGHT_PATH || '/opt/node22/lib/node_modules/playwright/index.mjs');
 
 const srv = await serve();
@@ -34,7 +35,7 @@ const val = v => v === null ? { nullValue: null } : typeof v === 'string' ? { st
   : typeof v === 'boolean' ? { booleanValue: v } : Array.isArray(v) ? { arrayValue: { values: v.map(val) } } : { mapValue: { fields: fields(v) } };
 const fields = o => Object.fromEntries(Object.entries(o).map(([k, v]) => [k, val(v)]));
 const unval = v => 'stringValue' in v ? v.stringValue : 'booleanValue' in v ? v.booleanValue : 'integerValue' in v ? Number(v.integerValue)
-  : 'nullValue' in v ? null : 'arrayValue' in v ? (v.arrayValue.values || []).map(unval) : 'mapValue' in v ? unfields(v.mapValue.fields || {}) : undefined;
+  : 'doubleValue' in v ? v.doubleValue : 'nullValue' in v ? null : 'arrayValue' in v ? (v.arrayValue.values || []).map(unval) : 'mapValue' in v ? unfields(v.mapValue.fields || {}) : undefined;
 const unfields = f => Object.fromEntries(Object.entries(f).map(([k, v]) => [k, unval(v)]));
 const admin = {
   async put(path, o) { const r = await fetch(FS + path, { method: 'PATCH', headers: { Authorization: 'Bearer owner', 'content-type': 'application/json' }, body: JSON.stringify({ fields: fields(o) }) }); assert.ok(r.ok, 'seed ' + path); },
@@ -276,9 +277,14 @@ try {
   assert.equal(await dad.locator('[data-act="place-open"][data-v="Fridge"]').count(), 0, 'dad sees the rename');
   const dadSees = await dad.evaluate(() => [...window.__pantry.S.items.values()].filter(i => /fridge/i.test(i.location || '')).map(i => i.location));
   assert.ok(dadSees.length && dadSees.every(l => l === 'Kitchen fridge'), 'and his items moved with it: ' + dadSees.join(', '));
-  const saved = await admin.get(`households/${hid}/settings/places`);
-  assert.equal(saved.list[1], 'Kitchen fridge');
-  assert.deepEqual(Object.keys(saved).sort(), ['id', 'list', 'updatedAt']);
+  // (PR-C: every place is a document of its own; the first change wrote the defaults as documents, and the rename is one field)
+  const placeDocs = (await admin.list(`households/${hid}/places`)).sort((a, b) => a.order - b.order);
+  assert.deepEqual(placeDocs.map(d => d.name).slice(0, 3), ['Kitchen cabinet', 'Kitchen fridge', 'Level 1 fridge'], 'the defaults became place documents, the rename kept its position');
+  assert.equal(placeDocs.length, 11, 'one document each, none twice');
+  assert.deepEqual(Object.keys(placeDocs[1]).sort(), ['id', 'name', 'order', 'updatedAt']);
+  assert.equal(placeDocs[0].updatedAt, '1970-01-01T00:00:00.000Z', 'an untouched one still carries the migration time');
+  assert.notEqual(placeDocs[1].updatedAt, '1970-01-01T00:00:00.000Z', 'the renamed one has a real time');
+  assert.equal(await admin.get(`households/${hid}/settings/places`), null, 'the app no longer writes the old single list');
 
   // ---- names never hide anyone (owner report: after saving a name "the list of my family members disappeared") ----
   // three members on three phones each name themselves; after every save and after a reload each phone still lists
@@ -329,11 +335,281 @@ try {
 
   if (process.env.SHOTS) { await go(mum, '#/settings'); await mum.screenshot({ path: process.env.SHOTS + '/m06-family-after-names.png' }); }
 
-  // ---- stock changes are instructions: two phones never overwrite each other (online or not) ----
+  // ---- names and places are fields and documents: nothing one phone saved is lost by another (PR-C) ----
   const FSJS = 'https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js';
   const net = (p, on) => p.evaluate(async ([on, u]) => { const F = await import(u); const db = F.getFirestore(); await (on ? F.enableNetwork(db) : F.disableNetwork(db)); }, [on, FSJS]);
   const drain = p => p.evaluate(async u => { const F = await import(u); await F.waitForPendingWrites(F.getFirestore()); }, FSJS);
   const act = (p, name, ...args) => p.evaluate(([n, a]) => window.__pantry.act[n](...a), [name, args]);
+  const serverNames = async () => (await admin.get(`households/${hid}/settings/people`)).names;
+  const serverPlaces = async () => (await admin.list(`households/${hid}/places`)).sort((a, b) => a.order - b.order || (a.name < b.name ? -1 : 1));
+  const liveNames = async () => (await serverPlaces()).filter(d => !d.removedAt).map(d => d.name);
+  const shownPlaces = p => p.evaluate(() => window.__pantry.places());
+  const same = async (what, want) => {   // the server and both phones show the live places in this order
+    for (let i = 0; i < 30; i++) { await drain(mum); await drain(dad); if (JSON.stringify(await liveNames()) === JSON.stringify(want) && JSON.stringify(await shownPlaces(mum)) === JSON.stringify(want) && JSON.stringify(await shownPlaces(dad)) === JSON.stringify(want)) return; await mum.waitForTimeout(250); }
+    assert.deepEqual({ server: await liveNames(), mum: await shownPlaces(mum), dad: await shownPlaces(dad) }, { server: want, mum: want, dad: want }, what);
+  };
+  const serverPlaceId = name => admin.list(`households/${hid}/places`).then(l => l.find(d => d.name === name)?.id);
+  await admin.put(`households/${hid}/settings/people`, { id: 'people', names: { 'mum@example.com': 'Jun', 'dad@example.com': 'Dad', 'gran@example.com': 'Gran' }, updatedAt: 'x' });
+  await settle(mum); await settle(dad);
+
+  // names 1. both name themselves at once: both kept, and Gran's name too
+  await Promise.all([act(mum, 'namePerson', 'mum@example.com', 'Mummy'), act(dad, 'namePerson', 'dad@example.com', 'Daddy')]);
+  await drain(mum); await drain(dad);
+  assert.deepEqual(await serverNames(), { 'mum@example.com': 'Mummy', 'dad@example.com': 'Daddy', 'gran@example.com': 'Gran' }, 'both names kept, the third untouched');
+  // names 2. the same with Dad offline: his name goes up when the signal returns, Mum's was already there
+  await net(dad, false);
+  await act(dad, 'namePerson', 'dad@example.com', 'Dad again');
+  await act(mum, 'namePerson', 'mum@example.com', 'Mum again'); await drain(mum);
+  assert.equal((await serverNames())['mum@example.com'], 'Mum again'); assert.equal((await serverNames())['dad@example.com'], 'Daddy', 'Dad’s is still waiting');
+  await net(dad, true); await drain(dad);
+  assert.deepEqual(await serverNames(), { 'mum@example.com': 'Mum again', 'dad@example.com': 'Dad again', 'gran@example.com': 'Gran' }, 'offline name kept, Mum’s too');
+  for (const p of [mum, dad]) await p.waitForFunction(() => window.__pantry.S.settings.get('people').names['dad@example.com'] === 'Dad again' && window.__pantry.S.settings.get('people').names['mum@example.com'] === 'Mum again');
+  // names 3. one phone writes the field of a person whose email has dots (a FieldPath update, not a dotted string)
+  await act(mum, 'namePerson', 'ann.lee@example.com', 'Ann'); await drain(mum);
+  assert.equal((await serverNames())['ann.lee@example.com'], 'Ann', 'a dotted email is one field');
+  await act(mum, 'namePerson', 'ann.lee@example.com', ''); await drain(mum);
+  assert.ok(!('ann.lee@example.com' in await serverNames()) && (await serverNames())['dad@example.com'] === 'Dad again', 'cleared by itself');
+  assert.deepEqual(Object.keys(await admin.get(`households/${hid}/settings/people`)).sort(), ['id', 'names', 'updatedAt']);
+  // names 4. Mum names Gran while Dad, offline, stops sharing with her: Gran's name goes, the other names stay
+  await go(dad, '#/settings');
+  await net(dad, false);
+  await dad.click('#main [data-act="person"][data-v="gran@example.com"]'); await settle(dad);
+  await dad.click('dialog.ha-sheet[open] [data-pp="remove"]'); await settle(dad);
+  await dad.locator('dialog[open] button', { hasText: /^Stop sharing$/ }).last().click();   // (the app waits for the server: it can't, offline)
+  await act(mum, 'namePerson', 'gran@example.com', 'Granny'); await drain(mum);
+  assert.equal((await serverNames())['gran@example.com'], 'Granny', 'Mum’s save arrived while Dad was offline');
+  await net(dad, true);
+  for (let i = 0; i < 40 && 'gran@example.com' in (await serverNames()); i++) await dad.waitForTimeout(250);
+  assert.ok(!('gran@example.com' in await serverNames()), 'Gran’s name went with her');
+  assert.ok(!(await admin.get(`households/${hid}`)).members.includes('gran@example.com'), 'and she is out of the family');
+  assert.deepEqual(await serverNames(), { 'mum@example.com': 'Mum again', 'dad@example.com': 'Dad again' }, 'the others stay');
+  await dad.locator('.ha-toast', { hasText: 'Stopped sharing' }).waitFor();
+  await admin.put(`households/${hid}/settings/people`, { id: 'people', names: { 'mum@example.com': 'Jun', 'dad@example.com': 'Dad' }, updatedAt: 'x' });
+  for (const p of [mum, dad]) await p.waitForFunction(() => window.__pantry.S.settings.get('people').names['mum@example.com'] === 'Jun');
+
+  // places 1. both add a place at once, one of them offline: both kept, each once, in the same order on both phones
+  const before = await liveNames();
+  await net(dad, false);
+  await act(dad, 'addPlace', 'Shelf B');
+  await act(mum, 'addPlace', 'Shelf A'); await drain(mum);
+  await net(dad, true); await drain(dad);
+  await same('two places added at once', [...before, 'Shelf A', 'Shelf B']);
+  assert.equal((await serverPlaces()).filter(d => /^Shelf/.test(d.name)).length, 2);
+  // places 2. a rename on one phone while the other reorders the same place (offline): both kept
+  const idA = await serverPlaceId('Shelf A'), idB = await serverPlaceId('Shelf B');
+  await net(dad, false);
+  await act(dad, 'reorderPlace', idB, -1);   // Shelf B above Shelf A: one field of one document
+  await act(mum, 'renamePlace', idB, 'Shelf Bee'); await drain(mum);
+  await net(dad, true); await drain(dad);
+  await same('a rename and a reorder of the same place', [...before, 'Shelf Bee', 'Shelf A']);
+  const bDoc = (await serverPlaces()).find(d => d.id === idB);
+  assert.equal(bDoc.name, 'Shelf Bee'); assert.ok(bDoc.order < (await serverPlaces()).find(d => d.id === idA).order, 'renamed and moved');
+  assert.deepEqual(Object.keys(bDoc).sort(), ['id', 'name', 'order', 'updatedAt']);
+  // places 3. one phone removes a place while the other, offline, renames it: it stays hidden, and Restore shows the new name
+  await net(dad, false);
+  await act(dad, 'renamePlace', idA, 'Shelf Ay');
+  await act(mum, 'removePlace', idA); await drain(mum);
+  await net(dad, true); await drain(dad);
+  await same('removed while renamed elsewhere', [...before, 'Shelf Bee']);
+  const aDoc = (await serverPlaces()).find(d => d.id === idA);
+  assert.ok(aDoc.removedAt && aDoc.name === 'Shelf Ay', 'hidden, with the rename kept');
+  await go(mum, '#/removed');
+  await mum.locator('#pa-removed-places .ha-row', { hasText: 'Shelf Ay' }).waitFor();
+  await mum.locator('#pa-removed-places .ha-row', { hasText: 'Shelf Ay' }).locator('[data-act="restore"]').click(); await settle(mum);
+  await same('restored with the rename', [...before, 'Shelf Bee', 'Shelf Ay']);
+  assert.ok(!(await serverPlaces()).find(d => d.id === idA).removedAt, 'markers cleared');
+  // a restored place isn't brought back twice, and a removed one nobody restored never comes back
+  await act(dad, 'removePlace', idA); await drain(dad);
+  await act(mum, 'renamePlace', idA, 'Shelf Ay 2'); await drain(mum);
+  await same('removed, then renamed', [...before, 'Shelf Bee']);
+  // places 4. one phone renames a place (the app moves every item in it) while the other, offline, adds an item under the old name
+  await go(mum, '#/places');
+  await mum.locator('[data-act="place-open"][data-v="Shelf Bee"]').click(); await settle(mum);
+  await mum.fill('#pa-pl-name', 'Shelf Cee'); await mum.locator('#pa-pl-form button[type=submit]').click(); await settle(mum);
+  // (Dad's phone hasn't heard yet: he is offline and adds an item kept in "Level 1 freezer", which Mum renames at the same time)
+  await net(dad, false);
+  await go(dad, '#/add');
+  await dad.fill('#pa-form [name="name"]', 'Late ice cream');
+  await dad.selectOption('#pa-form [name="location"]', 'Level 1 freezer');
+  await dad.click('#pa-save'); await settle(dad);
+  await go(mum, '#/places');
+  await mum.locator('[data-act="place-open"][data-v="Level 1 freezer"]').click(); await settle(mum);
+  await mum.fill('#pa-pl-name', 'Cellar freezer'); await mum.locator('#pa-pl-form button[type=submit]').click(); await settle(mum);
+  await drain(mum);
+  await net(dad, true); await drain(dad);
+  await same('the rename', [...before.map(n => n === 'Level 1 freezer' ? 'Cellar freezer' : n), 'Shelf Cee']);
+  const late = (await admin.list(`households/${hid}/items`)).find(i => i.name === 'Late ice cream');
+  assert.equal(late.location, 'Level 1 freezer', 'the item added under the old name kept it (nothing moved it)');
+  for (const p of [mum, dad]) {
+    await go(p, '#/places');
+    await p.locator('#pa-places-other [data-act="place-open"][data-v="Level 1 freezer"]').waitFor();   // "Not in your list": the item is still found
+    assert.equal(await p.locator('#pa-places-other .ha-row', { hasText: 'Level 1 freezer' }).locator('.ha-row-value').textContent().then(t => t.replace(/\D+/g, '')), '1');
+  }
+  // and the way out of "Not in your list": move its items to the renamed place
+  await mum.locator('#pa-places-other [data-act="place-open"][data-v="Level 1 freezer"]').click(); await settle(mum);
+  await mum.locator('dialog.ha-sheet[open] [data-pl="remove"]').click(); await settle(mum);
+  await mum.selectOption('#pa-mv-to', 'Cellar freezer'); await mum.locator('#pa-mv-go').click(); await settle(mum); await drain(mum);
+  assert.equal((await admin.list(`households/${hid}/items`)).find(i => i.name === 'Late ice cream').location, 'Cellar freezer');
+  // the old phones keep writing the single list: the rules take it; new phones ignore it
+  const oldPhone = await dad.evaluate(async hid => {
+    const F = await import('https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js');
+    try { await F.setDoc(F.doc(F.getFirestore(), 'households', hid, 'settings', 'places'), { id: 'places', list: ['Old phone fridge', 'Old phone shed'], updatedAt: 'x' }); return 'ok'; } catch (e) { return e.code; }
+  }, hid);
+  assert.equal(oldPhone, 'ok', 'an older phone’s write of settings/places is accepted by the rules');
+  await settle(mum); await settle(dad);
+  assert.ok(!(await shownPlaces(mum)).includes('Old phone fridge') && !(await shownPlaces(dad)).includes('Old phone shed'), 'new phones ignore it');
+  await same('after the old phone wrote', [...before.map(n => n === 'Level 1 freezer' ? 'Cellar freezer' : n), 'Shelf Cee']);
+  await mum.evaluate(async hid => { const F = await import('https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js'); await F.deleteDoc(F.doc(F.getFirestore(), 'households', hid, 'settings', 'places')); }, hid);
+  assert.equal(await mum.evaluate(() => window.__pantry.S.refused.length) + await dad.evaluate(() => window.__pantry.S.refused.length), 0, 'nothing refused');
+
+  // places 5. two phones migrate from the old single list at once, one of them offline and behind: no duplicates, and
+  // what the first one changed is not overwritten when the second's copy of the old list arrives
+  await admin.put('households/migH', { name: 'Our pantry', owner: 'mig1@example.com', members: ['mig1@example.com', 'mig2@example.com'], createdAt: '2026-10-16T00:00:00.000Z' });
+  await admin.put('households/migH/settings/places', { id: 'places', list: ['Fridge', 'Freezer', 'Store room'], updatedAt: 'x' });
+  const mig1 = await person('mig1@example.com'), mig2 = await person('mig2@example.com');
+  for (const p of [mig1, mig2]) await p.waitForFunction(() => window.__pantry.S.household?.id === 'migH');
+  for (const p of [mig1, mig2]) assert.deepEqual(await shownPlaces(p), ['Fridge', 'Freezer', 'Store room'], 'an old list is shown as it is');
+  assert.equal((await admin.list('households/migH/places')).length, 0, 'nothing written just by looking');
+  await net(mig2, false);
+  await act(mig2, 'reorderPlace', Lgp('Freezer'), -1);   // Freezer to the top (the first change: it writes the documents)
+  await act(mig2, 'addPlace', 'Shed');
+  await act(mig1, 'renamePlace', Lgp('Fridge'), 'Big fridge'); await drain(mig1);   // mig1 is first: documents, then a rename
+  assert.equal((await admin.list('households/migH/places')).length, 3, 'mig1 made the three documents');
+  await net(mig2, true); await drain(mig2);
+  for (let i = 0; i < 30; i++) { if ((await admin.list('households/migH/places')).length === 4) break; await mig1.waitForTimeout(250); }
+  const mp = (await admin.list('households/migH/places')).sort((a, b) => a.order - b.order);
+  assert.deepEqual(mp.map(d => d.name), ['Freezer', 'Big fridge', 'Store room', 'Shed'], 'both changes kept; the rename was not overwritten by the late copy of the old list');
+  assert.equal(new Set(mp.map(d => d.id)).size, 4, 'no document twice');
+  for (const p of [mig1, mig2]) { await p.waitForFunction(() => window.__pantry.places().join() === 'Freezer,Big fridge,Store room,Shed'); assert.equal(await p.evaluate(() => window.__pantry.S.refused.length), 0, 'nothing refused'); }
+  // and the same at once, both online: the same documents, no duplicates
+  await admin.put('households/migI', { name: 'Our pantry', owner: 'mig3@example.com', members: ['mig3@example.com', 'mig4@example.com'], createdAt: '2026-10-16T00:00:00.000Z' });
+  const mig3 = await person('mig3@example.com'), mig4 = await person('mig4@example.com');
+  for (const p of [mig3, mig4]) await p.waitForFunction(() => window.__pantry.S.household?.id === 'migI');
+  await Promise.all([act(mig3, 'addPlace', 'Pantry shelf'), act(mig4, 'addPlace', 'Garage')]);
+  for (const p of [mig3, mig4]) await drain(p);
+  const ip = await admin.list('households/migI/places');
+  assert.equal(ip.length, 11 + 2, 'the eleven defaults once, plus the two new places');
+  assert.equal(new Set(ip.map(d => d.name.toLowerCase())).size, 13, 'no duplicates');
+  for (const p of [mig3, mig4]) await p.waitForFunction(() => window.__pantry.places().length === 13);
+
+  // ---- the rules for places and names ----
+  const placeRules2 = await mum.evaluate(async hid => {
+    const F = await import('https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js');
+    const db = F.getFirestore(), d = id => F.doc(db, 'households', hid, 'places', id);
+    const out = {};
+    const tryIt = async (name, fn) => { try { await fn(); out[name] = 'ok'; } catch (e) { out[name] = e.code; } };
+    const P = (id, extra = {}) => ({ id, name: 'Rules ' + id, order: 1, updatedAt: '2026-10-16T01:00:00.000Z', ...extra });
+    const SEED = '1970-01-01T00:00:00.000Z';
+    await tryIt('a place', () => F.setDoc(d('r1'), P('r1')));
+    await tryIt('read', async () => { if (!(await F.getDoc(d('r1'))).exists()) throw { code: 'missing' }; });
+    await tryIt('list', async () => { await F.getDocs(F.collection(db, 'households', hid, 'places')); });
+    await tryIt('a fractional order', () => F.setDoc(d('r2'), P('r2', { order: 1.5 })));
+    await tryIt('a negative order', () => F.setDoc(d('r3'), P('r3', { order: -3 })));
+    await tryIt('a name of 40 characters', () => F.setDoc(d('r4'), P('r4', { name: 'x'.repeat(40) })));
+    await tryIt('a name of 41 characters', () => F.setDoc(d('r5'), P('r5', { name: 'x'.repeat(41) })));
+    await tryIt('an empty name', () => F.setDoc(d('r6'), P('r6', { name: '' })));
+    await tryIt('a name with a new line', () => F.setDoc(d('r7'), P('r7', { name: 'two\nlines' })));
+    await tryIt('a number for a name', () => F.setDoc(d('r8'), P('r8', { name: 3 })));
+    await tryIt('a text order', () => F.setDoc(d('r9'), P('r9', { order: '1' })));
+    await tryIt('no order', () => { const x = P('r10'); delete x.order; return F.setDoc(d('r10'), x); });
+    await tryIt('no updatedAt', () => { const x = P('r11'); delete x.updatedAt; return F.setDoc(d('r11'), x); });
+    await tryIt('another field', () => F.setDoc(d('r12'), P('r12', { colour: 'red' })));
+    await tryIt('an id that is not the document id', () => F.setDoc(d('r13'), P('other')));
+    await tryIt('a document id with a dot', () => F.setDoc(d('r.14'), P('r.14')));
+    await tryIt('a document id of 40 characters', () => F.setDoc(d('i'.repeat(40)), P('i'.repeat(40), { name: 'long id' })));
+    await tryIt('a document id of 41 characters', () => F.setDoc(d('i'.repeat(41)), P('i'.repeat(41), { name: 'longer id' })));
+    await tryIt('removedAt and removedBy', () => F.setDoc(d('r15'), P('r15', { removedAt: '2026-10-16T01:00:00.000Z', removedBy: 'Mum' })));
+    await tryIt('a removedAt that is not a time', () => F.setDoc(d('r16'), P('r16', { removedAt: 'yesterday' })));
+    await tryIt('a removedAt of null', () => F.setDoc(d('r17'), P('r17', { removedAt: null })));
+    await tryIt('a removedBy over 40 characters', () => F.setDoc(d('r18'), P('r18', { removedAt: '2026-10-16T01:00:00.000Z', removedBy: 'x'.repeat(41) })));
+    // changes by field: the rules judge the place as it will be
+    await tryIt('a rename by field', () => F.updateDoc(d('r1'), { name: 'Renamed', updatedAt: '2026-10-16T02:00:00.000Z' }));
+    await tryIt('a move by field', () => F.updateDoc(d('r1'), { order: 0.75, updatedAt: '2026-10-16T02:00:00.000Z' }));
+    await tryIt('a removal by field', () => F.updateDoc(d('r1'), { removedAt: '2026-10-16T03:00:00.000Z', removedBy: 'Mum', updatedAt: '2026-10-16T03:00:00.000Z' }));
+    await tryIt('a restore by field', () => F.updateDoc(d('r1'), { removedAt: F.deleteField(), removedBy: F.deleteField(), updatedAt: '2026-10-16T04:00:00.000Z' }));
+    await tryIt('an empty name by field', () => F.updateDoc(d('r1'), { name: '' }));
+    await tryIt('an unknown field by field', () => F.updateDoc(d('r1'), { colour: 'red' }));
+    await tryIt('the name field removed', () => F.updateDoc(d('r1'), { name: F.deleteField() }));
+    await tryIt('a field change of a place that isn’t there', () => F.updateDoc(d('nothere'), { name: 'x' }));
+    // documents made from the old list carry the migration time: only new, or exactly as they are
+    await tryIt('a migration document, new', () => F.setDoc(d('s1'), P('s1', { updatedAt: SEED })));
+    await tryIt('the same again (another phone migrating)', () => F.setDoc(d('s1'), P('s1', { updatedAt: SEED })));
+    await tryIt('the migration time with another name', () => F.setDoc(d('s1'), P('s1', { name: 'Other', updatedAt: SEED })));
+    await tryIt('a rename of it by field', () => F.updateDoc(d('s1'), { name: 'Renamed s1', updatedAt: '2026-10-16T02:00:00.000Z' }));
+    await tryIt('a late migration copy over the rename', () => F.setDoc(d('s1'), P('s1', { updatedAt: SEED })));
+    await tryIt('a late migration copy over a removal', async () => { await F.setDoc(d('s2'), P('s2', { updatedAt: SEED })); await F.updateDoc(d('s2'), { removedAt: '2026-10-16T03:00:00.000Z', removedBy: 'Mum', updatedAt: '2026-10-16T03:00:00.000Z' }); await F.setDoc(d('s2'), P('s2', { updatedAt: SEED })); });
+    await tryIt('delete', () => F.deleteDoc(d('r2')));
+    return out;
+  }, hid);
+  const OK = 'ok', NO = 'permission-denied';
+  assert.deepEqual(placeRules2, {
+    'a place': OK, read: OK, list: OK, 'a fractional order': OK, 'a negative order': OK, 'a name of 40 characters': OK, 'a name of 41 characters': NO, 'an empty name': NO,
+    'a name with a new line': NO, 'a number for a name': NO, 'a text order': NO, 'no order': NO, 'no updatedAt': NO, 'another field': NO,
+    'an id that is not the document id': NO, 'a document id with a dot': NO, 'a document id of 40 characters': OK, 'a document id of 41 characters': NO,
+    'removedAt and removedBy': OK, 'a removedAt that is not a time': NO, 'a removedAt of null': NO, 'a removedBy over 40 characters': NO,
+    'a rename by field': OK, 'a move by field': OK, 'a removal by field': OK, 'a restore by field': OK, 'an empty name by field': NO, 'an unknown field by field': NO,
+    'the name field removed': NO, 'a field change of a place that isn’t there': NO,   // (an update has no document to build on: refused, not "not found")
+   
+    'a migration document, new': OK, 'the same again (another phone migrating)': OK, 'the migration time with another name': NO, 'a rename of it by field': OK,
+    'a late migration copy over the rename': NO, 'a late migration copy over a removal': NO, delete: OK,
+  }, 'place rules: ' + JSON.stringify(placeRules2));
+  const outsiderP = await stranger.evaluate(async hid => {
+    const F = await import('https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js');
+    const db = F.getFirestore(), d = id => F.doc(db, 'households', hid, 'places', id), out = [];
+    try { await F.getDoc(d('r1')); out.push('read'); } catch (e) { out.push(e.code); }
+    try { await F.getDocs(F.collection(db, 'households', hid, 'places')); out.push('listed'); } catch (e) { out.push(e.code); }
+    try { await F.setDoc(d('evil'), { id: 'evil', name: 'x', order: 1, updatedAt: 'x' }); out.push('wrote'); } catch (e) { out.push(e.code); }
+    try { await F.updateDoc(d('r1'), { name: 'x' }); out.push('updated'); } catch (e) { out.push(e.code); }
+    try { await F.deleteDoc(d('r1')); out.push('deleted'); } catch (e) { out.push(e.code); }
+    try { await F.updateDoc(F.doc(db, 'households', hid, 'settings', 'people'), new F.FieldPath('names', 'stranger@example.com'), 'x', 'updatedAt', 'x'); out.push('named'); } catch (e) { out.push(e.code); }
+    return out;
+  }, hid);
+  assert.deepEqual(outsiderP, Array(6).fill(NO), 'outsider and places and names: ' + outsiderP.join(', '));
+  // names by field: the rules judge the names as they will be
+  const nameRules2 = await mum.evaluate(async hid => {
+    const F = await import('https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js');
+    const db = F.getFirestore(), ref = F.doc(db, 'households', hid, 'settings', 'people'), FP = (...s) => new F.FieldPath(...s);
+    const out = {};
+    const tryIt = async (name, fn) => { try { await fn(); out[name] = 'ok'; } catch (e) { out[name] = e.code; } };
+    const reset = names => F.setDoc(ref, { id: 'people', names, updatedAt: 'x' });
+    await reset({ 'mum@example.com': 'Jun' });
+    await tryIt('a name by field', () => F.updateDoc(ref, FP('names', 'new.person@example.com'), 'Newbie', 'updatedAt', 'y'));
+    await tryIt('a name cleared by field', () => F.updateDoc(ref, FP('names', 'new.person@example.com'), F.deleteField(), 'updatedAt', 'z'));
+    await tryIt('the last name cleared', () => F.updateDoc(ref, FP('names', 'mum@example.com'), F.deleteField(), 'updatedAt', 'z'));
+    await tryIt('a name by field again (an empty map is fine)', () => F.updateDoc(ref, FP('names', 'mum@example.com'), 'Jun', 'updatedAt', 'z'));
+    await tryIt('a 41-character name', () => F.updateDoc(ref, FP('names', 'a@example.com'), 'x'.repeat(41), 'updatedAt', 'y'));
+    await tryIt('an empty name', () => F.updateDoc(ref, FP('names', 'a@example.com'), '', 'updatedAt', 'y'));
+    await tryIt('a name with a new line', () => F.updateDoc(ref, FP('names', 'a@example.com'), 'Ah\nMei', 'updatedAt', 'y'));
+    await tryIt('a number', () => F.updateDoc(ref, FP('names', 'a@example.com'), 3, 'updatedAt', 'y'));
+    await tryIt('a key that is not an email', () => F.updateDoc(ref, FP('names', 'Mum'), 'Mum', 'updatedAt', 'y'));
+    await tryIt('an unknown field', () => F.updateDoc(ref, { colour: 'red' }));
+    await tryIt('the id changed', () => F.updateDoc(ref, { id: 'places' }));
+    await tryIt('updatedAt removed', () => F.updateDoc(ref, { updatedAt: F.deleteField() }));
+    await tryIt('names removed', () => F.updateDoc(ref, { names: F.deleteField() }));
+    await reset(Object.fromEntries(Array.from({ length: 20 }, (_, i) => [`p${i}@example.com`, 'n'])));
+    await tryIt('the 21st name by field', () => F.updateDoc(ref, FP('names', 'p20@example.com'), 'n', 'updatedAt', 'y'));
+    await tryIt('the 20th renamed by field', () => F.updateDoc(ref, FP('names', 'p19@example.com'), 'renamed', 'updatedAt', 'y'));
+    await tryIt('one cleared and one added in one write', () => F.updateDoc(ref, FP('names', 'p0@example.com'), F.deleteField(), FP('names', 'p20@example.com'), 'n', 'updatedAt', 'y'));
+    await F.deleteDoc(ref);
+    await tryIt('the first name, by a merge (no document yet)', () => F.setDoc(ref, { id: 'people', updatedAt: 'y', names: { 'a.b@example.com': 'Ann' } }, { merge: true }));
+    await tryIt('a name by merge on top', () => F.setDoc(ref, { updatedAt: 'z', names: { 'c@example.com': 'Cee' } }, { merge: true }));
+    await tryIt('a bad name by merge', () => F.setDoc(ref, { updatedAt: 'z', names: { 'c@example.com': 'x'.repeat(41) } }, { merge: true }));
+    await tryIt('a field change with no document', async () => { await F.deleteDoc(ref); await F.updateDoc(ref, FP('names', 'a@example.com'), 'x', 'updatedAt', 'y'); });
+    await reset({ 'mum@example.com': 'Jun', 'dad@example.com': 'Dad' });
+    return out;
+  }, hid);
+  assert.deepEqual(nameRules2, {
+    'a name by field': OK, 'a name cleared by field': OK, 'the last name cleared': OK, 'a name by field again (an empty map is fine)': OK,
+    'a 41-character name': NO, 'an empty name': NO, 'a name with a new line': NO, 'a number': NO, 'a key that is not an email': NO,
+    'an unknown field': NO, 'the id changed': NO, 'updatedAt removed': NO, 'names removed': NO,
+    'the 21st name by field': NO, 'the 20th renamed by field': OK, 'one cleared and one added in one write': OK,
+    'the first name, by a merge (no document yet)': OK, 'a name by merge on top': OK, 'a bad name by merge': NO, 'a field change with no document': NO,
+  }, 'names rules: ' + JSON.stringify(nameRules2));
+  await settle(mum); await settle(dad);
+  assert.deepEqual(await serverNames(), { 'mum@example.com': 'Jun', 'dad@example.com': 'Dad' });
+  for (const d of await admin.list(`households/${hid}/places`)) if (/^(r\d+|r\.14|i{40}|s\d)$/.test(d.id)) await admin.del(`households/${hid}/places/${d.id}`);   // the rules cases' own documents
+
+  // ---- stock changes are instructions: two phones never overwrite each other (online or not) ----
   const rawItem = id => admin.get(`households/${hid}/items/${id}`);
   const rawQty = async id => Object.fromEntries(Object.entries((await rawItem(id)).batches).map(([k, v]) => [k, v.qty]));
   const has = (p, id) => p.waitForFunction(id => window.__pantry.S.items.has(id), id);
@@ -582,7 +858,7 @@ try {
   await go(mum, '#/item/rm4'); await mum.click('[data-act="delete"]'); await settle(mum); await quiet();
   assert.ok(await rawAt('items/rm4'), 'the document is still there');
   await go(mum, '#/settings');
-  assert.match(await mum.locator('#h-removed').locator('xpath=..').textContent(), /2 things you can put back/);
+  assert.match(await mum.locator('#h-removed').locator('xpath=..').textContent(), /3 things you can put back/);   // two items and the place removed in the places section above
   // 5. the shopping list: tick vs remove (both orders), two ticks, a new line while another is removed
   const lines = {};
   for (const k of ['l1', 'l2', 'l3', 'l4', 'l5']) { lines[k] = await act(mum, 'addLine', 'Line ' + k); }
@@ -744,7 +1020,10 @@ try {
     }
     await admin.put(`households/${id}/events/${tag}e1`, { id: `${tag}e1`, itemId: `${tag}i0`, type: 'add', at: '2026-10-16T00:00:00.000Z' });
     await admin.put(`households/${id}/shop/${tag}s1`, { id: `${tag}s1`, name: `${tag} milk`, done: false });
-    await admin.put(`households/${id}/settings/places`, { id: 'places', list: tag === 'A' ? ['Fridge', 'Garage'] : ['Fridge', 'Cellar'], updatedAt: 'x' });
+    if (tag === 'A') {   // A has place documents (one removed 5 days ago, one removed 40 days ago); the others only the old single list
+      const ago = d => new Date(Date.now() - d * 86400000).toISOString();
+      for (const [pid, name, order, rm] of [['pAf', 'Fridge', 1], ['pAg', 'Garage', 2], ['pAs', 'Shed', 3, ago(5)], ['pAo', 'Ancient', 4, ago(40)]]) await admin.put(`households/${id}/places/${pid}`, { id: pid, name, order, updatedAt: 'x', ...(rm ? { removedAt: rm, removedBy: 'Dad' } : {}) });
+    } else await admin.put(`households/${id}/settings/places`, { id: 'places', list: ['Fridge', 'Cellar'], updatedAt: 'x' });
     await admin.put(`households/${id}/settings/people`, { id: 'people', names: Object.fromEntries(members.map(m => [m, tag + ':' + m.split('@')[0]])), updatedAt: 'x' });
   };
   // two pantries, both started by twin: the bigger one is kept, everything of the other moves in
@@ -768,7 +1047,7 @@ try {
   await twin.locator('.ha-toast', { hasText: 'Merged' }).waitFor();
   await settle(twin);
   assert.equal(await admin.get('households/dupA'), null, 'the other household is gone');
-  for (const k of [...KINDS5, 'settings']) assert.equal((await admin.list(`households/dupA/${k}`)).length, 0, 'dupA ' + k + ' deleted');
+  for (const k of [...KINDS5, 'places', 'settings']) assert.equal((await admin.list(`households/dupA/${k}`)).length, 0, 'dupA ' + k + ' deleted');
   const kept = await admin.get('households/dupB');
   assert.deepEqual(kept.members, ['twin@example.com', 'pal2@example.com', 'pal3@example.com', 'pal1@example.com'], 'members joined');
   assert.equal(kept.owner, 'twin@example.com');
@@ -778,7 +1057,12 @@ try {
   // an item still holding the old array of batches arrives in the new shape (the merge copies through the one door)
   const arrived = await admin.get('households/dupB/items/Ai0');
   assert.ok(arrived.batches && !Array.isArray(arrived.batches) && arrived.batches.Aq?.qty === 2, 'the old array became a map: ' + JSON.stringify(arrived.batches));
-  assert.deepEqual((await admin.get('households/dupB/settings/places')).list, ['Fridge', 'Cellar', 'Garage'], 'places merged');
+  // places: B (kept) only had the old list, so its places became documents, then A's new name after them (merged by name)
+  const merged = (await admin.list('households/dupB/places')).sort((a, b) => a.order - b.order || (a.name < b.name ? -1 : 1));
+  assert.deepEqual(merged.map(d => d.name), ['Fridge', 'Cellar', 'Garage', 'Shed'], 'places merged by name, the kept pantry’s first; a recently removed one comes too, one removed 40 days ago does not');
+  assert.deepEqual(merged.map(d => d.order), [1, 2, 3, 3]);
+  assert.ok(merged[3].removedAt && merged[3].removedBy === 'Dad', 'with its marker');
+  assert.equal(await twin.evaluate(() => window.__pantry.places().join()), 'Fridge,Cellar,Garage', 'and the app shows the live ones');
   const names = (await admin.get('households/dupB/settings/people')).names;
   assert.deepEqual(names, { 'twin@example.com': 'B:twin', 'pal2@example.com': 'B:pal2', 'pal3@example.com': 'B:pal3', 'pal1@example.com': 'A:pal1' }, 'names joined, the kept pantry’s names win');
   assert.equal(await twin.evaluate(() => window.__pantry.S.pantries.length), 1);

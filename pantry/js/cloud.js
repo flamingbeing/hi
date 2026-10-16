@@ -9,8 +9,11 @@
 //                                    so opening the app downloads thumbnails, not photos (photo.js)
 //   households/{hid}/events/{id}     bought / opened / used up / thrown away, for the consumption pattern
 //   households/{hid}/shop/{id}       things added to the shopping list by hand
-//   households/{hid}/settings/places the family's list of places ({ id: 'places', list: [names], updatedAt }; places.js)
-//   households/{hid}/settings/people the names members give each other ({ id: 'people', names: { email: name }, updatedAt }; people.js)
+//   households/{hid}/places/{id}    one place each ({ id, name, order, updatedAt, removedAt?, removedBy? }; places.js, since PR-C)
+//   households/{hid}/settings/places the family's OLD single list of places ({ id: 'places', list: [names], updatedAt }): still
+//                                    read when a household has no place documents, and still written by phones older than PR-C
+//   households/{hid}/settings/people the names members give each other ({ id: 'people', names: { email: name }, updatedAt }; people.js),
+//                                    changed one name at a time as field updates (`names.<email>` by FieldPath)
 //
 // Sign-in happens on the app's own address: authDomain is pantry.flamingbeing.com (config.js, written by
 // tools/set-config.mjs), and the Worker serves Firebase's helper pages at /__/auth/ and the project's init.json at
@@ -255,32 +258,40 @@ export async function watchHousehold(hid, cb) {
 // Firestore can't store undefined; drop it.
 const clean = o => JSON.parse(JSON.stringify(o));
 
-// One item's change as a Firestore update: a field set, increment() for an add, deleteField() for a removal, each by its
-// dotted path, so only those fields travel and the server combines them with whatever other phones did meanwhile. An item
-// still stored as an old-style array is converted by this one write instead (its batches as a map, which already holds the
-// change; the other fields as usual). That one write is built from this phone's copy, so it is the one place a stale copy
-// can still overwrite another phone's change: only while an item is still an array, once per item (NOTES.md).
-export function updateData(F, before, ops) {
+// One document's change as the list of Firestore field updates, [[path, value], ...] with each path an array of field names
+// (`['batches', 'b1', 'qty']`): a field set, increment() for an add, deleteField() for a removal, so only those fields travel
+// and the server combines them with whatever other phones did meanwhile. A keyed instruction (logic.js keyedOps: a person's
+// name, `['names', 'mum@example.com']`) is one such path too: its key is a whole field name, so the dots in an email never
+// split it. An item still stored as an old-style array is converted by this one write instead (its batches as a map, which
+// already holds the change; the other fields as usual). That one write is built from this phone's copy, so it is the one place
+// a stale copy can still overwrite another phone's change: only while an item is still an array, once per item (NOTES.md).
+export function updatePairs(F, before, ops) {
   if (!opsValid(ops)) throw new Error('ops overlap');
-  const data = {};
+  const out = [];
   let o = ops;
   if (before?._arr) {
-    data.batches = batchMap(applyOps(before, ops).batches);
+    out.push([['batches'], batchMap(applyOps(before, ops).batches)]);
     const rest = p => !/^batches(\.|$)/.test(p);
-    o = { set: Object.fromEntries(Object.entries(ops.set || {}).filter(([p]) => rest(p))), inc: Object.fromEntries(Object.entries(ops.inc || {}).filter(([p]) => rest(p))), del: (ops.del || []).filter(rest) };
+    o = { ...ops, set: Object.fromEntries(Object.entries(ops.set || {}).filter(([p]) => rest(p))), inc: Object.fromEntries(Object.entries(ops.inc || {}).filter(([p]) => rest(p))), del: (ops.del || []).filter(rest) };
   }
-  for (const [p, v] of Object.entries(o.set || {})) data[p] = v;
-  for (const [p, n] of Object.entries(o.inc || {})) data[p] = F.increment(n);
-  for (const p of o.del || []) data[p] = F.deleteField();
-  return data;
+  for (const [p, v] of Object.entries(o.set || {})) out.push([p.split('.'), v]);
+  for (const [p, n] of Object.entries(o.inc || {})) out.push([p.split('.'), F.increment(n)]);
+  for (const p of o.del || []) out.push([p.split('.'), F.deleteField()]);
+  for (const [f, k] of Object.entries(o.keyed || {})) {
+    for (const [key, v] of Object.entries(k.set || {})) out.push([[f, key], v]);
+    for (const key of k.del || []) out.push([[f, key], F.deleteField()]);
+  }
+  return out;
 }
-// `{ 'a.b': x }` as `{ a: { b: x } }` (a set-with-merge takes nested fields, not dotted paths).
-export function nest(data) {
+// updateDoc / batch.update take `(ref, field, value, field, value, ...)`; every field is a FieldPath, never a dotted string.
+export const updateArgs = (F, before, ops) => updatePairs(F, before, ops).flatMap(([path, v]) => [new F.FieldPath(...path), v]);
+// The same fields as nested maps (a set-with-merge takes those, not paths; it makes a document that isn't there yet).
+export function nest(pairs) {
   const out = {};
-  for (const [path, v] of Object.entries(data)) {
-    const ks = path.split('.'); let o = out;
-    for (const k of ks.slice(0, -1)) o = o[k] = o[k] || {};
-    o[ks[ks.length - 1]] = v;
+  for (const [path, v] of pairs) {
+    let o = out;
+    for (const k of path.slice(0, -1)) o = o[k] = o[k] && typeof o[k] === 'object' ? o[k] : {};
+    o[path[path.length - 1]] = v;
   }
   return out;
 }
@@ -298,7 +309,7 @@ async function writeAll(F, db, hid, kind, list) {
   if (b) await b.commit();
 }
 const MERGE_KINDS = ['items', 'events', 'shop', 'photos'];
-const ALL_KINDS = [...MERGE_KINDS, 'settings'];
+const ALL_KINDS = [...MERGE_KINDS, 'places', 'settings'];
 
 export async function addMembers(hid, members) { return setMembers(hid, members); }
 // Merging, step 1: copy everything in household `fromId` into `toId` (ids are random, so nothing clashes; running it
@@ -309,7 +320,8 @@ export async function copyHousehold(toId, fromId, members) {
   const { F, db } = await sdk();
   const read = async (hid, k) => (await F.getDocs(F.collection(db, 'households', hid, k))).docs.map(d => d.data());
   const out = {};
-  const { mergeSettings, carryOver } = await import('./merge.js');
+  const { mergeSettings, carryOver, legacyPlaces } = await import('./merge.js');
+  const { mergeInto } = await import('./places.js');
   const photos = await read(fromId, 'photos');
   const photoIds = new Set(photos.map(p => p.id));
   const items = (await read(fromId, 'items')).map(it => {
@@ -319,10 +331,15 @@ export async function copyHousehold(toId, fromId, members) {
     return rest;
   });
   // what was removed more than 30 days ago isn't carried over (with its history and photo); markers of the rest are
-  const lists = carryOver({ items, events: await read(fromId, 'events'), shop: await read(fromId, 'shop'), photos });
+  const lists = carryOver({ items, events: await read(fromId, 'events'), shop: await read(fromId, 'shop'), photos, places: await read(fromId, 'places') });
   for (const k of ['photos', 'items', 'events', 'shop']) { await writeAll(F, db, toId, k, lists[k]); out[k] = lists[k].length; }   // photos first, so no item points at a missing photo
-  const settings = mergeSettings(await read(toId, 'settings'), await read(fromId, 'settings'), members);
+  const keepSettings = await read(toId, 'settings'), fromSettings = await read(fromId, 'settings');
+  // places: one document each; the other pantry's are merged by name into the kept pantry's (places.js mergeInto)
+  const placeDocs = mergeInto({ docs: await read(toId, 'places'), legacy: legacyPlaces(keepSettings) }, { docs: lists.places, legacy: legacyPlaces(fromSettings) });
+  await writeAll(F, db, toId, 'places', placeDocs);
+  const settings = mergeSettings(keepSettings, fromSettings, members);
   await writeAll(F, db, toId, 'settings', settings);
+  if (placeDocs.length) { const c = (await F.getCountFromServer(F.collection(db, 'households', toId, 'places'))).data().count; if (c < placeDocs.length) throw { code: 'merge-count', kind: 'places' }; }
   for (const k of MERGE_KINDS) {
     const c = (await F.getCountFromServer(F.collection(db, 'households', toId, k))).data().count;
     if (c < out[k]) throw { code: 'merge-count', kind: k };
@@ -381,15 +398,16 @@ export async function openCloud(hid, onError = () => {}, onSync = () => {}) {
     // someone deleted.
     patch(kind, id, ops, { before = null } = {}) {
       const ref = F.doc(col(kind), id);
-      const data = updateData(F, before, ops);
       const info = { op: 'patch', kind, id, ops };
-      return track((before ? F.updateDoc(ref, data) : F.setDoc(ref, nest(data), { merge: true })).then(() => true, refused(info)));
+      // an update when this phone has the document (it fails, rather than bringing back one that is gone); a merge when it
+      // doesn't know it yet (it creates the document, or adds these fields to whatever another phone made)
+      return track((before ? F.updateDoc(ref, ...updateArgs(F, before, ops)) : F.setDoc(ref, nest(updatePairs(F, before, ops)), { merge: true })).then(() => true, refused(info)));
     },
     // Several items' changes in one write (renaming a place moves every item in it): [{ id, ops, before }].
     async patchMany(kind, list) {
       for (let i = 0; i < list.length; i += 400) {
         const part = list.slice(i, i + 400), b = F.writeBatch(db);
-        for (const x of part) b.update(F.doc(col(kind), x.id), updateData(F, x.before, x.ops));
+        for (const x of part) b.update(F.doc(col(kind), x.id), ...updateArgs(F, x.before, x.ops));
         await track(b.commit().catch(e => { for (const x of part) refused({ op: 'patch', kind, id: x.id, ops: x.ops })(e); }));
       }
     },

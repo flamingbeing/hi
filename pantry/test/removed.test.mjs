@@ -89,12 +89,15 @@ assert.equal(L.expiredRemoval({ id: 'live' }, NOW), false, 'a live thing is neve
 assert.equal(L.expiredRemoval({ removedAt: 'garbage' }, NOW), false, 'an odd time is never due');
 const due = L.sweepDue([{ id: 'i1', removedAt: ago(31) }, { id: 'i2', removedAt: ago(10) }, { id: 'i3' }, { id: 'i4', removedAt: ago(90) }], [{ id: 's1', removedAt: ago(35) }, { id: 's2', removedAt: ago(2) }], NOW);
 assert.deepEqual(due.items.map(x => x.id), ['i4', 'i1']); assert.deepEqual(due.shop.map(x => x.id), ['s1']);
+// places are swept the same way (oldest first, in the same 20 a day)
+const dueP = L.sweepDue([], [], NOW, 20, [{ id: 'p1', removedAt: ago(40) }, { id: 'p2', removedAt: ago(3) }, { id: 'p3' }]);
+assert.deepEqual(dueP.places.map(x => x.id), ['p1'], 'a place removed over 30 days ago is due; a recent one and a live one are not');
 const heap = Array.from({ length: 30 }, (_, i) => ({ id: 'h' + String(i).padStart(2, '0'), removedAt: ago(31 + i) }));
 const part = L.sweepDue(heap, [{ id: 'sx', removedAt: ago(500) }], NOW);
 assert.equal(part.items.length + part.shop.length, L.SWEEP_MAX, 'at most 20 in all, however many are due');
 assert.equal(part.shop[0].id, 'sx', 'oldest first, shopping lines included');
 assert.equal(part.items.at(-1).id, 'h11', 'the 19 oldest items come next');
-assert.deepEqual(L.sweepDue([], [], NOW), { items: [], shop: [] });
+assert.deepEqual(L.sweepDue([], [], NOW), { items: [], shop: [], places: [] });
 // a second phone's sweep sees the same list (and deleting a missing document is fine: the backends say false)
 assert.deepEqual(L.sweepDue(heap, [], NOW), L.sweepDue([...heap].reverse(), [], NOW), 'every phone chooses the same ones');
 
@@ -121,7 +124,7 @@ const back2 = L.parseBackup(JSON.stringify({ ...b, items: [...b.items, { id: 'x2
 assert.deepEqual(back2.items.map(i => i.id), ['k', 'r'], 'a backup file’s old removals are not brought back');
 assert.equal(back2.items[1].removedAt, ago(3), 'a recent removal is');
 assert.deepEqual(carryOver(data, NOW).items.map(i => i.id), ['k', 'r'], 'merging two pantries carries the same');
-assert.deepEqual(carryOver({ items: [], shop: [], events: [], photos: [] }, NOW), { items: [], shop: [], events: [], photos: [] });
+assert.deepEqual(carryOver({ items: [], shop: [], events: [], photos: [] }, NOW), { items: [], shop: [], events: [], photos: [], places: [] });
 // an old backup (no markers) is unchanged
 assert.equal(L.parseBackup(JSON.stringify({ app: 'pantry', items: [{ id: 'q', name: 'Q', batches: [] }], shop: [{ id: 'z', name: 'Z', done: false }] })).items.length, 1);
 
@@ -140,6 +143,16 @@ assert.equal(await mem.purge('items', 'o', cutoff), false, 'a second sweep finds
 assert.equal(await mem.purge('shop', 'l', cutoff), false, 'a live line is never purged');
 assert.equal((await mem.get('items', 'n')).name, 'New');
 mem.delMany('events', ['nope']);
+// places and names on the in-memory backend (demo; the on-phone one runs the same applyFieldOps): fields and keyed names
+const mp = openMemory({ places: [{ id: 'p1', name: 'Fridge', order: 1, updatedAt: 'T' }, { id: 'p2', name: 'Shed', order: 2, updatedAt: 'T', removedAt: ago(40) }], settings: [{ id: 'people', names: { 'a.b@c.d': 'Ann' }, updatedAt: 'T' }] });
+assert.deepEqual((await mp.load()).places.map(x => x.id), ['p1', 'p2'], 'places load as a kind of their own');
+mp.patch('places', 'p1', { set: { name: 'Big fridge', updatedAt: 'U' }, inc: {}, del: [] });
+mp.patch('places', 'p1', L.removeOps('Mum', ago(0))); mp.patch('places', 'p1', L.restoreOps());
+assert.deepEqual(await mp.get('places', 'p1'), { id: 'p1', name: 'Big fridge', order: 1, updatedAt: 'U' }, 'renamed by field, removed and restored: markers gone');
+assert.equal(await mp.purge('places', 'p2', ago(30)), true, 'a place removed over 30 days ago is purged'); assert.equal(await mp.purge('places', 'p1', ago(30)), false);
+mp.patch('settings', 'people', { set: { updatedAt: 'V' }, inc: {}, del: [], keyed: { names: { set: { 'x@y.z': 'Zed' }, del: [] } } });
+mp.patch('settings', 'people', { set: {}, inc: {}, del: [], keyed: { names: { set: {}, del: ['a.b@c.d'] } } });
+assert.deepEqual(await mp.get('settings', 'people'), { id: 'people', names: { 'x@y.z': 'Zed' }, updatedAt: 'V' }, 'one name set, one cleared (an email with dots), nothing else touched');
 
 // ---- every list in the app skips removed things (one door: items(), shopLines(), liveEvents()) ----
 // app.js reads S.items / S.shop in bulk only in the places below; anything else would show a removed thing somewhere.
@@ -176,5 +189,27 @@ const OK_GET = [
 ];
 const strayGet = byId.filter(([, t]) => !OK_GET.some(re => re.test(t)));
 assert.deepEqual(strayGet, [], 'screens that look an item up by id without skipping removed ones: ' + JSON.stringify(strayGet));
+
+// ---- places: one door, placeList() (a removed place is hidden everywhere; the household's old list is read only there) ----
+const placeBulk = app.map((t, i) => [i + 1, t]).filter(([, t]) => /S\.places\b|P\.PLACES_ID/.test(t) && !/^\s*\/\//.test(t));
+const OK_PLACES = [
+  /^const placeList = \(\) => P\.placeEntries\(\[\.\.\.S\.places\.values\(\)\], S\.settings\.get\(P\.PLACES_ID\)\)/,   // the one list of places
+  /^const removedPlaces = \(\) => L\.recentlyRemoved\(\[\.\.\.S\.places\.values\(\)\]\)/,                               // Recently removed shows exactly the removed
+  /const before = S\.places\.get\(id\); if \(!before\) continue|S\.places\.set\(id, L\.applyFieldOps\(before, full\)\)/,   // a change is applied to the place as this phone has it, hidden or not
+  /const fresh = virt\.filter\(e => !S\.places\.has\(e\.id\)\)\.map|for \(const d of fresh\) S\.places\.set/,             // writing the places a household is showing as documents
+  /S\.places\.has\(e\.id\) && L\.isRemoved\(S\.places\.get\(e\.id\)\)/,                                                 // (every place removed: the defaults come back)
+  /S\.places\.set\(doc\.id, doc\)/,                                                                                    // a new place
+  /const x = S\.places\.get\(id\); if \(!x\) return/,                                                                  // Restore
+  /const due = L\.sweepDue\(/, /S\.places\.delete\(d\.id\)/,                                                           // the sweep
+  /L\.backup\(\{ items:.*places: \[\.\.\.S\.places\.values\(\)\]/,                                                      // a backup carries markers
+  /const mergedPlaces = data => P\.mergeInto\(\{ docs: \[\.\.\.S\.places\.values\(\)\]/,                                // copying and restoring merge by name
+  /places: new Map\(\)/,
+];
+const strayP = placeBulk.filter(([, t]) => !OK_PLACES.some(re => re.test(t)));
+assert.deepEqual(strayP, [], 'places read other than through placeList(): ' + JSON.stringify(strayP));
+assert.ok(placeBulk.length >= 8 && app.some(t => /^const placeList = /.test(t)), 'the guard looks at the right lines');
+// nothing else builds the list from the pieces: placeEntries / placeNames are only called by the door and the names made from it
+const strayE = app.map((t, i) => [i + 1, t]).filter(([, t]) => /P\.placeEntries\(|P\.legacyNames\(/.test(t) && !/^const placeList = /.test(t) && !/^\s*\/\//.test(t));
+assert.deepEqual(strayE, [], 'placeEntries used outside placeList(): ' + JSON.stringify(strayE));
 
 console.log('pantry removed: ok');

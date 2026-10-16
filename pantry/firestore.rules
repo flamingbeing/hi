@@ -87,6 +87,24 @@ service cloud.firestore {
         && (!('doneBy' in d) || (d.doneBy is string && d.doneBy.size() <= 200))
         && removedOk(d);
     }
+    // A place (16 Oct 2026, PR-C): one document each, { id, name, order, updatedAt } and, as removed items, removedAt / removedBy.
+    // `id` is the document id (1 to 40 letters, digits, - or _), `name` one line of 1 to 40 characters (one pattern), `order`
+    // a number (places sort by it; moving a place sets it to the midpoint of its new neighbours, so it is a fraction), nothing
+    // else. A document made from the household's old list carries SEED_AT as its updatedAt (places.js): that write is accepted
+    // only as a new document or as exactly what is already there, so a phone that was offline and still has the old list can't
+    // overwrite a place someone has renamed, moved or removed since (their real changes carry a real time). The rules judge the
+    // document as it will be, so a rename (one field), a move (one field) and a removal (two fields) all pass the same checks.
+    // They can't count the place documents (no 40-place cap here; the app keeps to it): each document is small and members-only.
+    function placeOk(d, id) {
+      return d.keys().hasOnly(['id', 'name', 'order', 'updatedAt', 'removedAt', 'removedBy'])
+        && d.keys().hasAll(['id', 'name', 'order', 'updatedAt'])
+        && d.id == id
+        && id.matches('[A-Za-z0-9_-]{1,40}')
+        && d.name is string && d.name.matches('[^\\n\\r]{1,40}')
+        && d.order is number && d.order > -1000000 && d.order < 1000000
+        && d.updatedAt is string && d.updatedAt.size() <= 40
+        && removedOk(d);
+    }
     function member(hid) {
       return signedIn() && email() in get(/databases/$(database)/documents/households/$(hid)).data.members;
     }
@@ -108,7 +126,7 @@ service cloud.firestore {
 
       // reading and deleting: every kind; writing items, shopping lines, photos and settings has limits (below)
       match /{kind}/{id} {
-        allow read, delete: if kind in ['items', 'events', 'shop', 'photos', 'settings'] && member(hid);
+        allow read, delete: if kind in ['items', 'events', 'shop', 'photos', 'places', 'settings'] && member(hid);
       }
       // Shopping lines: see shopOk. Created whole or changed by field.
       match /shop/{id} {
@@ -132,7 +150,13 @@ service cloud.firestore {
           && (request.resource.data.get('photo', '') == ''
             || (resource != null && request.resource.data.photo == resource.data.get('photo', null)));
       }
-      // Shared settings, one document each (no others): the family's list of places (16 Oct 2026), settings/places =
+      match /places/{id} {
+        allow create: if member(hid) && placeOk(request.resource.data, id);
+        allow update: if member(hid) && placeOk(request.resource.data, id)
+          && (request.resource.data.updatedAt != '1970-01-01T00:00:00.000Z' || request.resource.data == resource.data);
+      }
+      // Shared settings, one document each (no others): the family's OLD single list of places (16 Oct 2026; phones from
+      // before PR-C still write it, the app now reads it only when a household has no place documents), settings/places =
       // { id, list, updatedAt }, the list 1 to 40 names of 1 to 40 characters; and the names members give each other
       // (16 Oct 2026), settings/people = { id, names: { email: name }, updatedAt }, exactly those three fields.
       match /settings/{id} {

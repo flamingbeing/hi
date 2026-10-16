@@ -1,7 +1,7 @@
 import { applyOps, applyFieldOps, toStored } from './logic.js';
 
 // Storage backends. All three give the same small interface, so the app doesn't care where data lives:
-//   load()                 -> { items: [], events: [], shop: [], settings: [] }   (never the photos: see photo.js)
+//   load()                 -> { items: [], events: [], shop: [], places: [], settings: [] }   (never the photos: see photo.js)
 //   get(kind, id)          one document, or null (the full photo of an item, fetched when the item is opened)
 //   list(kind)             every document of one kind (backups and copying photos into the family pantry)
 //   put(kind, obj)         save one document (obj.id is its key); returns false when it was refused
@@ -19,15 +19,16 @@ import { applyOps, applyFieldOps, toStored } from './logic.js';
 // The memory backend (demo mode, ?demo) keeps made-up items in memory only: nothing is saved anywhere.
 // The cloud backend (cloud.js) keeps the family's shared copy in Firestore.
 
-// KINDS are loaded in full and kept in memory (settings holds two small documents: `places`, the household's list of
-// places, places.js; and `people`, the names the family gives its members, people.js); photos (one per item with a picture, photos/<item id>) are read one at
+// KINDS are loaded in full and kept in memory (places: one document each, places.js; settings holds small documents: `people`,
+// the names the family gives its members, people.js, changed one name at a time by a keyed instruction (logic.js), and the old
+// single `places` list that a household without place documents still shows); photos (one per item with a picture, photos/<item id>) are read one at
 // a time, when their item is opened.
-export const KINDS = ['items', 'events', 'shop', 'settings'];
+export const KINDS = ['items', 'events', 'shop', 'places', 'settings'];
 export const PHOTOS = 'photos';
 export const ALL_KINDS = [...KINDS, PHOTOS];
 const DB = 'pantry', STORE = 'docs', VER = 1;
 
-// A document after instructions: an item with batches (stored as the map), anything else (a shopping line) field by field.
+// A document after instructions: an item with batches (stored as the map), anything else (a shopping line, a place, the names) field by field.
 const changed = (kind, doc, ops) => (kind === 'items' ? toStored(applyOps(doc, ops)) : applyFieldOps(doc, ops));
 
 function idb() {

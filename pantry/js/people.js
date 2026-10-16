@@ -28,6 +28,21 @@ export function keepMembers(names, members = []) {
   const m = new Set(members.map(lc));
   return Object.fromEntries(Object.entries(names).filter(([e]) => m.has(e)).slice(0, MAX_PEOPLE));
 }
+// ONE person's name as an instruction (never the whole map written from a copy that may be a moment old): set it, or clear
+// it when the name is empty (`names.<email>`: a keyed instruction, so the email's dots are never read as a path; cloud.js
+// sends it as a FieldPath update). `orphans`: emails of names to drop in the same write (people no longer in the family),
+// only needed to stay under the 20 names the rules allow. Two people naming themselves, or one naming while another removes
+// someone, each change their own field, so nothing is lost.
+export function nameOps(email, name, { at = new Date().toISOString(), orphans = [] } = {}) {
+  const e = lc(email), n = cleanName(name), gone = orphans.map(lc).filter(x => x && x !== e);
+  return { set: { updatedAt: at }, inc: {}, del: [], keyed: { names: n ? { set: { [e]: n }, del: gone } : { set: {}, del: [e, ...gone] } } };
+}
+// The emails whose names to drop to make room for one more: none while there is room; otherwise those who are not members.
+export function orphanNames(names, members = [], email = '') {
+  if (names[lc(email)] !== undefined || Object.keys(names).length < MAX_PEOPLE) return [];
+  const m = new Set(members.map(lc));
+  return Object.keys(names).filter(e => !m.has(e));
+}
 export const peopleDoc = (names, at = new Date().toISOString()) => ({ id: PEOPLE_ID, names: { ...names }, updatedAt: at });
 export const isPeopleDoc = o => !!o && o.id === PEOPLE_ID && !!o.names && typeof o.names === 'object' && !Array.isArray(o.names);
 

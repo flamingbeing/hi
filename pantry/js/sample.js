@@ -1,5 +1,6 @@
 // Made-up sample items (with a few months of history, so the consumption patterns show) for trying the app.
 import { uid, ymd, addDays } from './logic.js';
+import { DEFAULT_PLACES, placeId, cleanPlace } from './places.js';
 
 // The demo's made-up family (?demo; never real people): Mum is "this phone", Dad made the last few days' changes, and
 // Grandma has no name yet, so the family list shows her email.
@@ -9,7 +10,8 @@ export const DEMO_NAMES = { 'mum@example.com': 'Mum', 'dad@example.com': 'Dad' }
 export const demoBy = daysAgo => (daysAgo <= 3 ? 'Dad' : 'Mum');
 
 // by: who the history is signed with, a name or a function of how many days ago (the demo's family).
-// `removed`: also two items already in Recently removed (the demo shows that screen; the Settings button leaves them out).
+// `removed`: also two items and a place already in Recently removed, and the places as documents (the demo shows that screen;
+// the Settings button leaves them out and adds no places: the household's own list stays as it is).
 export function sampleData(by = 'Sample', { removed = false } = {}) {
   const t = ymd();
   const now = Date.now();
@@ -52,5 +54,10 @@ export function sampleData(by = 'Sample', { removed = false } = {}) {
       [{ qty: 1, expiry: addDays(t, 200) }], [['add', 60]]);
     add({ name: 'Spring onions', brand: '', size: '1 bunch', category: 'Fresh produce', location: 'Fridge', removedAt: ago(2), removedBy: 'Mum' }, [], [['add', 9]]);
   }
-  return { items, events };
+  const places = [];
+  if (removed) {
+    DEFAULT_PLACES.forEach((n, i) => places.push({ id: placeId(n), name: cleanPlace(n), order: i + 1, updatedAt: ago(40) }));
+    places.push({ id: placeId('Garage shelf'), name: 'Garage shelf', order: DEFAULT_PLACES.length + 1, updatedAt: ago(3), removedAt: ago(3), removedBy: 'Dad' });
+  }
+  return { items, events, places };
 }
