@@ -19,6 +19,7 @@
 
 import { firebaseConfig } from '../config.js';
 import { KINDS, prefs } from './store.js';
+import { applyOps, batchMap, normalizeItem, toStored, opsValid } from './logic.js';
 
 const SDK = 'https://www.gstatic.com/firebasejs/10.14.1/';
 export const APP_HOST = 'pantry.flamingbeing.com';
@@ -254,12 +255,42 @@ export async function watchHousehold(hid, cb) {
 // Firestore can't store undefined; drop it.
 const clean = o => JSON.parse(JSON.stringify(o));
 
+// One item's change as a Firestore update: a field set, increment() for an add, deleteField() for a removal, each by its
+// dotted path, so only those fields travel and the server combines them with whatever other phones did meanwhile. An item
+// still stored as an old-style array is converted by this one write instead (its batches as a map, which already holds the
+// change; the other fields as usual). That one write is built from this phone's copy, so it is the one place a stale copy
+// can still overwrite another phone's change: only while an item is still an array, once per item (NOTES.md).
+export function updateData(F, before, ops) {
+  if (!opsValid(ops)) throw new Error('ops overlap');
+  const data = {};
+  let o = ops;
+  if (before?._arr) {
+    data.batches = batchMap(applyOps(before, ops).batches);
+    const rest = p => !/^batches(\.|$)/.test(p);
+    o = { set: Object.fromEntries(Object.entries(ops.set || {}).filter(([p]) => rest(p))), inc: Object.fromEntries(Object.entries(ops.inc || {}).filter(([p]) => rest(p))), del: (ops.del || []).filter(rest) };
+  }
+  for (const [p, v] of Object.entries(o.set || {})) data[p] = v;
+  for (const [p, n] of Object.entries(o.inc || {})) data[p] = F.increment(n);
+  for (const p of o.del || []) data[p] = F.deleteField();
+  return data;
+}
+// `{ 'a.b': x }` as `{ a: { b: x } }` (a set-with-merge takes nested fields, not dotted paths).
+export function nest(data) {
+  const out = {};
+  for (const [path, v] of Object.entries(data)) {
+    const ks = path.split('.'); let o = out;
+    for (const k of ks.slice(0, -1)) o = o[k] = o[k] || {};
+    o[ks[ks.length - 1]] = v;
+  }
+  return out;
+}
+
 // Many documents at once: at most 400 to a batch or about 4 MB (photos are up to 150 KB each; Firestore takes about
 // 10 MB a request).
 async function writeAll(F, db, hid, kind, list) {
   let b = null, n = 0, bytes = 0;
   for (const o of list) {
-    const c = clean(o), size = JSON.stringify(c).length;
+    const c = clean(kind === 'items' ? toStored(normalizeItem(o)) : o), size = JSON.stringify(c).length;
     if (b && (n >= 400 || bytes + size > 4e6)) { await b.commit(); b = null; }
     if (!b) { b = F.writeBatch(db); n = 0; bytes = 0; }
     b.set(F.doc(F.collection(db, 'households', hid, kind), o.id), c); n++; bytes += size;
@@ -312,10 +343,24 @@ export async function removeHousehold(hid) {
   await F.deleteDoc(F.doc(db, 'households', hid));
 }
 
-export async function openCloud(hid, onError = () => {}) {
+// `onError(err, info)` hears of a write the server refused (info says which: { op, kind, id, obj | ops });
+// `onSync(state)` of how many of this phone's changes the server hasn't confirmed yet ({ pending, cache }).
+export async function openCloud(hid, onError = () => {}, onSync = () => {}) {
   const { F, db } = await sdk();
   const col = kind => F.collection(db, 'households', hid, kind);
   const unsubs = [];
+  // Changes not yet confirmed, two ways: this phone's own writes still waiting for the server (inflight), and the
+  // documents the listeners say have pending writes (also those left from before the app was last closed). History
+  // lines (events) aren't counted: each belongs to a change that is.
+  let inflight = 0;
+  const seen = Object.fromEntries(KINDS.map(k => [k, { pending: 0, cache: false }]));
+  const tell = () => onSync({
+    pending: Math.max(inflight, KINDS.reduce((n, k) => n + (k === 'events' ? 0 : seen[k].pending), 0)),
+    cache: KINDS.some(k => seen[k].cache),
+  });
+  const track = (p, counted = true) => { if (counted) { inflight++; tell(); p.finally(() => { inflight--; tell(); }); } return p; };
+  const counts = kind => kind !== 'events' && kind !== 'photos';   // a history line or a photo belongs to a change that is counted
+  const refused = info => e => { console.warn('save failed', info.op, info.kind, e?.code); onError(e, info); return false; };
   return {
     kind: 'cloud',
     async load() {
@@ -328,8 +373,26 @@ export async function openCloud(hid, onError = () => {}) {
     },
     // Writes go to the phone's copy at once and reach the family when there's signal; don't wait for the server.
     // The promise (which callers may ignore) says whether the server took it: true, or false when refused.
-    put: (kind, obj) => F.setDoc(F.doc(col(kind), obj.id), clean(obj)).then(() => true, e => { console.warn('save failed', e?.code); onError(e); return false; }),
-    del: (kind, id) => { F.deleteDoc(F.doc(col(kind), id)).catch(e => { console.warn('delete failed', e?.code); onError(e); }); },
+    put: (kind, obj) => track(F.setDoc(F.doc(col(kind), obj.id), clean(kind === 'items' ? toStored(obj) : obj)).then(() => true, refused({ op: 'put', kind, id: obj.id, ...(kind === 'photos' ? {} : { obj: clean(kind === 'items' ? toStored(obj) : obj) }) })), counts(kind)),
+    // One item's change as instructions (ops: logic.js). `before` is the item as this phone has it (to tell an old-style
+    // array that needs converting); without one the item isn't known here yet, so the fields are merged into whatever
+    // is there (a set-with-merge, which creates it). Otherwise an update: it fails, rather than bringing back an item
+    // someone deleted.
+    patch(kind, id, ops, { before = null } = {}) {
+      const ref = F.doc(col(kind), id);
+      const data = updateData(F, before, ops);
+      const info = { op: 'patch', kind, id, ops };
+      return track((before ? F.updateDoc(ref, data) : F.setDoc(ref, nest(data), { merge: true })).then(() => true, refused(info)));
+    },
+    // Several items' changes in one write (renaming a place moves every item in it): [{ id, ops, before }].
+    async patchMany(kind, list) {
+      for (let i = 0; i < list.length; i += 400) {
+        const part = list.slice(i, i + 400), b = F.writeBatch(db);
+        for (const x of part) b.update(F.doc(col(kind), x.id), updateData(F, x.before, x.ops));
+        await track(b.commit().catch(e => { for (const x of part) refused({ op: 'patch', kind, id: x.id, ops: x.ops })(e); }));
+      }
+    },
+    del: (kind, id) => { track(F.deleteDoc(F.doc(col(kind), id)).then(() => true, refused({ op: 'del', kind, id })), counts(kind)); },
     // One document (an item's photo, when the item is opened), or null when there is none. Offline it is the
     // phone's copy if it has one; otherwise it throws, and the app tries again next time.
     async get(kind, id) {
@@ -341,12 +404,16 @@ export async function openCloud(hid, onError = () => {}) {
     // Write many at once (copying the phone's pantry up, restoring a backup): at most 400 documents or about 4 MB
     // to a batch (photos are up to 150 KB each; Firestore takes about 10 MB a request).
     putMany: (kind, list) => writeAll(F, db, hid, kind, list),
+    // The same listeners also say what is still waiting to be sent (hasPendingWrites) and whether the phone is showing
+    // its own copy (fromCache): no extra listener, no extra read.
     listen(cb) {
       for (const k of KINDS) {
-        unsubs.push(F.onSnapshot(col(k), s => {
+        unsubs.push(F.onSnapshot(col(k), { includeMetadataChanges: true }, s => {
+          seen[k] = { pending: s.docs.reduce((n, d) => n + (d.metadata.hasPendingWrites ? 1 : 0), 0), cache: s.metadata.fromCache };
           const docs = [], removed = [];
           for (const c of s.docChanges()) (c.type === 'removed' ? removed.push(c.doc.id) : docs.push(c.doc.data()));
           if (docs.length || removed.length) cb(k, docs, removed);
+          tell();
         }, e => { console.warn('sync', k, e?.code); onError(e); }));
       }
     },

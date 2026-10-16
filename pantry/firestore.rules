@@ -37,6 +37,33 @@ service cloud.firestore {
           && v.join('\n').matches('[^\\n]{1,40}(\\n[^\\n]{1,40}){0,19}')
           && m.keys().join('\n').matches('[^\\s@]+@[^\\s@]+(\\n[^\\s@]+@[^\\s@]+){0,19}')));
     }
+    // Stock (16 Oct 2026). An item's `batches` is the old ARRAY (at most 60) or the new MAP `{ <batchId>: { qty, expiry, ... } }`.
+    // Both are accepted while phones update; anything else is refused. A map holds at most 60 batches, and EVERY id is 1 to
+    // 40 letters, digits, - or _ (one pattern over the ids joined with newlines: the placeNames trick). Each of the first 12
+    // batches is also checked: qty a number from -99 to 9999 (the low end exists because two phones can each use the last
+    // unit: the server adds both, the app shows 0), expiry a string or empty. Only the first 12, because the rules'
+    // 1000-expression limit is spent by about 16 such checks (tested: 60 batches pass with 12); the app clamps any
+    // quantity it reads, so a bad one further along can't break a screen.
+    function batchOk(b) {
+      let q = b.get('qty', 0);
+      let x = b.get('expiry', null);
+      return q is number && q >= -99 && q <= 9999 && (x == null || x is string);
+    }
+    function batchValues(v, n) {
+      return n == 0 || (
+          (n <= 0 || batchOk(v[0])) && (n <= 1 || batchOk(v[1])) && (n <= 2 || batchOk(v[2])) && (n <= 3 || batchOk(v[3]))
+          && (n <= 4 || batchOk(v[4])) && (n <= 5 || batchOk(v[5])) && (n <= 6 || batchOk(v[6])) && (n <= 7 || batchOk(v[7]))
+          && (n <= 8 || batchOk(v[8])) && (n <= 9 || batchOk(v[9])) && (n <= 10 || batchOk(v[10])) && (n <= 11 || batchOk(v[11])));
+    }
+    function batchMap(m) {
+      return m.size() <= 60
+        && batchValues(m.values(), m.size())
+        && (m.size() == 0 || m.keys().join('\n').matches('[A-Za-z0-9_-]{1,40}(\\n[A-Za-z0-9_-]{1,40}){0,59}'));
+    }
+    function stockOk(d) {
+      let b = d.get('batches', []);
+      return b is list ? b.size() <= 60 : (b is map && batchMap(b));
+    }
     function member(hid) {
       return signedIn() && email() in get(/databases/$(database)/documents/households/$(hid)).data.members;
     }
@@ -59,13 +86,20 @@ service cloud.firestore {
       // reading and deleting: every kind; writing items, photos and settings has limits (below)
       match /{kind}/{id} {
         allow read, delete: if kind in ['items', 'events', 'shop', 'photos', 'settings'] && member(hid);
-        allow create, update: if kind in ['events', 'shop'] && member(hid);
+        allow create, update: if kind == 'shop' && member(hid);
+      }
+      // History is write-once (16 Oct 2026): a line is created, and may be deleted (Undo, deleting an item, merging);
+      // nothing edits one. Writing a line again exactly as it is (restoring a backup, re-running a merge) is allowed.
+      match /events/{id} {
+        allow create: if member(hid);
+        allow update: if member(hid) && request.resource.data == resource.data;
       }
       // An item carries only a small thumbnail (`thumb`, at most 12 KB); its photo is in photos/{id}. Items from
       // before 16 Oct 2026 may still hold a whole photo as `photo`: it may stay as it was or be removed (moved to
       // photos/{id}), but no item may gain or change one (an empty `photo`, from older app versions, is fine).
       match /items/{id} {
         allow create, update: if member(hid)
+          && stockOk(request.resource.data)
           && request.resource.data.get('thumb', '') is string
           && request.resource.data.get('thumb', '').size() <= 12288
           && (request.resource.data.get('photo', '') == ''

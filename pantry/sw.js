@@ -30,6 +30,7 @@ const SHELL = [
   'js/places.js',
   'js/people.js',
   'js/merge.js',
+  'js/sync.js',
   'icons/icon.svg',
   'icons/apple-touch-icon.png',
   'icons/icon-192.png',

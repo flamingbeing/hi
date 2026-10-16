@@ -143,3 +143,9 @@ label.ha-row:focus-within:has(.pa-file){outline:2px solid var(--home-focus);outl
 .pa-em-title{font-weight:600}
 .pa-em-lead{margin:0 0 var(--home-s4);line-height:1.45}
 #pa-em-form .ha-field-error{margin:0 0 var(--home-s3)}
+
+/* saving to the family: the chip and the changes the server refused */
+.pa-sync{margin:0 0 var(--home-s4)}
+.pa-sync-link{display:inline-flex;align-items:center;gap:var(--home-s2);color:inherit;text-decoration:none}
+.pa-sync-more{color:var(--home-accent);font-size:var(--home-t-small)}
+.pa-refused{flex-wrap:wrap;row-gap:var(--home-s2)}

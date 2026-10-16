@@ -8,6 +8,7 @@ import { CATALOGUE, CATEGORIES, shelfDays, freezeDays, freezable, FROZEN_DAYS, T
 import * as P from './places.js';
 import * as PP from './people.js';
 import * as MG from './merge.js';
+import * as SY from './sync.js';
 import { openLocal, openMemory, prefs, KINDS, PHOTOS } from './store.js';
 import { sampleData, demoBy, DEMO_FAMILY, DEMO_ME, DEMO_NAMES } from './sample.js';
 import { openWelcome, viewGuide, welcomed, markWelcomed, installed } from './guide.js';
@@ -29,6 +30,9 @@ const S = {
   backend: null, local: null, mode: DEMO ? 'demo' : 'local', cloud: null, user: null, household: null, pantries: [], lookupFailed: false, creating: false, pending: null, localCount: 0,
   q: '', place: '', sort: prefs.get('sort', 'expiry'),
   draft: null, dirty: false, pendingRender: false, syncError: false,
+  refused: prefs.get('refused', []) || [],   // changes the family pantry refused, kept here until retried or discarded (sync.js)
+  sync: { pending: 0, cache: false, since: 0 },   // changes this phone made that the server hasn't confirmed yet
+  lastUndo: null,
   since: null,   // when this phone last looked (Since you last looked), an ISO time
   originTab: '#/', backLabel: 'Pantry',
 };
@@ -69,9 +73,11 @@ const screen = () => route().parts[0] || 'home';
 
 // ---- saving ----------------------------------------------------------------------------------------------------
 
+// A whole document: a NEW item, a restore, an Edit of something that isn't an item. (An existing item is changed by
+// instructions instead: patchItem, below.)
 function save(kind, obj) {
   if (kind === 'items') {
-    obj = { ...obj, updatedAt: new Date().toISOString(), updatedBy: who() };
+    obj = { ...L.normalizeItem(obj), _arr: false, updatedAt: new Date().toISOString(), updatedBy: who() };
     if (obj.photo === '') delete obj.photo;   // left by older versions; pictures are `thumb` + photos/<id> now
   }
   S[kind].set(obj.id, obj);
@@ -82,12 +88,35 @@ function remove(kind, id) {
   S[kind].delete(id);
   S.backend.del(kind, id);
 }
-// Many at once (moving every item from one place to another): one batch to the family pantry.
+// Changing an existing item (logic.js: "changes as instructions"): do `ops` to this phone's copy at once, and send the same
+// ops, never the whole item, so a copy that is a moment out of date can't overwrite what someone else just did. Stamps
+// who changed it and when, as fields too. Returns the ops sent (for Undo), or null when the item is gone.
+function patchItem(id, ops, { stamp = true } = {}) {
+  const before = S.items.get(id);
+  if (!before) return null;
+  const sent = stamp ? L.mergeOps(ops, { set: { updatedAt: new Date().toISOString(), updatedBy: who() } }) : ops;
+  S.items.set(id, L.applyOps(before, sent));
+  S.backend.patch('items', id, sent, { before });
+  return sent;
+}
+// The same for many items (moving every item from one place to another): one write to the family pantry.
+function patchMany(list) {
+  const at = new Date().toISOString(), by = who(), sent = [];
+  for (const { id, ops } of list) {
+    const before = S.items.get(id); if (!before) continue;
+    const full = L.mergeOps(ops, { set: { updatedAt: at, updatedBy: by } });
+    S.items.set(id, L.applyOps(before, full));
+    sent.push({ id, ops: full, before });
+  }
+  if (S.backend.patchMany) Promise.resolve(S.backend.patchMany('items', sent)).catch(err => { S.syncError = S.cloud ? S.cloud.explain(err, 'Saving') : 'Saving didn’t work.'; redraw(); });
+  return sent;
+}
+// Many whole documents at once (restore, copying): one batch to the family pantry.
 function saveMany(kind, list) {
   const at = new Date().toISOString(), by = who();
   const out = list.map(o => {
     if (kind !== 'items') return o;
-    const x = { ...o, updatedAt: at, updatedBy: by };
+    const x = { ...L.normalizeItem(o), _arr: false, updatedAt: at, updatedBy: by };
     if (x.photo === '') delete x.photo;
     return x;
   });
@@ -191,11 +220,10 @@ async function migratePhotos() {
       if (backend !== S.backend) break;   // signed in or out meanwhile: done on the next load
       const cur = S.items.get(it.id);
       if (cur && cur.photo === it.photo) {
-        const next = { ...cur, thumb: s.item.thumb, hasPhoto: true };
-        delete next.photo;
-        S.items.set(next.id, next);
-        S.pics.set(next.id, { thumb: next.thumb, data: s.doc.data });
-        await backend.put('items', next);
+        // only the picture fields change (the item itself may have been changed by someone meanwhile)
+        const ops = { set: { thumb: s.item.thumb, hasPhoto: true }, inc: {}, del: ['photo'] };
+        S.pics.set(cur.id, { thumb: s.item.thumb, data: s.doc.data });
+        patchItem(cur.id, ops, { stamp: false });
         moved++;
       }
       await new Promise(r => setTimeout(r, 300));
@@ -204,14 +232,25 @@ async function migratePhotos() {
   if (moved) redraw();
 }
 
-// Apply a stock change from logic.js ({ item, event }) and offer Undo.
+// Apply a stock change from logic.js ({ item, event, ops }) and offer Undo. The change is sent as instructions; Undo sends the
+// opposite instructions (an add taken back, a field put back only if nobody has changed it since), never the old copy.
 function apply(res, msg) {
-  if (!res.event) { haToast('Nothing in stock to do that with'); return; }
-  const before = S.items.get(res.item.id);
-  save('items', res.item);
+  if (!res.event) { haToast('Nothing in stock to do that with'); return null; }
+  const id = res.item.id, before = S.items.get(id);
+  const sent = patchItem(id, res.ops);
+  if (!sent) { haToast('That item is gone'); return null; }
   save('events', res.event);
   redraw();
-  haToast(msg, { action: 'Undo', onAction: () => { save('items', before); remove('events', res.event.id); redraw(); haAnnounce('Undone'); } });
+  const undo = () => { const inv = undoItem(id, sent, before); remove('events', res.event.id); redraw(); haAnnounce('Undone'); return { ops: inv, event: res.event }; };
+  S.lastUndo = undo;
+  haToast(msg, { action: 'Undo', onAction: undo });
+  return { ops: sent, event: res.event };
+}
+// Take back `sent` (done to `before`) on item `id` as it is now.
+function undoItem(id, sent, before) {
+  const now = S.items.get(id); if (!now) return null;
+  const inv = L.invertOps(sent, before, now);
+  return L.opsEmpty(inv) ? null : patchItem(id, inv);
 }
 
 // ---- small pieces --------------------------------------------------------------------------------------------------
@@ -300,7 +339,7 @@ function statusLine() {
 }
 function viewHome() {
   const all = items();
-  let h = `<h1 class="ha-large-title">Pantry</h1><p class="ha-large-sub">${esc(statusLine())}</p>`;
+  let h = `<h1 class="ha-large-title">Pantry</h1><p class="ha-large-sub">${esc(statusLine())}</p>${syncChip()}`;
   if (S.syncError) h += `<div class="ha-panel pa-alert" role="status">${icon('alert')}<span>Some changes didn’t reach the family pantry. ${esc(S.syncError)}</span></div>`;
   if (S.mode === 'cloud' && S.pantries.length > 1) h += `<a class="ha-panel pa-alert" href="#/settings">${icon('alert')}<span>You’re in more than one family pantry. Merge them in Settings.</span></a>`;
   h += viewTour();
@@ -596,7 +635,7 @@ function viewForm(id) {
   const key = id || 'new';
   if (!S.draft || S.draft._for !== key) {
     const it = id && S.items.get(id);
-    S.draft = it ? { ...blank(), ...it, openDays: it.openDays ?? '', pic: thumbSrc(it), _for: key } : { ...blank(), _for: key };
+    S.draft = it ? { ...blank(), ...it, openDays: it.openDays ?? '', pic: thumbSrc(it), _for: key, _base: it } : { ...blank(), _for: key };   // _base: the item as the form opened it (Save sends only what changed from it)
     S.dirty = false;
   }
   const d = S.draft;
@@ -731,26 +770,41 @@ function submitForm(e) {
   if (!d || !validName()) return;
   const base = d._for !== 'new' ? S.items.get(d._for) : null;
   const num = v => Math.max(0, parseInt(v, 10) || 0);
-  const it = {
-    ...(base || { id: L.uid(), batches: [], createdAt: new Date().toISOString(), createdBy: who() }),
+  const fields = {
     name: d.name.trim(), brand: String(d.brand || '').trim(), size: String(d.size || '').trim(), category: d.category, location: d.location,
     openDays: num(d.openDays) || null, lowAt: num(d.lowAt), barcode: String(d.barcode || '').trim(),
   };
-  if (d.measure === 'level') { it.measure = 'level'; it.level = L.levelOf(base || {}); } else { delete it.measure; delete it.level; }
   // a new or removed picture: the photo is written (or deleted) first, then the item with its thumbnail
   const pics = d._pics, hadPhoto = !!base?.hasPhoto;
+  const id = base ? base.id : L.uid();
   if (pics !== undefined) {
-    delete it.photo;
-    if (pics) { it.thumb = pics.thumb; it.hasPhoto = true; savePhoto(it.id, pics.thumb, pics.photo); }
-    else { delete it.thumb; delete it.hasPhoto; if (hadPhoto) delPhoto(it.id); }
+    if (pics) savePhoto(id, pics.thumb, pics.photo);
+    else if (hadPhoto) delPhoto(id);
   }
+  const was = d._base || base;
   S.draft = null; S.dirty = false;
   if (base) {
-    save('items', it);
-    haBack('#/item/' + it.id);
+    // Save sends only the fields the person changed in this form (against the item as the form opened it), so another
+    // phone's change to anything else, such as the stock, is never overwritten by this save.
+    const ops = L.emptyOps();
+    const before = { openDays: null, lowAt: 0 };
+    for (const [k, v] of Object.entries(fields)) if ((was[k] ?? before[k] ?? '') !== v) ops.set[k] = v;
+    const wasLevel = was.measure === 'level';
+    if (d.measure === 'level' && !wasLevel) { ops.set.measure = 'level'; ops.set.level = L.levelOf(base); }
+    else if (d.measure !== 'level' && wasLevel) ops.del.push('measure', 'level');
+    if (pics !== undefined) {
+      if (base.photo) ops.del.push('photo');
+      if (pics) { ops.set.thumb = pics.thumb; ops.set.hasPhoto = true; }
+      else { if (base.thumb !== undefined) ops.del.push('thumb'); if (base.hasPhoto !== undefined) ops.del.push('hasPhoto'); }
+    }
+    if (!L.opsEmpty(ops)) patchItem(base.id, ops);
+    haBack('#/item/' + base.id);
     haToast('Saved');
     return;
   }
+  const it = { id, batches: [], createdAt: new Date().toISOString(), createdBy: who(), ...fields };
+  if (d.measure === 'level') { it.measure = 'level'; it.level = 'plenty'; }
+  if (pics) { it.thumb = pics.thumb; it.hasPhoto = true; }
   const qty = num(d.qty);
   let ev = null;
   if (qty > 0 && !L.isStaple(it)) {
@@ -856,7 +910,8 @@ function openUnknown(code) {
     await haCloseSheet(s.el);
     if (act === 'unk-mine') {
       const mine = S.items.get(b.dataset.id); if (!mine) return;
-      const it = save('items', { ...mine, barcode: code });
+      patchItem(mine.id, { set: { barcode: code }, inc: {}, del: [] });
+      const it = S.items.get(mine.id);
       S.draft = null; S.dirty = false;
       haGo('#/item/' + it.id, { replace: screen() === 'add' });
       haToast(`Barcode added to ${it.name}`);
@@ -897,7 +952,7 @@ function openScanMany(mode = 'add') {
       run?.cancel(); run = null;
       afterSheet(); redraw();
       if (ops.length) haToast(`Saved ${plural(ops.length, 'scan')}`, { action: 'Undo', onAction: () => {
-        for (const o of ops.reverse()) { if (o.before) save('items', o.before); if (o.ev) remove('events', o.ev); if (o.line) remove('shop', o.line); }
+        for (const o of ops.reverse()) { if (o.sent) undoItem(o.id, o.sent, o.before); if (o.ev) remove('events', o.ev); if (o.line) remove('shop', o.line); }
         redraw(); haAnnounce('Undone');
       } });
     },
@@ -922,8 +977,7 @@ function openScanMany(mode = 'add') {
       const res = m === 'add' ? restock(it, { qty: 1, expiry: guessFor(it)?.date || null })
         : L.isStaple(it) ? L.setLevel(it, { level: 'out', by: who() }) : L.takeOut(it, { type: 'use', by: who() });
       if (!res.event) { msg.textContent = `No ${it.name} left to use.`; return; }
-      save('items', res.item);
-      op = { before: it, ev: save('events', res.event).id };
+      op = { id: it.id, before: it, sent: patchItem(it.id, res.ops), ev: save('events', res.event).id };
       if (m === 'use' && L.isStaple(it)) { const line = addToList(res.item, { quiet: true }); if (line) op.line = line.id; }
       say = m === 'add' ? `Added 1 ${it.name}` : L.isStaple(it) ? `${it.name}: out, on the shopping list` : `Used 1 ${it.name}`;
     }
@@ -1094,14 +1148,15 @@ async function openQuick() {
         location: x.location || c?.location || defaultPlace(), openDays: c?.openDays ?? null, lowAt: 0, barcode: '',
       };
       const res = restock(base, { qty: x.qty, expiry: x.expiry || x.guess?.date || null });
-      undo.push({ before: mine || null, id: base.id, ev: save('events', res.event).id });
-      save('items', res.item);
+      const ev = save('events', res.event).id;
+      if (mine) undo.push({ id: base.id, ev, before: mine, sent: patchItem(base.id, res.ops) });   // one more of what's at home: added to, not rewritten
+      else { save('items', res.item); undo.push({ id: base.id, ev, created: true }); }
     }
     flag('said');
     await haCloseSheet(s.el);
     if (screen() === 'add') { S.draft = null; S.dirty = false; haGo('#/', { replace: true }); } else redraw();
     haToast(`Added ${plural(picked.length, 'item')}`, { action: 'Undo', onAction: () => {
-      for (const u of undo.reverse()) { if (u.before) save('items', u.before); else remove('items', u.id); remove('events', u.ev); }
+      for (const u of undo.reverse()) { if (u.created) remove('items', u.id); else if (u.sent) undoItem(u.id, u.sent, u.before); remove('events', u.ev); }
       redraw(); haAnnounce('Undone');
     } });
   });
@@ -1271,17 +1326,21 @@ function openPutAway() {
     const undo = { items: [], created: [], events: [], lines: [] };
     for (const i of picked()) {
       const r = rows[i], place = val('place', i), qty = Math.max(1, Math.min(99, parseInt(val('qty', i), 10) || 1));
-      let it = r.it && S.items.get(r.it.id);
-      if (it) undo.items.push(it);
-      else {
+      const have = r.it && S.items.get(r.it.id);
+      let res;
+      if (have) {
+        // an item at home: its place and the new stock go as changes to those fields, not as the whole item
+        res = restock(have, { qty, expiry: val('expiry', i) || null });
+        const ops = L.mergeOps(res.ops, place && place !== have.location ? { set: { location: place } } : null);
+        undo.items.push({ id: have.id, before: have, sent: patchItem(have.id, ops) });
+      } else {
         const c = r.c;
-        it = { id: L.uid(), batches: [], createdAt: new Date().toISOString(), createdBy: who(), name: c?.name || r.m.name, brand: c?.brand || '', size: c?.size || '',
+        const it = { id: L.uid(), batches: [], createdAt: new Date().toISOString(), createdBy: who(), name: c?.name || r.m.name, brand: c?.brand || '', size: c?.size || '',
           category: c?.category || 'Other', location: place, openDays: c?.openDays ?? null, lowAt: 0, barcode: '' };
         undo.created.push(it.id);
+        res = restock(it, { qty, expiry: val('expiry', i) || null });
+        save('items', res.item);
       }
-      it = { ...it, location: place || it.location };
-      const res = restock(it, { qty, expiry: val('expiry', i) || null });
-      save('items', res.item);
       if (res.event) undo.events.push(save('events', res.event).id);
       undo.lines.push(r.m); remove('shop', r.m.id);
     }
@@ -1289,7 +1348,7 @@ function openPutAway() {
     redraw();
     const n = undo.lines.length;
     haToast(`Put away ${plural(n, 'thing')}`, { action: 'Undo', onAction: () => {
-      for (const it of undo.items) save('items', it);
+      for (const u of undo.items) if (u.sent) undoItem(u.id, u.sent, u.before);
       for (const id of undo.created) remove('items', id);
       for (const id of undo.events) remove('events', id);
       for (const m of undo.lines) save('shop', m);
@@ -1418,12 +1477,12 @@ function openPlace(name) {
 function renamePlace(from, to) {
   const before = placeNames(), moved = items().filter(it => it.location === from);
   if (before.includes(from)) savePlaces(P.renameInList(before, from, to));
-  saveMany('items', P.moveItems(moved, from, to));
+  patchMany(moved.map(it => ({ id: it.id, ops: { set: { location: P.cleanPlace(to) }, inc: {}, del: [] } })));
   if (S.place === from) S.place = to;
   redraw();
   haToast(`Renamed to ${to}`, { action: 'Undo', onAction: () => {
     savePlaces(before);
-    saveMany('items', moved.filter(it => S.items.get(it.id)?.location === to).map(it => ({ ...S.items.get(it.id), location: from })));
+    patchMany(moved.filter(it => S.items.get(it.id)?.location === P.cleanPlace(to)).map(it => ({ id: it.id, ops: { set: { location: from }, inc: {}, del: [] } })));   // only those still there
     if (S.place === to) S.place = from;
     redraw(); haAnnounce('Undone');
   } });
@@ -1445,13 +1504,13 @@ function openMovePlace(name) {
     const to = $('#pa-mv-to', s.el).value;
     const before = placeNames(), moved = items().filter(it => it.location === name);
     await haCloseSheet(s.el);
-    saveMany('items', P.moveItems(moved, name, to));
+    patchMany(moved.map(it => ({ id: it.id, ops: { set: { location: P.cleanPlace(to) }, inc: {}, del: [] } })));
     if (before.includes(name)) savePlaces(P.removeFromList(before, name));
     if (S.place === name) S.place = '';
     redraw();
     haToast(listed ? `Removed ${name}; ${plural(moved.length, 'item')} moved to ${to}` : `${plural(moved.length, 'item')} moved to ${to}`, { action: 'Undo', onAction: () => {
       if (before.includes(name)) savePlaces(before);
-      saveMany('items', moved.filter(it => S.items.get(it.id)?.location === to).map(it => ({ ...S.items.get(it.id), location: name })));
+      patchMany(moved.filter(it => S.items.get(it.id)?.location === P.cleanPlace(to)).map(it => ({ id: it.id, ops: { set: { location: name }, inc: {}, del: [] } })));
       redraw(); haAnnounce('Undone');
     } });
   });
@@ -1528,6 +1587,17 @@ function openPerson(email) {
 }
 
 
+// Settings → Saving to the family: the chip, and each change the server refused with Retry and Discard.
+function viewSaving() {
+  const v = syncView(); if (!v) return '';
+  const mine = SY.refusedFor(S.refused, S.household?.id || '');
+  const row = r => `<li><div class="ha-row pa-refused"><span class="ha-row-body"><span class="ha-row-title pa-break">${esc(SY.describeRefused(r, id => S.items.get(id)?.name))}</span><span class="ha-row-sub">${esc(SY.refusedReason(r.code))}</span></span>
+      <span class="pa-batch-acts"><button type="button" class="ha-btn ha-btn--small" data-act="refused-retry" data-n="${esc(r.n)}">Retry</button><button type="button" class="ha-btn ha-btn--small ha-btn--quiet" data-act="refused-discard" data-n="${esc(r.n)}">Discard</button></span></div></li>`;
+  const foot = { saved: 'Everything done on this phone has reached the family.', waiting: 'These changes are kept on this phone and sent when there is signal. Nothing is lost by closing the app.',
+    attention: 'The family pantry would not take these. Retry sends one again; Discard drops it.' }[v.kind];
+  return section('Saving to the family', `${syncChip()}${mine.length ? `<ul class="ha-list pa-refusals">${mine.map(row).join('')}</ul>` : ''}`, { id: 'saving', footer: foot });
+}
+
 function viewSettings() {
   const configured = !!S.cloud?.configured;
   const row = (inner, cls = '') => `<li><div class="ha-row${cls}">${inner}</div></li>`;
@@ -1563,6 +1633,7 @@ function viewSettings() {
     famFoot = 'They sign in with that email (Google, or an emailed link or password) to see the pantry. Tap someone to give them a name, email them the link again, or stop sharing. Whoever started it can’t be removed.';
   }
   return `<h1 class="ha-large-title">Settings</h1>
+    ${viewSaving()}
     ${mergeCard()}
     ${section('Family sharing', fam, { id: 'family', footer: famFoot })}
     ${section('Where things are kept', `<ul class="ha-list"><li><a class="ha-row" href="#/places"><span class="ha-row-icon">${icon('home')}</span><span class="ha-row-body"><span class="ha-row-title">Places</span><span class="ha-row-sub">${esc(plural(placeNames().length, 'place'))}: ${esc(placeNames().slice(0, 3).join(', '))}${placeNames().length > 3 ? '…' : ''}</span></span>${chevron()}</a></li></ul>`,
@@ -1835,6 +1906,8 @@ async function onClick(e) {
       } catch (err) { S.lookupFailed = true; redraw(); haToast(S.cloud.explain(err, 'Checking')); }
       return;
     }
+    case 'refused-retry': return settleRefused(b.dataset.n, true);
+    case 'refused-discard': return settleRefused(b.dataset.n, false);
     case 'person': return openPerson(b.dataset.v);
     case 'copy-up': {
       try {
@@ -1842,7 +1915,7 @@ async function onClick(e) {
         data.settings = mergedPlaces(data.settings);   // the family's places first, then any only this phone had
         await S.backend.putMany(PHOTOS, data.photos);   // photos first, so no item points at a missing photo
         for (const k of KINDS) await S.backend.putMany(k, data[k]);
-        for (const k of KINDS) for (const o of data[k]) S[k].set(o.id, o);
+        for (const k of KINDS) for (const o of data[k]) S[k].set(o.id, adopt(k, o));
         await S.local.clear();
         S.localCount = 0; redraw();
         haToast(`Copied ${plural(data.items.length, 'item')} into the family pantry`);
@@ -1851,6 +1924,9 @@ async function onClick(e) {
     }
   }
 }
+
+// A document as the app holds it once it has been written whole (items: the map shape, nothing left to convert).
+const adopt = (kind, o) => (kind === 'items' ? L.normalizeItem(L.toStored(o)) : o);
 
 // Places from a backup or this phone, added after the pantry's own: [] when there is nothing new to save.
 function mergedPlaces(settings = []) {
@@ -1874,11 +1950,11 @@ async function onChange(e) {
   if (t.name === 'pa-level') {
     const it = S.items.get(route().parts[1]); if (!it) return;
     const before = it, res = L.setLevel(it, { level: t.value, by: who() });
-    save('items', res.item); const ev = save('events', res.event);
+    const sent = patchItem(it.id, res.ops); const ev = save('events', res.event);
     const line = t.value !== 'plenty' ? addToList(res.item, { quiet: true }) : null;
     redraw();
     haToast(`${it.name}: ${LEVEL_WORD[t.value].toLowerCase()}${line ? ', on the shopping list' : ''}`, { action: 'Undo', onAction: () => {
-      save('items', before); remove('events', ev.id); if (line) remove('shop', line.id); redraw(); haAnnounce('Undone');
+      undoItem(it.id, sent, before); remove('events', ev.id); if (line) remove('shop', line.id); redraw(); haAnnounce('Undone');
     } });
     return;
   }
@@ -1904,7 +1980,7 @@ async function onChange(e) {
         await S.backend.putMany(PHOTOS, data.photos);
         for (const k of KINDS) await S.backend.putMany(k, data[k]);
       } else for (const p of data.photos) S.backend.put(PHOTOS, p);
-      for (const k of KINDS) for (const o of data[k]) { if (S.backend.putMany) S[k].set(o.id, o); else save(k, o); }
+      for (const k of KINDS) for (const o of data[k]) { if (S.backend.putMany) S[k].set(o.id, adopt(k, o)); else save(k, o); }
       redraw(); haToast(`Restored ${plural(data.items.length, 'item')}`);
       migratePhotos();
     } catch (err) { haToast(err?.message?.startsWith('That file') ? err.message : 'Couldn’t restore that file.'); }
@@ -1953,20 +2029,94 @@ function inviteHref(email) {
 // ---- data sources ------------------------------------------------------------------------------------------------
 
 function loadInto(data) {
-  for (const k of KINDS) { S[k].clear(); for (const o of data[k] || []) S[k].set(o.id, o); }
+  for (const k of KINDS) { S[k].clear(); for (const o of data[k] || []) S[k].set(o.id, k === 'items' ? L.normalizeItem(o) : o); }   // items: either shape of batches in, one out
 }
 function onRemote(kind, docs, removed) {
-  for (const d of docs) S[kind].set(d.id, d);
+  for (const d of docs) S[kind].set(d.id, kind === 'items' ? L.normalizeItem(d) : d);
   for (const id of removed) S[kind].delete(id);
   redraw();
   if (kind === 'items' && docs.some(d => d.photo)) migratePhotos();
 }
+// ---- saving to the family: the chip, and what the server refused (sync.js) ----------------------------------------------
+
+// What the chip says now (only in a family pantry: on this phone alone there is nothing to wait for).
+function syncView() {
+  if (S.mode !== 'cloud') return null;
+  return SY.syncState({
+    refused: SY.refusedFor(S.refused, S.household?.id || '').length, pending: S.sync.pending, cache: S.sync.cache,
+    offline: navigator.onLine === false, waited: S.sync.since ? Date.now() - S.sync.since : 0,
+  });
+}
+const SYNC_BADGE = { saved: 'ha-badge--ok', waiting: 'ha-badge--warn', attention: 'ha-badge--bad' };
+function syncInner(v) {
+  const b = `<span class="ha-badge ${SYNC_BADGE[v.kind]}">${esc(v.text)}</span>`;
+  return v.kind === 'attention' && screen() !== 'settings' ? `<a class="pa-sync-link" href="#/settings">${b}<span class="pa-sync-more">See what</span></a>` : b;
+}
+// The chip's own markup (Home and Settings); drawSync() keeps it current without redrawing the screen.
+function syncChip() {
+  const v = syncView();
+  return v ? `<p class="pa-sync" data-sync aria-live="${v.kind === 'saved' ? 'off' : 'polite'}">${syncInner(v)}</p>` : '';
+}
+let syncTimer = null;
+function drawSync() {
+  const v = syncView();
+  for (const el of document.querySelectorAll('[data-sync]')) {
+    if (!v) { el.hidden = true; continue; }
+    el.hidden = false;
+    el.setAttribute('aria-live', v.kind === 'saved' ? 'off' : 'polite');
+    const html = syncInner(v);
+    if (el.dataset.kind !== v.kind + v.text) { el.innerHTML = html; el.dataset.kind = v.kind + v.text; }
+  }
+}
+// The cloud backend's count of this phone's unconfirmed changes (and whether it is showing its own copy). A change that
+// stays unconfirmed for a moment turns the chip to "Waiting for signal"; a normal save confirms before that.
+function onSyncState(st) {
+  const was = S.sync.pending;
+  S.sync = { pending: st.pending, cache: st.cache, since: st.pending > 0 ? (was > 0 ? S.sync.since : Date.now()) : 0 };
+  drawSync();
+  clearTimeout(syncTimer);
+  if (st.pending > 0) syncTimer = setTimeout(drawSync, 1600);
+}
+// The server refused a write (info says which; none: a listener failed). The SDK has already put the screen back, so the
+// change would vanish: keep a copy on this phone and say "Needs attention" until it is retried or discarded.
+function onWriteError(err, info) {
+  if (!info || !SY.keepable(info)) { S.syncError = S.cloud.explain(err, 'Saving'); redraw(); return; }
+  keepRefused(err, info);
+}
+function keepRefused(err, info) {
+  const name = S.items.get(info.id)?.name || info.obj?.name || '';
+  S.refused = SY.addRefused(S.refused, { n: L.uid(), hid: S.household?.id || '', kind: info.kind, id: info.id, op: info.op, ops: info.ops, obj: info.obj, code: err?.code || '', at: new Date().toISOString(), name });
+  prefs.set('refused', S.refused);
+  drawSync(); redraw();
+}
+// Send a refused change again. A whole document goes as it was; a change goes as instructions to the item as it is now
+// (false when the item is gone).
+function replay(r) {
+  if (r.op === 'del') { remove(r.kind, r.id); return true; }
+  if (r.op === 'put') { if (r.kind === 'items') S.items.set(r.id, L.normalizeItem(L.toStored(r.obj))); else S[r.kind].set(r.id, r.obj); S.backend.put(r.kind, r.obj); return true; }
+  const before = S.items.get(r.id);
+  if (!before) return false;
+  S.items.set(r.id, L.applyOps(before, r.ops));
+  S.backend.patch('items', r.id, r.ops, { before });
+  return true;
+}
+function settleRefused(n, retry) {
+  const r = S.refused.find(x => x.n === n); if (!r) return;
+  S.refused = SY.dropRefused(S.refused, n);
+  prefs.set('refused', S.refused);
+  if (retry && !replay(r)) haToast('That item was removed on another phone, so there is nothing to change.');
+  else if (retry) haToast('Sent again');
+  else haToast('Dropped');
+  drawSync(); redraw();
+}
+
 let unwatch = null;
 async function useHousehold(h) {
   S.household = h;
   prefs.set('household', h.id);
   S.backend?.close?.();
-  S.backend = await S.cloud.openCloud(h.id, err => { S.syncError = S.cloud.explain(err, 'Saving'); redraw(); });
+  S.sync = { pending: 0, cache: false, since: 0 };
+  S.backend = await S.cloud.openCloud(h.id, onWriteError, onSyncState);
   S.mode = 'cloud';
   S.pics.clear();
   loadInto(await S.backend.load());
@@ -2247,9 +2397,19 @@ async function start() {
   if ('serviceWorker' in navigator && !EMULATOR) {
     navigator.serviceWorker.register('sw.js').then(watchUpdates).catch(() => { /* no offline copy (private window) */ });
   }
-  window.__pantry = { ...(window.__pantry || {}), S };
+  window.__pantry = { ...(window.__pantry || {}), S, ...(EMULATOR ? { act: testActions } : {}) };
   setTimeout(maybeWelcome, 300);
 }
+
+// The emulator tests (never the live app) drive the same code the buttons do, so a randomised run can make hundreds of
+// changes quickly. Each returns the instructions it sent ({ ops, event }) for the test to add up.
+const testActions = {
+  use: (id, batchId = null) => apply(L.takeOut(S.items.get(id), { type: 'use', by: who(), batchId }), 'Used 1'),
+  add: (id, qty = 1, expiry = null, batchId = undefined) => apply(L.addStock(S.items.get(id), { qty, expiry, by: who(), ...(batchId ? { id: batchId } : {}) }), 'Added'),
+  open: (id, batchId = null) => apply(L.openOne(S.items.get(id), { by: who(), batchId }), 'Opened'),
+  set: (id, k, v) => patchItem(id, { set: { [k]: v }, inc: {}, del: [] }),
+  undo: () => { const u = S.lastUndo; S.lastUndo = null; return u?.() || null; },
+};
 
 // ---- the welcome, once per phone (guide.js) -------------------------------------------------------------------------
 
