@@ -263,8 +263,7 @@ function viewItem(it) {
   // buy it online
   const sq = shopQuery(it);
   h += section('Buy online', `<ul class="ha-list">
-    <li><a class="ha-row" href="${esc(L.fairpriceUrl(sq))}" target="_blank" rel="noopener"><span class="ha-row-icon ha-row-icon--grey">${icon('cart')}</span><span class="ha-row-body"><span class="ha-row-title">Search FairPrice</span></span>${icon('external', { cls: 'ha-row-chevron' })}<span class="ha-sr"> (opens FairPrice)</span></a></li>
-    <li><a class="ha-row" href="${esc(L.shengSiongUrl(sq))}" target="_blank" rel="noopener"><span class="ha-row-icon ha-row-icon--grey">${icon('cart')}</span><span class="ha-row-body"><span class="ha-row-title">Search Sheng Siong</span></span>${icon('external', { cls: 'ha-row-chevron' })}<span class="ha-sr"> (opens Sheng Siong)</span></a></li>
+    ${L.SHOPS.map(sh => `<li><a class="ha-row" href="${esc(sh.url(sq))}" target="_blank" rel="noopener"><span class="ha-row-icon ha-row-icon--grey">${icon('cart')}</span><span class="ha-row-body"><span class="ha-row-title">Search ${esc(sh.name)}</span></span>${icon('external', { cls: 'ha-row-chevron' })}<span class="ha-sr"> (opens ${esc(sh.name)})</span></a></li>`).join('')}
   </ul>`, { id: 'online' });
 
   // details
@@ -600,7 +599,7 @@ function viewSettings() {
       ${S.mode === 'local' ? btnRow('wipe', 'Delete everything on this phone', { cls: ' ha-row--danger' }) : ''}
     </ul>`, { id: 'data' })}
     ${section('On your home screen', `<div class="ha-card pa-install"><p class="ha-card-text"><strong>iPhone:</strong> in Safari, tap Share, then Add to Home Screen.</p><p class="ha-card-text"><strong>Android:</strong> in Chrome, open the menu, then Add to home screen or Install app.</p><p class="ha-card-text">It then opens like an app and works without signal.</p></div>`, { id: 'install' })}
-    ${section('About', '', { id: 'about', footer: 'Product suggestions are common Singapore supermarket goods; “keeps once opened” days are a rough guide, so check the label. Barcode look-ups use Open Food Facts. Shop links open FairPrice’s and Sheng Siong’s own search.' })}
+    ${section('About', '', { id: 'about', footer: 'Product suggestions are common Singapore supermarket goods; “keeps once opened” days are a rough guide, so check the label. Barcode look-ups use Open Food Facts. Shop links open FairPrice’s, Sheng Siong’s, Cold Storage’s and Shopee’s own search.' })}
     <div id="pa-version"></div>`;
 }
 

@@ -178,7 +178,7 @@ export function viewGuide() {
       row('cart', 'It fills itself', 'Items land here when none are left, when they’re down to their “on the list when down to” number, or when they’ll run out within a week at your usual pace.'),
       row('plus', 'Add anything', 'Type it at the top of the list.'),
       row('check', 'Tick when bought', 'For a pantry item, it asks how many you bought and the new date.'),
-      row('external', 'FairPrice and Sheng Siong', 'Each item links to their search, to buy online.'),
+      row('external', 'Buy online', 'Each item links to FairPrice, Sheng Siong, Cold Storage and Shopee search.'),
       row('share', 'Share the list', 'Tap Share at the top to send it in WhatsApp or a message.'),
     ])}
     ${section('pace', 'How fast we use it', [

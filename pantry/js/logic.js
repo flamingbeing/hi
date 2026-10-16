@@ -227,6 +227,15 @@ export function score(query, text) {
 
 export function fairpriceUrl(q) { return 'https://www.fairprice.com.sg/search?query=' + encodeURIComponent(q); }
 export function shengSiongUrl(q) { return 'https://shengsiong.com.sg/search/' + encodeURIComponent(q); }
+export function coldStorageUrl(q) { return 'https://coldstorage.com.sg/search?q=' + encodeURIComponent(q); }
+export function shopeeUrl(q) { return 'https://shopee.sg/search?keyword=' + encodeURIComponent(q); }
+// The shops an item links to ("Buy online"), in the order shown. Each opens the shop's own search for the item.
+export const SHOPS = [
+  { name: 'FairPrice', url: fairpriceUrl },
+  { name: 'Sheng Siong', url: shengSiongUrl },
+  { name: 'Cold Storage', url: coldStorageUrl },
+  { name: 'Shopee', url: shopeeUrl },
+];
 
 // ---- export ----------------------------------------------------------------------------------------------------
 
