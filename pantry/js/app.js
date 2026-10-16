@@ -256,7 +256,7 @@ function daysText(d) {
   if (d === 7) return '1 week';
   if (d < 14) return plural(d, 'day');
   if (d < 60) return plural(Math.round(d / 7), 'week');
-  if (d < 540) return plural(Math.round(d / 30.4), 'month');
+  if (d < 330) return plural(Math.round(d / 30.4), 'month');
   return plural(Math.round(d / 365), 'year');
 }
 // A guessed best-before date from how long a product usually keeps (catalogue.js): { days, date, label } or null.
@@ -1210,12 +1210,14 @@ async function listenShop(btn) {
   if (shopMic) { shopMic.stop(); return; }
   const Q = await import('./quick.js');
   const inp = $('#pa-shop-text');
-  let heard = '';
+  let heard = '', ended = false;
   const done = err => {
+    if (ended) return;   // browsers may end twice (an error, then the end)
+    ended = true;
     shopMic = null;
     const b = $('#pa-shop-mic'); b?.classList.remove('is-on'); b?.setAttribute('aria-pressed', 'false');
     if (err && err !== 'no-speech' && err !== 'aborted') haToast(/not-allowed|service/.test(err) ? 'The microphone is blocked. Allow it in the browser’s settings, or type instead.' : 'Didn’t catch that. Try again or type.');
-    const added = Q.splitItems(heard).map(p => addLine(p.replace(/^(buy|get|need|we need|some)\s+/i, ''))).filter(Boolean);
+    const added = Q.splitItems(heard).map(p => addLine(p.replace(/^(buy|get|need|we need|some)\s+/i, '').replace(/^./, c => c.toUpperCase()))).filter(Boolean);
     if (inp) inp.value = '';
     redraw();
     if (added.length) haToast(`Added ${plural(added.length, 'thing')} to the list`, { action: 'Undo', onAction: () => { for (const m of added) remove('shop', m.id); redraw(); haAnnounce('Undone'); } });

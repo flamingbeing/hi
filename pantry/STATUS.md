@@ -26,6 +26,11 @@
   count; rename, reorder, remove (asks where items go) and add your own; defaults gain Level 1 fridge, Level 1 freezer
   and Basement store; shared with the family through `settings/places` (rules change, deploys on merge).
 
+- 16 Oct 2026: names and the research items (branch, PR to follow): names for family members (contact sheet;
+  `settings/people`, rules change, deploys on merge); guessed best-before dates; Since you last looked and WhatsApp
+  links; Freeze and Thaw; Leftovers; shopping list by aisle with Buy again, mic, Going shopping and Put away; Plenty /
+  Low / Out for staples; Scan many.
+
 ## Waiting on the owner
 
 - Billing: waiting on the owner (Blaze), then the US$5 budget and daily backups.
@@ -38,9 +43,14 @@
 
 - After the sign-in clicks: a first sign-in on the phone, Start our family pantry, add the family.
 - Ideas: reminders for things about to expire (needs a server or push), prices per purchase (`price` is already
-  accepted on "add" events), receipt photo to items, more catalogue lines, share "use this week" to WhatsApp.
+  accepted on "add" events), receipt photo to items, more catalogue lines. From the research still open: real
+  reminders (push, needs a Worker cron), money saved or wasted, recipe-idea links, pasting an online order.
 
 ## Decisions
+
+- 16 Oct 2026: names live in `settings/people` (members only, at most 20, 1-40 characters); ticking the shopping list
+  no longer opens Bought more: Put away does them all at once; freezing moves the whole item (places are per item)
+  (NOTES.md).
 
 - 16 Oct 2026: places are a per-household list in `settings/places`; items keep their place as text, so nothing is
   lost when a place leaves the list (NOTES.md).
