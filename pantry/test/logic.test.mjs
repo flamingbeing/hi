@@ -211,4 +211,19 @@ assert.throws(() => L.parseBackup('nonsense'), /not a pantry backup/);
   assert.equal(L.waLink('a & b\nc'), 'https://wa.me/?text=a%20%26%20b%0Ac');
 }
 
+// ---- staples: Plenty / Low / Out ----
+{
+  const rice = { id: 'r', name: 'Rice', measure: 'level', level: 'plenty', batches: [] };
+  assert.ok(L.isStaple(rice) && !L.isStaple({ id: 'x' }));
+  assert.equal(L.levelOf({ measure: 'level' }), 'plenty', 'no level yet: plenty');
+  assert.deepEqual(L.toBuy([rice], new Map()), [], 'plenty: not on the list (no count needed)');
+  const low = L.setLevel(rice, { level: 'low', by: 'Dad' });
+  assert.deepEqual([low.item.level, low.event.type, low.event.level, low.event.by], ['low', 'level', 'low', 'Dad']);
+  const b = L.toBuy([low.item, L.setLevel(rice, { level: 'out' }).item], new Map());
+  assert.deepEqual(b.map(x => [x.why, L.whyText(x)]), [['out', 'Out'], ['low', 'Running low']]);
+  assert.equal(L.setLevel(rice, { level: 'lots' }).event, null);
+  assert.deepEqual(L.expiring([{ ...rice, batches: [{ id: 'b', qty: 1, expiry: '2000-01-01' }] }], { today: T }), [], 'staples never show under Use soon');
+  assert.ok(L.toCsv([low.item]).split('\n')[1].includes(',Low,'), 'the CSV says Low');
+}
+
 console.log('pantry logic: ok');

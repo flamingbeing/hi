@@ -225,11 +225,14 @@ function badge(date) {
   const tone = { bad: ' ha-badge--bad', warn: ' ha-badge--warn' }[b.tone] || '';
   return `<span class="ha-badge${tone}">${esc(b.text)}</span>`;
 }
+const LEVEL_WORD = { plenty: 'Plenty', low: 'Low', out: 'Out' };
+// A stock change that means "bought more": a count gets a batch; a staple goes back to Plenty.
+const restock = (it, { qty = 1, expiry = null } = {}) => (L.isStaple(it) ? L.setLevel(it, { level: 'plenty', by: who() }) : L.addStock(it, { qty, expiry, by: who() }));
 const subOf = it => [it.brand, it.size].filter(Boolean).map(esc).join(' · ');
 function itemRow(it, { sub, trail } = {}) {
-  const q = L.totalQty(it);
-  const s = sub ?? [q ? `${q} left` : 'None left', esc(it.location || '')].filter(Boolean).join(' · ');
-  const t = trail ?? badge(L.nextUseBy(it));
+  const q = L.totalQty(it), staple = L.isStaple(it);
+  const s = sub ?? [staple ? LEVEL_WORD[L.levelOf(it)] : q ? `${q} left` : 'None left', esc(it.location || '')].filter(Boolean).join(' · ');
+  const t = trail ?? (staple ? '' : badge(L.nextUseBy(it)));
   return `<li><a class="ha-row pa-item" href="#/item/${esc(it.id)}">${thumb(it)}
     <span class="ha-row-body"><span class="ha-row-title">${esc(it.name)}</span>${s ? `<span class="ha-row-sub">${s}</span>` : ''}</span>
     ${t ? `<span class="ha-row-trail">${t}</span>` : ''}${chevron()}</a></li>`;
@@ -506,7 +509,7 @@ const VERB = { add: 'Bought', use: 'Used up', open: 'Opened', discard: 'Thrown a
 function viewItem(it) {
   const evs = eventsFor(it.id).sort((a, b) => (a.at < b.at ? 1 : -1));
   const u = L.usage(evs);
-  const ro = L.runOutDate(it, u);
+  const ro = L.isStaple(it) ? null : L.runOutDate(it, u);
   const q = L.totalQty(it);
   const batches = L.fefo(it);
   const t = today();
@@ -535,10 +538,17 @@ function viewItem(it) {
         <button type="button" class="ha-btn ha-btn--small ha-btn--quiet" data-act="toss" data-b="${esc(b.id)}" aria-label="Bin 1, ${esc(desc)}">Bin 1</button>
       </span></div></li>`;
   };
-  h += section('In stock', `<ul class="ha-list">${batches.length ? batches.map(batchRow).join('') : `<li><div class="ha-row"><span class="ha-row-body"><span class="ha-row-title">None left</span><span class="ha-row-sub">Bought more? Add it below.</span></span></div></li>`}</ul>`,
-    { count: q, id: 'stock', footer: it.openDays ? `Keeps about ${plural(it.openDays, 'day')} once opened (the label wins).` : '' });
+  if (L.isStaple(it)) {
+    const lv = L.levelOf(it);
+    const seg = (v, label) => `<label class="ha-seg"><input type="radio" name="pa-level" value="${v}"${lv === v ? ' checked' : ''}><span>${label}</span></label>`;
+    h += section('How much is left', `<fieldset class="ha-segmented pa-level"><legend class="ha-sr">How much is left</legend>${seg('plenty', 'Plenty')}${seg('low', 'Low')}${seg('out', 'Out')}</fieldset>`,
+      { id: 'stock', footer: 'Kept without counting. Low or Out puts it on the shopping list; Put away sets it back to Plenty.' });
+  } else {
+    h += section('In stock', `<ul class="ha-list">${batches.length ? batches.map(batchRow).join('') : `<li><div class="ha-row"><span class="ha-row-body"><span class="ha-row-title">None left</span><span class="ha-row-sub">Bought more? Add it below.</span></span></div></li>`}</ul>`,
+      { count: q, id: 'stock', footer: it.openDays ? `Keeps about ${plural(it.openDays, 'day')} once opened (the label wins).` : '' });
+  }
   h += `<div class="ha-btn-stack pa-actions">
-    <button type="button" class="ha-btn ha-btn--primary ha-btn--block" data-act="bought">${icon('plus')}Bought more</button>
+    ${L.isStaple(it) ? '' : `<button type="button" class="ha-btn ha-btn--primary ha-btn--block" data-act="bought">${icon('plus')}Bought more</button>`}
     <button type="button" class="ha-btn ha-btn--secondary ha-btn--block" data-act="to-list"${onList(it.id) ? ' aria-disabled="true"' : ''}>${icon('cart')}${onList(it.id) ? 'On the shopping list' : 'Add to shopping list'}</button>
   </div>`;
 
@@ -562,11 +572,11 @@ function viewItem(it) {
 
   // details
   const detail = (label, value) => value === '' || value == null ? '' : `<li><div class="ha-row"><span class="ha-row-body"><span class="ha-row-title">${label}</span></span><span class="ha-row-value pa-wrap">${esc(value)}</span></div></li>`;
-  h += section('Details', `<ul class="ha-list">${detail('Category', it.category)}${detail('Kept in', it.location)}${detail('Keeps once opened', it.openDays ? plural(it.openDays, 'day') : 'Not set')}${detail('Shopping list at', it.lowAt ? `${it.lowAt} left` : 'None left')}${detail('Barcode', it.barcode)}${detail('Added by', nameOf(it.createdBy))}${detail('Last changed by', nameOf(it.updatedBy))}</ul>`, { id: 'details' });
+  h += section('Details', `<ul class="ha-list">${detail('Category', it.category)}${detail('Kept in', it.location)}${detail('Keeps once opened', it.openDays ? plural(it.openDays, 'day') : 'Not set')}${L.isStaple(it) ? detail('Kept track of', 'Plenty, low or out') : detail('Shopping list at', it.lowAt ? `${it.lowAt} left` : 'None left')}${detail('Barcode', it.barcode)}${detail('Added by', nameOf(it.createdBy))}${detail('Last changed by', nameOf(it.updatedBy))}</ul>`, { id: 'details' });
 
   // history
   h += section('History', evs.length
-    ? `<ul class="ha-list">${evs.slice(0, 15).map(e => `<li><div class="ha-row"><span class="ha-row-body"><span class="ha-row-title">${VERB[e.type] || esc(e.type)} ${e.qty > 1 ? e.qty : ''}</span><span class="ha-row-sub">${esc(fmtTime(e.at))}${e.by ? ' · ' + esc(nameOf(e.by)) : ''}</span></span></div></li>`).join('')}</ul>`
+    ? `<ul class="ha-list">${evs.slice(0, 15).map(e => `<li><div class="ha-row"><span class="ha-row-body"><span class="ha-row-title">${e.type === 'level' ? `Marked ${esc(LEVEL_WORD[e.level] || e.level || '').toLowerCase()}` : VERB[e.type] || esc(e.type)} ${e.qty > 1 ? e.qty : ''}</span><span class="ha-row-sub">${esc(fmtTime(e.at))}${e.by ? ' · ' + esc(nameOf(e.by)) : ''}</span></span></div></li>`).join('')}</ul>`
     : `<ul class="ha-list"><li><div class="ha-row"><span class="ha-row-body"><span class="ha-row-sub">Nothing yet.</span></span></div></li></ul>`, { id: 'history', footer: evs.length > 15 ? `The latest 15 of ${evs.length}.` : '' });
   h += `<ul class="ha-list pa-delete"><li><button type="button" class="ha-row ha-row--danger ha-row--center" data-act="delete"><span class="ha-row-body"><span class="ha-row-title">Delete item</span></span></button></li></ul>`;
   return h;
@@ -618,8 +628,14 @@ function viewForm(id) {
         <label class="ha-field"><span class="ha-field-label">Kept in</span><select class="ha-select" name="location">${placeOptions(d.location)}</select></label>
       </div>
     </section>`;
-  if (!editing) {
-    h += `<section class="ha-section" aria-labelledby="h-f-stock"><h2 class="ha-section-header" id="h-f-stock">Stock</h2>
+  const track = `<fieldset class="ha-segmented pa-track"><legend>Keep track by</legend>
+      <label class="ha-seg"><input type="radio" name="measure" value="count"${d.measure !== 'level' ? ' checked' : ''}><span>Counting</span></label>
+      <label class="ha-seg"><input type="radio" name="measure" value="level"${d.measure === 'level' ? ' checked' : ''}><span>Plenty, low, out</span></label></fieldset>`;
+  const trackFoot = '<p class="ha-section-footer">For rice, oil or loose vegetables, “Plenty, low, out” is easier than counting.</p>';
+  if (!editing && d.measure === 'level') {
+    h += `<section class="ha-section" aria-labelledby="h-f-stock"><h2 class="ha-section-header" id="h-f-stock">Stock</h2>${track}${trackFoot}</section>`;
+  } else if (!editing) {
+    h += `<section class="ha-section" aria-labelledby="h-f-stock"><h2 class="ha-section-header" id="h-f-stock">Stock</h2>${track}
       <ul class="ha-list"><li><div class="ha-row"><span class="ha-row-body"><span class="ha-row-title" id="pa-qty-l">How many</span></span>
         <div class="ha-stepper" role="group" aria-labelledby="pa-qty-l" id="pa-qty"><button type="button" data-step="-1" aria-label="Fewer">${icon('minus')}</button><output>${Number(d.qty) || 0}</output><button type="button" data-step="1" aria-label="More">${icon('plus')}</button></div></div></li></ul>
       <label class="ha-field pa-gap"><span class="ha-field-label">Best before or use by</span><input class="ha-input" type="date" name="expiry" value="${esc(d.expiry)}"></label>
@@ -627,6 +643,7 @@ function viewForm(id) {
     </section>`;
   }
   h += `<section class="ha-section" aria-labelledby="h-f-remind"><h2 class="ha-section-header" id="h-f-remind">Reminders</h2>
+      ${editing ? `${track}${trackFoot}` : ''}
       <div class="pa-two">${field('openDays', 'Keeps once opened (days)', 'type="number" inputmode="numeric" min="0" placeholder="Not set"')}${field('lowAt', 'On the list when down to', 'type="number" inputmode="numeric" min="0"')}</div>
       <p class="ha-section-footer">Opened items are due the earlier of the printed date and this many days after opening.</p>
     </section>
@@ -645,6 +662,7 @@ function wireForm() {
     S.draft[t.name] = t.value; S.dirty = true;
     if (t.name === 'category' || t.name === 'location') { S.draft._picked = { ...S.draft._picked, [t.name]: true }; refreshGuess(); }
     if (t.name === 'name' && t.value.trim()) { t.removeAttribute('aria-invalid'); $('#pa-name-err').hidden = true; }
+    if (t.name === 'measure') { const y = scrollY; draw(route(), { keep: true }); scrollTo(0, y); $(`#pa-form [name="measure"][value="${t.value}"]`)?.focus(); return; }
     if (t.name === 'expiry') for (const c of document.querySelectorAll('.pa-dates .ha-chip')) c.setAttribute('aria-pressed', String(c.dataset.v === t.value && !!t.value));
   });
   f.addEventListener('submit', submitForm);
@@ -716,6 +734,7 @@ function submitForm(e) {
     name: d.name.trim(), brand: String(d.brand || '').trim(), size: String(d.size || '').trim(), category: d.category, location: d.location,
     openDays: num(d.openDays) || null, lowAt: num(d.lowAt), barcode: String(d.barcode || '').trim(),
   };
+  if (d.measure === 'level') { it.measure = 'level'; it.level = L.levelOf(base || {}); } else { delete it.measure; delete it.level; }
   // a new or removed picture: the photo is written (or deleted) first, then the item with its thumbnail
   const pics = d._pics, hadPhoto = !!base?.hasPhoto;
   if (pics !== undefined) {
@@ -732,7 +751,7 @@ function submitForm(e) {
   }
   const qty = num(d.qty);
   let ev = null;
-  if (qty > 0) {
+  if (qty > 0 && !L.isStaple(it)) {
     const res = L.addStock(it, { qty, expiry: d.expiry || null, by: who() });
     save('items', res.item); ev = save('events', res.event);
   } else save('items', it);
@@ -879,7 +898,7 @@ function openBought(it, { shopId = null } = {}) {
     e.preventDefault();
     const n = qty.get(), cur = S.items.get(it.id);
     if (!cur) { haCloseSheet(s.el); return; }
-    const res = L.addStock(cur, { qty: n, expiry: f.expiry.value || null, by: who() });
+    const res = restock(cur, { qty: n, expiry: f.expiry.value || null });
     const ticked = [...S.shop.values()].filter(m => m.itemId === it.id && !m.done && m.id !== shopId);
     for (const m of ticked) save('shop', { ...m, done: true });
     await haCloseSheet(s.el);
@@ -987,7 +1006,7 @@ async function openQuick() {
         name: x.name, brand: x.brand || '', size: c?.size || '', category: c?.category || 'Other',
         location: x.location || c?.location || defaultPlace(), openDays: c?.openDays ?? null, lowAt: 0, barcode: '',
       };
-      const res = L.addStock(base, { qty: x.qty, expiry: x.expiry || x.guess?.date || null, by: who() });
+      const res = restock(base, { qty: x.qty, expiry: x.expiry || x.guess?.date || null });
       undo.push({ before: mine || null, id: base.id, ev: save('events', res.event).id });
       save('items', res.item);
     }
@@ -1132,10 +1151,10 @@ function openPutAway() {
     const it = m.itemId && S.items.get(m.itemId);
     const c = it ? null : catMatch(m.name);
     const base = it || { name: m.name, brand: '', category: c?.category || 'Other', location: c?.location || defaultPlace() };
-    return { m, it, c, g: it?.measure === 'level' ? null : guessFor(base), place: base.location || defaultPlace() };
+    return { m, it, c, g: L.isStaple(it) ? null : guessFor(base), place: base.location || defaultPlace() };
   });
   const row = (r, i) => {
-    const staple = r.it?.measure === 'level';
+    const staple = L.isStaple(r.it);
     return `<li class="pa-pa"><label class="ha-row"><input type="checkbox" data-pa="${i}" checked>
         <span class="ha-row-body"><span class="ha-row-title" id="pa-pa-t${i}">${esc(r.it ? r.it.name : r.m.name)}</span><span class="ha-row-sub">${r.it ? staple ? 'Back to plenty' : 'Adds to the one at home' : r.c ? `New item · ${esc(r.c.category)}` : 'New item'}</span></span></label>
       <div class="pa-pa-fields">
@@ -1172,7 +1191,7 @@ function openPutAway() {
         undo.created.push(it.id);
       }
       it = { ...it, location: place || it.location };
-      const res = it.measure === 'level' ? L.setLevel(it, { level: 'plenty', by: who() }) : L.addStock(it, { qty, expiry: val('expiry', i) || null, by: who() });
+      const res = restock(it, { qty, expiry: val('expiry', i) || null });
       save('items', res.item);
       if (res.event) undo.events.push(save('events', res.event).id);
       undo.lines.push(r.m); remove('shop', r.m.id);
@@ -1733,6 +1752,17 @@ function download(name, text, type) {
 
 async function onChange(e) {
   const t = e.target;
+  if (t.name === 'pa-level') {
+    const it = S.items.get(route().parts[1]); if (!it) return;
+    const before = it, res = L.setLevel(it, { level: t.value, by: who() });
+    save('items', res.item); const ev = save('events', res.event);
+    const line = t.value !== 'plenty' ? addToList(res.item, { quiet: true }) : null;
+    redraw();
+    haToast(`${it.name}: ${LEVEL_WORD[t.value].toLowerCase()}${line ? ', on the shopping list' : ''}`, { action: 'Undo', onAction: () => {
+      save('items', before); remove('events', ev.id); if (line) remove('shop', line.id); redraw(); haAnnounce('Undone');
+    } });
+    return;
+  }
   if (t.name === 'pa-sort') { S.sort = t.value; prefs.set('sort', t.value); return drawItemsList(); }
   if (t.id === 'pa-name') { prefs.set('name', t.value.trim()); return haToast('Saved'); }
   if (t.dataset.shop) {

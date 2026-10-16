@@ -133,6 +133,16 @@ export function openOne(item, { by, at, today = ymd(), batchId = null } = {}) {
   return { item: { ...item, batches }, event: ev(item, 'open', 1, by, at) };
 }
 
+// Staples (rice, oil, salt, wet-market vegetables) can be kept as Plenty / Low / Out instead of a count: the item has
+// measure 'level' and level 'plenty' | 'low' | 'out' (no batches needed). Low and Out put it on the shopping list.
+export const LEVELS = ['plenty', 'low', 'out'];
+export const isStaple = it => it?.measure === 'level';
+export const levelOf = it => (LEVELS.includes(it?.level) ? it.level : 'plenty');
+export function setLevel(item, { level = 'plenty', by, at } = {}) {
+  if (!LEVELS.includes(level)) return { item, event: null };
+  return { item: { ...item, level }, event: ev(item, 'level', 1, by, at, { level }) };
+}
+
 // Freeze one batch: it moves to `place` (the item's place, as places belong to items), keeps until the later of its
 // own date and `days` from today, and is marked frozen on today. Thaw: back to `place`, use within `days`.
 // Each returns { item, event } like the others (event types 'freeze' and 'thaw', counted nowhere but the history).
@@ -215,6 +225,11 @@ export function toBuy(items, eventsByItem, { days = 7, now = new Date() } = {}) 
   const out = [];
   for (const it of items) {
     if (it.archived || it.noRestock) continue;
+    if (isStaple(it)) {
+      const l = levelOf(it);
+      if (l !== 'plenty') out.push({ item: it, why: l === 'out' ? 'out' : 'low', runOut: null, qty: 0, staple: true });
+      continue;
+    }
     const q = totalQty(it);
     const low = Number(it.lowAt) || 0;
     const u = usage(eventsByItem.get(it.id) || [], now);
@@ -232,7 +247,7 @@ export function toBuy(items, eventsByItem, { days = 7, now = new Date() } = {}) 
 // Items whose next use-by date is past or within `days`.
 export function expiring(items, { days = 14, today = ymd() } = {}) {
   return items
-    .filter(it => !it.archived && totalQty(it) > 0)
+    .filter(it => !it.archived && !isStaple(it) && totalQty(it) > 0)
     .map(it => ({ item: it, date: nextUseBy(it) }))
     .filter(x => x.date && daysBetween(today, x.date) <= days)
     .sort((a, b) => (a.date < b.date ? -1 : 1));
@@ -281,7 +296,8 @@ export function toCsv(items, today = ymd()) {
   for (const it of items) {
     if (it.archived) continue;
     const d = nextUseBy(it);
-    rows.push([it.name, it.brand, it.size, it.category, it.location, totalQty(it), d || '', d ? expiryLabel(d, today) : '', it.barcode]);
+    const q = isStaple(it) ? levelOf(it).replace(/^./, c => c.toUpperCase()) : totalQty(it);
+    rows.push([it.name, it.brand, it.size, it.category, it.location, q, isStaple(it) ? '' : d || '', d && !isStaple(it) ? expiryLabel(d, today) : '', it.barcode]);
   }
   return rows.map(r => r.map(csvCell).join(',')).join('\n');
 }
@@ -303,6 +319,7 @@ export function shortLabel(date, today = ymd()) {
 
 // Why something is on the shopping list, in words.
 export function whyText(b, today = ymd()) {
+  if (b.staple) return b.why === 'out' ? 'Out' : 'Running low';
   if (b.why === 'out') return 'None left';
   if (b.why === 'low') return `Only ${b.qty} left`;
   const d = daysBetween(today, b.runOut);
