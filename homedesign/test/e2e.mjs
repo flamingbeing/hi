@@ -75,6 +75,22 @@ async function axe(page, what) {
     .violations.map(x => `${x.id} (${x.impact}): ${x.nodes.slice(0, 3).map(n => n.target.join(' ')).join(' | ')}`));
   ok(v.length === 0, `${what}: axe violations\n  ${v.join('\n  ')}`);
 }
+// the top bar's lead, title and trail never overlap (and the back button keeps a 44px target and its name)
+async function barApart(page, what) {
+  const r = await page.evaluate(() => {
+    const box = e => { const b = e.getBoundingClientRect(); return { l: b.left, r: b.right, t: b.top, b: b.bottom, w: b.width, h: b.height }; };
+    const title = document.querySelector('.ha-bar-title');
+    const parts = [...document.querySelectorAll('.ha-bar-lead > *, .ha-bar-trail > *')].filter(e => e.getClientRects().length)
+      .map(e => ({ side: e.closest('.ha-bar-lead') ? 'lead' : 'trail', ...box(e) }));
+    const back = document.querySelector('.ha-back');
+    return { title: title && title.textContent.trim() ? box(title) : null, parts, back: back && { ...box(back), name: back.textContent.trim() } };
+  });
+  const hit = (a, b) => Math.min(a.r, b.r) - Math.max(a.l, b.l) > 0.5 && Math.min(a.b, b.b) - Math.max(a.t, b.t) > 0.5;
+  for (const p of r.parts) if (r.title) ok(!hit(p, r.title), `${what}: bar ${p.side} (${Math.round(p.l)}-${Math.round(p.r)}) overlaps the title (${Math.round(r.title.l)}-${Math.round(r.title.r)})`);
+  const lead = r.parts.filter(p => p.side === 'lead'), trail = r.parts.filter(p => p.side === 'trail');
+  for (const a of lead) for (const b of trail) ok(!hit(a, b), `${what}: bar lead overlaps the trail`);
+  if (r.back) ok(r.back.w >= 43.5 && r.back.h >= 43.5 && r.back.name, `${what}: back button keeps a 44px target and its name (${Math.round(r.back.w)}x${Math.round(r.back.h)} "${r.back.name}")`);
+}
 const shot = async (page, name, full = false) => { if (SHOTS) await page.screenshot({ path: path.join(SHOTS, name + '.png'), fullPage: full }); };
 const waitIdle = page => page.waitForTimeout(500);   // let sheets, toasts and view transitions settle
 
@@ -249,6 +265,21 @@ try {
     }
     console.log(`  ${size.name}: ok`);
   }
+  // the top bar on pushed screens at 390 and 320px, at normal and 200% text: lead, title and trail stay apart
+  for (const size of SIZES.filter(s => s.name === '390' || s.name === '320')) {
+    const { ctx, page, errors } = await open(size, 'app.html#/item/milk');
+    for (const fs of ['', '212.5%']) {
+      await page.evaluate(f => { document.documentElement.style.fontSize = f; }, fs);
+      for (const h of ['#/item/milk', '#/item/rice', '#/kit', '#/']) {
+        await page.evaluate(x => { location.hash = x; }, h); await waitIdle(page);
+        await page.evaluate(() => scrollTo(0, document.body.scrollHeight)); await waitIdle(page);
+        await barApart(page, `app bar ${size.name} ${h}${fs ? ' at 200% text' : ''}`);
+      }
+    }
+    ok(errors.length === 0, `app bar ${size.name}: console errors ${errors.join('; ')}`);
+    await ctx.close();
+  }
+  console.log('  top bar: ok');
   // reduced motion: the kit still works with every transition off
   {
     const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, reducedMotion: 'reduce' });
