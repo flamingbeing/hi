@@ -61,6 +61,9 @@ Plus each app's browser tests when it changes (listed in its `NOTES.md`; the app
 - Instructions mostly come from a phone. Work through a request to the end; ask only when a decision is genuinely
   the owner's. When asked to plan, plan and wait.
 - PR titles start with the app: "Pantry: …", "Home design: …", "Repo: …". Keep each PR small and finished on its own.
+- **Build minutes are limited:** every push to a branch with a PR starts a Cloudflare build, and the account's free
+  plan has 3,000 build minutes a month shared with anawj.com. Commit freely but push once per finished step, never just
+  to save work in progress.
 - Merge your own PRs once the Checks are green, then report with the PR link. Merge by the number the PR's creation
   returned. Exceptions: anything touching live data or rules waits for the checks above; the owner may ask to wait.
 - Show UI changes with 390 px phone screenshots and the PR preview link (`<preview>/_sites/<host>/?demo`).

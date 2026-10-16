@@ -17,6 +17,21 @@ Worker. `flamingbeing.com` itself (the owner's server page) is not served by it.
 - **Service-worker versions** are stamped by the build command (`node tools/stamp-versions.mjs`).
 - Check a change to `.assetsignore`/`wrangler.jsonc` with `npx wrangler deploy --dry-run`.
 
+## Names already in use: the home catch-all and Tailscale
+
+`*.flamingbeing.com` is a catch-all DNS record pointing to the owner's home server (192.168.0.114; the owner's
+Tailscale links use it). A Worker custom domain adds a record for **that one name only**, which wins over the
+catch-all for that name; every other name still goes home. So before giving an app a subdomain, **ask the owner
+whether the name is already used at home**: a clash would send that home link to the app instead. Keep app names one
+level deep (`pantry.flamingbeing.com`): Cloudflare's free certificate covers only one level. The bare
+`flamingbeing.com` (the owner's Server Gateway page) is a separate record and is never touched.
+
+## Build minutes
+
+Builds share the account's 3,000 free build minutes a month with anawj.com (anawj-site `PREVIEWS.md`, "Build
+minutes"). Owner's click: Workers → flamingbeing-home → Settings → Build → **Build watch paths**: include `*`, exclude
+`*.md`, `songs/**`, `suno-songs/**`, `**/test/**`, `.github/**`.
+
 ## One-time setup (the owner, about 10 minutes)
 
 1. <https://dash.cloudflare.com> (the account with flamingbeing.com) → **Workers & Pages → Create → Import a
