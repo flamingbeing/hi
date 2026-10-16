@@ -147,4 +147,49 @@ assert.deepEqual(L.parseBackup(JSON.stringify({ app: 'pantry', items: [{ id: 'ok
 assert.throws(() => L.parseBackup('{"app":"other"}'), /not a pantry backup/);
 assert.throws(() => L.parseBackup('nonsense'), /not a pantry backup/);
 
+// ---- guessed best-before dates (catalogue.js) ----
+{
+  const C = await import('../js/catalogue.js');
+  const day = n => C.shelfDays(C.CATALOGUE.find(c => c.name === n));
+  assert.equal(day('Fresh milk'), 7);
+  assert.equal(day('Salt'), null, 'salt has no date that matters');
+  assert.equal(day('Green tea (no sugar)'), 270, '"no sugar" is not sugar');
+  assert.equal(day('Frozen chicken nuggets'), 180, 'frozen chicken is not 2-day chicken');
+  assert.equal(day('Chicken breast'), 2);
+  assert.equal(day('Laundry liquid'), null);
+  assert.equal(C.shelfDays({ name: 'Fried rice', category: 'Leftovers' }), 3);
+  assert.equal(C.shelfDays({ name: 'Something', category: 'Nope' }), null);
+  assert.ok(C.CATEGORIES.includes('Leftovers'));
+  assert.equal(C.freezeDays({ name: 'White bread', category: 'Bread & bakery' }), 30);
+  assert.equal(C.freezeDays({ name: 'Minced pork', category: 'Meat & seafood' }), C.FROZEN_DAYS);
+  assert.ok(C.freezable({ category: 'Meat & seafood' }) && !C.freezable({ category: 'Toiletries' }));
+}
+// ---- freeze and thaw ----
+{
+  const it = { id: 'f', name: 'Minced pork', openDays: 2, location: 'Fridge', batches: [{ id: 'b1', qty: 2, expiry: '2026-10-18', openedAt: '2026-10-15' }, { id: 'b2', qty: 1, expiry: '2027-03-01' }] };
+  const f = L.freezeBatch(it, { batchId: 'b1', days: 91, place: 'Level 1 freezer', today: '2026-10-16', by: 'Mum' });
+  const b1 = f.item.batches.find(b => b.id === 'b1');
+  assert.equal(b1.frozenAt, '2026-10-16');
+  assert.equal(b1.expiry, '2027-01-15', 'frozen: keeps three months from today');
+  assert.equal(L.batchUseBy(b1, f.item), '2027-01-15', 'opening no longer counts while frozen');
+  assert.equal(f.item.location, 'Level 1 freezer');
+  assert.deepEqual([f.event.type, f.event.qty, f.event.by], ['freeze', 2, 'Mum']);
+  const later = L.freezeBatch(it, { batchId: 'b2', days: 91, today: '2026-10-16' }).item.batches.find(b => b.id === 'b2');
+  assert.equal(later.expiry, '2027-03-01', 'a later printed date stays');
+  assert.equal(L.freezeBatch(f.item, { batchId: 'b1' }).event, null, 'already frozen');
+  const t = L.thawBatch(f.item, { batchId: 'b1', days: 2, place: 'Fridge', today: '2026-11-01' });
+  const tb = t.item.batches.find(b => b.id === 'b1');
+  assert.deepEqual([tb.frozenAt, tb.thawedAt, tb.expiry, t.item.location, t.event.type], [null, '2026-11-01', '2026-11-03', 'Fridge', 'thaw']);
+  assert.equal(L.batchUseBy(tb, t.item), '2026-11-03', 'an opened one counts its days from the thaw');
+  assert.equal(L.monthStats([f.event, t.event], f.event.at.slice(0, 7)).bought, 0, 'freezing and thawing are not buying');
+}
+// ---- places of a kind ----
+{
+  const P = await import('../js/places.js');
+  assert.equal(P.placeOfKind(P.DEFAULT_PLACES, 'freezer'), 'Freezer');
+  assert.equal(P.placeOfKind(['Kitchen cabinet', 'Level 2 Fridge'], 'fridge'), 'Level 2 Fridge');
+  assert.equal(P.placeOfKind(['Kitchen cabinet'], 'freezer'), 'Freezer');
+  assert.ok(P.isFreezer('Level 1 freezer') && !P.isFreezer('Fridge'));
+}
+
 console.log('pantry logic: ok');

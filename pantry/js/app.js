@@ -4,7 +4,7 @@
 // reading data-act attributes. Data lives in one of three backends (store.js, cloud.js): this phone (IndexedDB),
 // the family's shared pantry (Firestore), or memory only (demo mode, ?demo).
 import * as L from './logic.js';
-import { CATALOGUE, CATEGORIES } from './catalogue.js';
+import { CATALOGUE, CATEGORIES, shelfDays, freezeDays, freezable, FROZEN_DAYS, THAW_DAYS } from './catalogue.js';
 import * as P from './places.js';
 import * as PP from './people.js';
 import { openLocal, openMemory, prefs, KINDS, PHOTOS } from './store.js';
@@ -36,7 +36,7 @@ const CAT_ICON = {
   'Sauces & condiments': 'bottle', 'Rice, noodles & grains': 'bowl', 'Canned & jarred': 'tin', 'Cooking & baking': 'jar',
   'Breakfast & spreads': 'jar', Drinks: 'cup', 'Dairy & eggs': 'carton', 'Bread & bakery': 'bread', 'Fresh produce': 'leaf',
   'Meat & seafood': 'fish', Frozen: 'snowflake', Snacks: 'cookie', Baby: 'heart', 'Laundry & cleaning': 'sparkle',
-  'Kitchen & paper': 'roll', Toiletries: 'droplet', 'Medicine & first aid': 'pill', Pet: 'paw', Other: 'box',
+  'Kitchen & paper': 'roll', Toiletries: 'droplet', 'Medicine & first aid': 'pill', Pet: 'paw', Leftovers: 'bowl', Other: 'box',
 };
 const icon = (name, o) => haIcon(name, o);
 const chevron = () => icon('chevron-right', { cls: 'ha-row-chevron' });
@@ -247,8 +247,26 @@ function quickDates() {
   const t = today();
   return [['1 week', L.addDays(t, 7)], ['1 month', L.addDays(t, 30)], ['3 months', L.addDays(t, 91)], ['6 months', L.addDays(t, 182)], ['1 year', L.addDays(t, 365)]];
 }
-const dateChips = (name, value) => `<div class="ha-chips ha-chips--wrap pa-dates" role="group" aria-label="Quick dates" data-for="${name}">${quickDates().map(([l, v]) =>
-  `<button type="button" class="ha-chip" aria-pressed="${v === value}" data-act="date" data-v="${v}">${l}</button>`).join('')}<button type="button" class="ha-chip" aria-pressed="false" data-act="date" data-v="">No date</button></div>`;
+// How long, in words: 5 days, 1 week, 3 weeks, 6 months, 2 years.
+function daysText(d) {
+  if (d === 7) return '1 week';
+  if (d < 14) return plural(d, 'day');
+  if (d < 60) return plural(Math.round(d / 7), 'week');
+  if (d < 540) return plural(Math.round(d / 30.4), 'month');
+  return plural(Math.round(d / 365), 'year');
+}
+// A guessed best-before date from how long a product usually keeps (catalogue.js): { days, date, label } or null.
+// In a freezer it keeps as long as frozen food does.
+function guessFor(x) {
+  const days = P.isFreezer(x.location) && x.category !== 'Frozen' && shelfDays(x) !== null ? freezeDays(x) : shelfDays(x);
+  return days ? { days, date: L.addDays(today(), days), label: `About ${daysText(days)}` } : null;
+}
+// The quick dates under a date field; a guess comes first (selected while it is the date), with a line saying so.
+const dateChips = (name, value, guess = null) => `<div class="pa-datebox"><div class="ha-chips ha-chips--wrap pa-dates" role="group" aria-label="Quick dates" data-for="${name}">${
+  guess ? `<button type="button" class="ha-chip pa-guess" aria-pressed="${guess.date === value}" data-act="date" data-v="${guess.date}">${esc(guess.label)}</button>` : ''}${
+  quickDates().filter(([, v]) => !guess || v !== guess.date).map(([l, v]) =>
+  `<button type="button" class="ha-chip" aria-pressed="${v === value}" data-act="date" data-v="${v}">${l}</button>`).join('')}<button type="button" class="ha-chip" aria-pressed="false" data-act="date" data-v="">No date</button></div>${
+  guess ? `<p class="ha-field-hint pa-guess-hint">${esc(guess.label)} is a guess from how long it usually keeps. Change it to the date on the pack.</p>` : ''}</div>`;
 const shopQuery = it => [it.brand, it.name].filter(Boolean).join(' ').replace(/\(.*?\)/g, '').trim();
 const onList = id => [...S.shop.values()].some(m => m.itemId === id && !m.done);
 
@@ -298,6 +316,7 @@ function viewHome() {
   const listed = new Set(exp.map(x => x.item.id));
   const opened = all.filter(it => !listed.has(it.id) && (it.batches || []).some(b => b.openedAt && b.qty > 0));
   const m = L.monthStats([...S.events.values()], t.slice(0, 7));
+  h += `<div class="ha-btn-row pa-quickrow"><button type="button" class="ha-btn ha-btn--secondary ha-btn--compact" data-act="leftovers">${icon('bowl')}Leftovers</button></div>`;
   h += `<div class="ha-stats pa-stats" aria-label="Summary">
     <div class="ha-stat"><span class="ha-stat-value">${expired.length}</span><span class="ha-stat-label">Expired</span></div>
     <div class="ha-stat"><span class="ha-stat-value">${soon.length}</span><span class="ha-stat-label">Use soon</span></div>
@@ -463,7 +482,7 @@ function drawItemsList() {
 
 // ---- Item -------------------------------------------------------------------------------------------------------
 
-const VERB = { add: 'Bought', use: 'Used up', open: 'Opened', discard: 'Thrown away', expired: 'Expired, thrown away' };
+const VERB = { add: 'Bought', use: 'Used up', open: 'Opened', discard: 'Thrown away', expired: 'Expired, thrown away', freeze: 'Frozen', thaw: 'Thawed' };
 function viewItem(it) {
   const evs = eventsFor(it.id).sort((a, b) => (a.at < b.at ? 1 : -1));
   const u = L.usage(evs);
@@ -480,14 +499,18 @@ function viewItem(it) {
   // stock, batch by batch (first to use at the top)
   const batchRow = b => {
     const d = L.batchUseBy(b, it);
-    const what = b.openedAt ? `${b.qty} opened` : it.openDays ? `${b.qty} unopened` : plural(b.qty, 'in stock', 'in stock');
-    const sub = [b.openedAt ? `Opened ${fmt(b.openedAt)}` : '', d ? `use by ${fmt(d)}` : 'No date'].filter(Boolean).join(' · ');
+    // frozen: marked so, or kept in a freezer (frozen goods); Thaw then. Food elsewhere can be frozen.
+    const frozen = !!b.frozenAt || (P.isFreezer(it.location) && !b.thawedAt);
+    const what = frozen ? `${b.qty} frozen` : b.openedAt ? `${b.qty} opened` : it.openDays ? `${b.qty} unopened` : plural(b.qty, 'in stock', 'in stock');
+    const sub = [b.frozenAt ? `Frozen ${fmt(b.frozenAt)}` : '', b.thawedAt && !frozen ? `Thawed ${fmt(b.thawedAt)}` : '', b.openedAt ? `Opened ${fmt(b.openedAt)}` : '', d ? `use by ${fmt(d)}` : 'No date'].filter(Boolean).join(' · ');
     const desc = d ? `use by ${fmt(d)}` : 'no date';
     return `<li><div class="ha-row pa-batch">
       <span class="ha-row-body"><span class="ha-row-title">${esc(what)}</span><span class="ha-row-sub">${esc(sub.charAt(0).toUpperCase() + sub.slice(1))}</span></span>
       <span class="ha-row-trail">${badge(d)}</span>
       <span class="pa-batch-acts">
-        ${!b.openedAt && it.openDays ? `<button type="button" class="ha-btn ha-btn--small" data-act="open" data-b="${esc(b.id)}" aria-label="Open 1, ${esc(desc)}">Open</button>` : ''}
+        ${!b.openedAt && it.openDays && !frozen ? `<button type="button" class="ha-btn ha-btn--small" data-act="open" data-b="${esc(b.id)}" aria-label="Open 1, ${esc(desc)}">Open</button>` : ''}
+        ${frozen ? `<button type="button" class="ha-btn ha-btn--small" data-act="thaw" data-b="${esc(b.id)}" aria-label="Thaw ${esc(plural(b.qty, 'unit'))}, ${esc(desc)}">${icon('droplet')}Thaw</button>`
+          : freezable(it) ? `<button type="button" class="ha-btn ha-btn--small" data-act="freeze" data-b="${esc(b.id)}" aria-label="Freeze ${esc(plural(b.qty, 'unit'))}, ${esc(desc)}">${icon('snowflake')}Freeze</button>` : ''}
         <button type="button" class="ha-btn ha-btn--small" data-act="use" data-b="${esc(b.id)}" aria-label="Used 1, ${esc(desc)}">Used 1</button>
         <button type="button" class="ha-btn ha-btn--small ha-btn--quiet" data-act="toss" data-b="${esc(b.id)}" aria-label="Bin 1, ${esc(desc)}">Bin 1</button>
       </span></div></li>`;
@@ -554,7 +577,7 @@ function viewForm(id) {
         <input type="search" id="pa-find" placeholder="Soy sauce, Milo, Dynamo…" aria-label="Find a product" autocomplete="off" enterkeyhint="search">
         <button type="button" class="ha-search-clear" data-act="find-clear" aria-label="Clear">${icon('close')}</button></div>
       <ul class="ha-list" id="pa-sugg" hidden></ul>
-      <div class="ha-btn-row"><button type="button" class="ha-btn ha-btn--secondary" data-act="scan">${icon('barcode')}Scan barcode</button><button type="button" class="ha-btn ha-btn--secondary" data-act="quick">${icon('mic')}Say or type a list</button></div>
+      <div class="ha-btn-row"><button type="button" class="ha-btn ha-btn--secondary" data-act="scan">${icon('barcode')}Scan barcode</button><button type="button" class="ha-btn ha-btn--secondary" data-act="quick">${icon('mic')}Say or type a list</button><button type="button" class="ha-btn ha-btn--secondary" data-act="leftovers">${icon('bowl')}Leftovers</button></div>
       <p class="ha-section-footer" id="pa-find-foot">Pick a common Singapore supermarket product, scan its barcode, or say what you bought, to fill in the details.</p>
     </section>`;
   }
@@ -580,7 +603,7 @@ function viewForm(id) {
       <ul class="ha-list"><li><div class="ha-row"><span class="ha-row-body"><span class="ha-row-title" id="pa-qty-l">How many</span></span>
         <div class="ha-stepper" role="group" aria-labelledby="pa-qty-l" id="pa-qty"><button type="button" data-step="-1" aria-label="Fewer">${icon('minus')}</button><output>${Number(d.qty) || 0}</output><button type="button" data-step="1" aria-label="More">${icon('plus')}</button></div></div></li></ul>
       <label class="ha-field pa-gap"><span class="ha-field-label">Best before or use by</span><input class="ha-input" type="date" name="expiry" value="${esc(d.expiry)}"></label>
-      ${dateChips('expiry', d.expiry)}
+      ${dateChips('expiry', d.expiry, d._guess)}
     </section>`;
   }
   h += `<section class="ha-section" aria-labelledby="h-f-remind"><h2 class="ha-section-header" id="h-f-remind">Reminders</h2>
@@ -600,11 +623,23 @@ function wireForm() {
   f.addEventListener('input', e => {
     const t = e.target; if (!t.name || !S.draft) return;
     S.draft[t.name] = t.value; S.dirty = true;
-    if (t.name === 'category' || t.name === 'location') S.draft._picked = { ...S.draft._picked, [t.name]: true };
+    if (t.name === 'category' || t.name === 'location') { S.draft._picked = { ...S.draft._picked, [t.name]: true }; refreshGuess(); }
     if (t.name === 'name' && t.value.trim()) { t.removeAttribute('aria-invalid'); $('#pa-name-err').hidden = true; }
     if (t.name === 'expiry') for (const c of document.querySelectorAll('.pa-dates .ha-chip')) c.setAttribute('aria-pressed', String(c.dataset.v === t.value && !!t.value));
   });
   f.addEventListener('submit', submitForm);
+}
+// A guessed best-before date for the form's product: filled in while the date is empty or still the last guess.
+function withGuess(fields) {
+  const d = S.draft, g = guessFor({ ...d, ...fields });
+  const keep = d.expiry && d.expiry !== d._guess?.date;   // a date someone chose stays
+  return { ...fields, _guess: g, ...(keep ? {} : { expiry: g?.date || '' }) };
+}
+function refreshGuess() {
+  const box = $('#pa-form .pa-datebox'); if (!box || !S.draft) return;
+  Object.assign(S.draft, withGuess({}));
+  $('#pa-form [name="expiry"]').value = S.draft.expiry;
+  box.outerHTML = dateChips('expiry', S.draft.expiry, S.draft._guess);
 }
 // Fill the form from a suggestion or a barcode lookup, then redraw it where it was.
 function fillDraft(fields) {
@@ -741,7 +776,7 @@ async function gotBarcode(code) {
   const d = S.draft, picked = d._picked || {}, def = blank(), guess = {};
   if (p.category && !picked.category && d.category === def.category) guess.category = p.category;
   if (p.location && !picked.location && d.location === def.location) guess.location = p.location;
-  fillDraft({ barcode: code, name: p.name, brand: p.brand, size: p.size, ...guess });
+  fillDraft(withGuess({ barcode: code, name: p.name, brand: p.brand, size: p.size, ...guess }));
   haToast(`Found ${p.name}`);
   if (p.image && !S.draft.pic) {
     const { fromUrl } = await import('./photo.js');
@@ -790,7 +825,7 @@ function openUnknown(code) {
     if (!S.draft || screen() !== 'add') return;
     if (act === 'unk-cat') {
       const c = CATALOGUE[Number(b.dataset.i)];
-      fillDraft({ name: c.name, brand: c.brand, size: c.size, category: c.category, location: c.location, openDays: c.openDays ?? '', barcode: code });
+      fillDraft(withGuess({ name: c.name, brand: c.brand, size: c.size, category: c.category, location: c.location, openDays: c.openDays ?? '', barcode: code }));
       $('#h-f-details')?.scrollIntoView({ block: 'start' });
       haAnnounce(`${c.name} filled in`);
       return;
@@ -804,14 +839,15 @@ function openUnknown(code) {
 // ---- the "bought more" sheet ----------------------------------------------------------------------------------
 
 function openBought(it, { shopId = null } = {}) {
+  const g = guessFor(it);
   const s = haSheet({
     title: 'Bought more', closeLabel: 'Cancel', grey: true,
     body: `<form id="pa-bought" novalidate>
       <ul class="ha-list"><li><div class="ha-row">${thumb(it)}<span class="ha-row-body"><span class="ha-row-title">${esc(it.name)}</span>${subOf(it) ? `<span class="ha-row-sub">${subOf(it)}</span>` : ''}</span></div></li>
         <li><div class="ha-row"><span class="ha-row-body"><span class="ha-row-title" id="pa-b-qty-l">How many</span></span>
           <div class="ha-stepper" role="group" aria-labelledby="pa-b-qty-l" id="pa-b-qty"><button type="button" data-step="-1" aria-label="Fewer">${icon('minus')}</button><output>1</output><button type="button" data-step="1" aria-label="More">${icon('plus')}</button></div></div></li></ul>
-      <label class="ha-field pa-gap"><span class="ha-field-label">Best before or use by</span><input class="ha-input" type="date" name="expiry"></label>
-      ${dateChips('expiry', '')}
+      <label class="ha-field pa-gap"><span class="ha-field-label">Best before or use by</span><input class="ha-input" type="date" name="expiry" value="${esc(g?.date || '')}"></label>
+      ${dateChips('expiry', g?.date || '', g)}
     </form>`,
     footer: `<button type="submit" form="pa-bought" class="ha-btn ha-btn--primary ha-btn--block">Add to stock</button>`,
     onClose: afterSheet,
@@ -830,6 +866,40 @@ function openBought(it, { shopId = null } = {}) {
     apply(res, `Added ${n} ${it.name}`);
   });
 }
+// ---- leftovers: a name, the fridge, use within 3 days, one tap ----------------------------------------------------
+
+const LEFTOVER_DAYS = 3;
+function openLeftovers() {
+  const fridge = P.placeOfKind(placeNames(), 'fridge'), by = L.addDays(today(), LEFTOVER_DAYS);
+  const s = haSheet({
+    title: 'Leftovers', closeLabel: 'Cancel', grey: true,
+    body: `<form id="pa-left" novalidate>
+      <label class="ha-field"><span class="ha-field-label">What is it?</span><input class="ha-input" name="name" id="pa-left-name" autocomplete="off" placeholder="Chicken curry, fried rice…" required aria-describedby="pa-left-err pa-left-when"></label>
+      <p class="ha-field-error" id="pa-left-err" hidden>${icon('alert')}Say what it is</p>
+      <label class="ha-field pa-gap"><span class="ha-field-label">Kept in</span><select class="ha-select" name="location">${placeOptions(fridge)}</select></label>
+      <p class="ha-section-footer" id="pa-left-when">Use within ${plural(LEFTOVER_DAYS, 'day')}, by ${esc(fmt(by))}. It shows under Use soon, and never goes on the shopping list.</p>
+    </form>`,
+    footer: `<button type="submit" form="pa-left" class="ha-btn ha-btn--primary ha-btn--block">Add leftovers</button>`,
+    onClose: afterSheet,
+  });
+  const f = $('#pa-left', s.el), name = $('#pa-left-name', s.el);
+  name.addEventListener('input', () => { if (name.value.trim()) { name.removeAttribute('aria-invalid'); $('#pa-left-err', s.el).hidden = true; } });
+  f.addEventListener('submit', async e => {
+    e.preventDefault();
+    const n = name.value.replace(/\s+/g, ' ').trim();
+    if (!n) { name.setAttribute('aria-invalid', 'true'); $('#pa-left-err', s.el).hidden = false; name.focus(); return; }
+    const base = { id: L.uid(), batches: [], createdAt: new Date().toISOString(), createdBy: who(), name: n, brand: '', size: '', category: 'Leftovers',
+      location: f.location.value, openDays: null, lowAt: 0, barcode: '', noRestock: true };
+    const res = L.addStock(base, { qty: 1, expiry: by, by: who() });
+    save('items', res.item); const ev = save('events', res.event);
+    await haCloseSheet(s.el);
+    redraw();
+    haToast(`${n}: use by ${fmt(by)}`, { action: 'Undo', onAction: () => { remove('items', base.id); remove('events', ev.id); redraw(); haAnnounce('Undone'); } });
+  });
+  setTimeout(() => name.focus(), 50);
+  return s;
+}
+
 // ---- "Say or type" (quick.js): a sentence becomes items to confirm -----------------------------------------------
 
 async function openQuick() {
@@ -848,11 +918,15 @@ async function openQuick() {
     onClose: () => { mic?.stop(); afterSheet(); },
   });
   const ta = $('#pa-quick-text', s.el), ul = $('#pa-quick-list', s.el), go = $('#pa-quick-go', s.el);
-  const describe = x => [x.brand, plural(x.qty, 'unit'), x.location, x.expiry ? `use by ${fmt(x.expiry)}` : 'no date',
+  const describe = x => [x.brand, plural(x.qty, 'unit'), x.location, x.expiry ? `use by ${fmt(x.expiry)}` : x.guess ? `about ${fmt(x.guess.date)} (a guess)` : 'no date',
     x.match?.mine ? 'adds to the one at home' : x.match?.cat ? '' : 'new item'].filter(Boolean).join(' · ');
   const show = () => {
     const pc = placeChoices();
     found = Q.parseQuick(ta.value, { today: today(), items: items(), catalogue: CATALOGUE, places: [...pc.listed, ...pc.unlisted] });
+    for (const x of found) {
+      const m = x.match?.mine || x.match?.cat;
+      x.guess = x.expiry ? null : guessFor({ name: x.name, category: m?.category || '', location: x.location || m?.location || '' });
+    }
     ul.innerHTML = found.map((x, i) => `<li><label class="ha-row"><input type="checkbox" data-q="${i}" checked>
       <span class="ha-row-body"><span class="ha-row-title">${esc(x.name)}</span><span class="ha-row-sub">${esc(describe(x))}</span></span></label></li>`).join('');
     count();
@@ -893,7 +967,7 @@ async function openQuick() {
         name: x.name, brand: x.brand || '', size: c?.size || '', category: c?.category || 'Other',
         location: x.location || c?.location || defaultPlace(), openDays: c?.openDays ?? null, lowAt: 0, barcode: '',
       };
-      const res = L.addStock(base, { qty: x.qty, expiry: x.expiry || null, by: who() });
+      const res = L.addStock(base, { qty: x.qty, expiry: x.expiry || x.guess?.date || null, by: who() });
       undo.push({ before: mine || null, id: base.id, ev: save('events', res.event).id });
       save('items', res.item);
     }
@@ -1335,6 +1409,17 @@ async function onClick(e) {
     case 'tour-on': { prefs.set('tour', 'on'); haGo('#/'); return haToast('The getting-started list is on Home'); }
     case 'soon': { prefs.set('soonDays', Number(b.dataset.v)); redraw(); return haToast(`Use soon: within ${SOON[b.dataset.v]}`); }
     case 'open': return apply(L.openOne(it, { by: who(), batchId: b.dataset.b || null }), `Opened 1 ${it.name}`);
+    case 'freeze': {
+      const place = P.placeOfKind(placeNames(), 'freezer');
+      const res = L.freezeBatch(it, { batchId: b.dataset.b, days: freezeDays(it), place, by: who() });
+      const d = res.item.batches.find(x => x.id === b.dataset.b)?.expiry;
+      return apply(res, `Frozen: moved to ${place}, keeps till ${fmt(d)}`);
+    }
+    case 'thaw': {
+      const place = P.placeOfKind(placeNames(), 'fridge');
+      return apply(L.thawBatch(it, { batchId: b.dataset.b, days: THAW_DAYS, place, by: who() }), `Thawed: moved to ${place}, use within ${plural(THAW_DAYS, 'day')}`);
+    }
+    case 'leftovers': return openLeftovers();
     case 'bought': return openBought(it);
     case 'to-list': return addToList(it);
     case 'delete': {
@@ -1374,7 +1459,7 @@ async function onClick(e) {
     case 'sugg': {
       const c = CATALOGUE[Number(b.dataset.i)];
       $('#pa-find').value = '';
-      fillDraft({ name: c.name, brand: c.brand, size: c.size, category: c.category, location: c.location, openDays: c.openDays ?? '' });
+      fillDraft(withGuess({ name: c.name, brand: c.brand, size: c.size, category: c.category, location: c.location, openDays: c.openDays ?? '' }));
       $('#h-f-details')?.scrollIntoView({ block: 'start' });
       haAnnounce(`${c.name} filled in`);
       return;

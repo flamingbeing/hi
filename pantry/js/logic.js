@@ -36,10 +36,14 @@ export const totalQty = item => (item.batches || []).reduce((n, b) => n + (Numbe
 
 // The date a batch should be used by: the printed date, or "opened on + keeps N days after opening",
 // whichever comes first.
+// A frozen batch keeps its frozen date (opening doesn't count in the freezer); once thawed, an opened one counts its
+// days from the thaw.
 export function batchUseBy(batch, item) {
   let d = batch.expiry || null;
+  if (batch.frozenAt) return d;
   if (batch.openedAt && item.openDays > 0) {
-    const o = addDays(batch.openedAt, Number(item.openDays));
+    const from = batch.thawedAt && batch.thawedAt > batch.openedAt ? batch.thawedAt : batch.openedAt;
+    const o = addDays(from, Number(item.openDays));
     if (!d || o < d) d = o;
   }
   return d;
@@ -127,6 +131,23 @@ export function openOne(item, { by, at, today = ymd(), batchId = null } = {}) {
     if (x.qty > 1) batches.push({ ...x, qty: x.qty - 1 });
   }
   return { item: { ...item, batches }, event: ev(item, 'open', 1, by, at) };
+}
+
+// Freeze one batch: it moves to `place` (the item's place, as places belong to items), keeps until the later of its
+// own date and `days` from today, and is marked frozen on today. Thaw: back to `place`, use within `days`.
+// Each returns { item, event } like the others (event types 'freeze' and 'thaw', counted nowhere but the history).
+export function freezeBatch(item, { batchId, days = 91, place, by, at, today = ymd() } = {}) {
+  const b = (item.batches || []).find(x => x.id === batchId) || fefo(item).find(x => !x.frozenAt);
+  if (!b || b.frozenAt) return { item, event: null };
+  const keep = addDays(today, days), was = batchUseBy(b, item);
+  const batches = item.batches.map(x => x.id === b.id ? { ...x, frozenAt: today, thawedAt: null, expiry: was && was > keep ? was : keep } : x);
+  return { item: { ...item, batches, location: place || item.location }, event: ev(item, 'freeze', b.qty, by, at) };
+}
+export function thawBatch(item, { batchId, days = 2, place, by, at, today = ymd() } = {}) {
+  const b = (item.batches || []).find(x => x.id === batchId);
+  if (!b) return { item, event: null };
+  const batches = item.batches.map(x => x.id === b.id ? { ...x, frozenAt: null, thawedAt: today, expiry: addDays(today, days) } : x);
+  return { item: { ...item, batches, location: place || item.location }, event: ev(item, 'thaw', b.qty, by, at) };
 }
 
 // ---- consumption patterns ------------------------------------------------------------------------------------

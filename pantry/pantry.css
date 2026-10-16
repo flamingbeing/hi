@@ -106,3 +106,9 @@ label.ha-row:focus-within:has(.pa-file){outline:2px solid var(--home-focus);outl
 .pa-break{white-space:normal;overflow-wrap:anywhere}
 .pa-person-form{margin:var(--home-s4) 0}
 .pa-person-acts{margin-top:var(--home-s3)}
+
+/* guessed best-before dates, freeze and thaw, leftovers and Home's quick buttons */
+.pa-guess-hint{margin:var(--home-s2) 0 0}
+.pa-finder .ha-btn-row{flex-wrap:wrap}
+.pa-quickrow{flex-wrap:wrap;margin:0 0 var(--home-s4)}
+.pa-quickrow>.ha-btn{flex:1 1 9em}
