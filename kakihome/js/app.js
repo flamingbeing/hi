@@ -22,7 +22,7 @@ const EMULATOR = params.has('emulator') && /^(localhost|127\.0\.0\.1)$/.test(loc
 const WELCOME = params.has('welcome');   // show the welcome even in the demo, or again
 
 const S = {
-  items: new Map(), events: new Map(), shop: new Map(),
+  items: new Map(), events: new Map(), shop: new Map(), settings: new Map(),
   backend: null, local: null, mode: DEMO ? 'demo' : 'local', cloud: null, user: null, household: null, localCount: 0,
   q: '', place: '', sort: prefs.get('sort', 'expiry'),
   draft: null, dirty: false, pendingRender: false, syncError: false,
@@ -39,7 +39,13 @@ const CAT_ICON = {
 const icon = (name, o) => haIcon(name, o);
 const chevron = () => icon('chevron-right', { cls: 'ha-row-chevron' });
 
-const who = () => prefs.get('name') || S.user?.name?.split(' ')[0] || '';
+// Names the household gave its members (settings/people: { names: { email: name } }), shared with everyone in it.
+const names = () => S.settings.get('people')?.names || {};
+const NAME_MAX = 40;
+// How a member shows: their name if someone gave one, else their email.
+const personLabel = email => names()[email] || email;
+// The name this phone signs changes with: the household's name for me, this phone's own, or my Google first name.
+const who = () => (S.user && names()[S.user.email]) || prefs.get('name') || S.user?.name?.split(' ')[0] || '';
 const items = () => [...S.items.values()].filter(i => !i.archived);
 const eventsFor = id => [...S.events.values()].filter(e => e.itemId === id);
 function eventsByItem() {
@@ -777,15 +783,18 @@ function viewSettings() {
   } else {
     const h = S.household;
     fam = `<ul class="ha-list">${row(`<span class="ha-row-icon">${icon('cloud')}</span><span class="ha-row-body"><span class="ha-row-title">${esc(h.name)}</span><span class="ha-row-sub">Signed in as ${esc(S.user.email)}</span></span>`)}
-      ${h.members.map(m => row(`<span class="ha-row-icon ha-row-icon--grey">${icon('user')}</span><span class="ha-row-body"><span class="ha-row-title kh-wrap">${esc(m)}</span>${m === h.owner ? '<span class="ha-row-sub">Started it</span>' : ''}</span>
-        ${m !== S.user.email ? `<a class="ha-btn ha-btn--quiet ha-btn--icon" href="${esc(inviteHref(m))}" aria-label="Email an invite to ${esc(m)}">${icon('mail')}</a>` : ''}
-        ${m !== h.owner && m !== S.user.email ? `<button type="button" class="ha-btn ha-btn--quiet ha-btn--icon" data-act="member-del" data-v="${esc(m)}" aria-label="Stop sharing with ${esc(m)}">${icon('trash')}</button>` : ''}`)).join('')}
+      ${h.members.map(m => {
+        const n = names()[m];
+        const sub = [n ? m : '', m === h.owner ? 'Started it' : '', m === S.user.email ? 'You' : ''].filter(Boolean).join(' · ');
+        return `<li><button type="button" class="ha-row kh-person" data-act="person" data-v="${esc(m)}"><span class="ha-row-icon ha-row-icon--grey">${icon('user')}</span>
+          <span class="ha-row-body"><span class="ha-row-title kh-break">${esc(n || m)}</span>${sub ? `<span class="ha-row-sub kh-break">${esc(sub)}</span>` : ''}</span>${chevron()}</button></li>`;
+      }).join('')}
       ${S.localCount ? btnRow('copy-up', `Copy ${plural(S.localCount, 'item')} from this phone`, { iconName: 'upload', sub: 'Saved here before you signed in' }) : ''}
       ${btnRow('signout', 'Sign out')}</ul>
       <form class="kh-addline kh-member" id="kh-member-add"><label class="ha-sr" for="kh-member-email">Household member’s Google email</label>
         <input class="ha-input" id="kh-member-email" type="email" placeholder="Household member’s Gmail" autocomplete="off" autocapitalize="off" spellcheck="false">
         <button class="ha-btn ha-btn--compact" type="submit">Add</button></form>`;
-    famFoot = 'They sign in with that Google account to see Kaki Home. The envelope emails them the link from your own mail app. Whoever started it can’t be removed.';
+    famFoot = 'They sign in with that Google account to see Kaki Home. Tap someone to give them a name, email them the link again, or stop sharing. Whoever started it can’t be removed.';
   }
   return `<h1 class="ha-large-title">Settings</h1>
     ${section('Household sharing', fam, { id: 'family', footer: famFoot })}
@@ -1013,6 +1022,7 @@ async function onClick(e) {
       } catch (err) { haToast(S.cloud.explain(err, 'Checking')); }
       return;
     }
+    case 'person': return openPerson(b.dataset.v);
     case 'member-del': {
       const m = b.dataset.v;
       if (!(await haConfirm({ title: 'Stop sharing?', text: `${m} won’t see Kaki Home any more. You can add them again later.`, ok: 'Stop sharing', danger: true }))) return;
@@ -1022,8 +1032,8 @@ async function onClick(e) {
     case 'copy-up': {
       try {
         const data = await S.local.load();
-        for (const k of KINDS) await S.backend.putMany(k, data[k]);
-        for (const k of KINDS) for (const o of data[k]) S[k].set(o.id, o);
+        for (const k of KINDS) await S.backend.putMany(k, data[k] || []);
+        for (const k of KINDS) for (const o of data[k] || []) S[k].set(o.id, o);
         await S.local.clear();
         S.localCount = 0; redraw();
         haToast(`Copied ${plural(data.items.length, 'item')} into the household`);
@@ -1061,8 +1071,8 @@ async function onChange(e) {
   if (t.id === 'kh-restore' && t.files[0]) {
     try {
       const data = L.parseBackup(await t.files[0].text());
-      if (S.backend.putMany) for (const k of KINDS) await S.backend.putMany(k, data[k]);
-      for (const k of KINDS) for (const o of data[k]) { if (S.backend.putMany) S[k].set(o.id, o); else save(k, o); }
+      if (S.backend.putMany) for (const k of KINDS) await S.backend.putMany(k, data[k] || []);
+      for (const k of KINDS) for (const o of data[k] || []) { if (S.backend.putMany) S[k].set(o.id, o); else save(k, o); }
       redraw(); haToast(`Restored ${plural(data.items.length, 'item')}`);
     } catch (err) { haToast(err?.message?.startsWith('That file') ? err.message : 'Couldn’t restore that file.'); }
     t.value = '';
@@ -1093,6 +1103,51 @@ async function onSubmit(e) {
       haToast(`Added ${v}`, { action: 'Email invite', onAction: () => { location.href = inviteHref(v); }, ms: 10000 });
     } catch (err) { haToast(S.cloud.explain(err, 'Adding them')); }
   }
+}
+
+// A household member's card: their Gmail, a name everyone in the household sees, invite again, stop sharing.
+function openPerson(email) {
+  const h = S.household; if (!h) return;
+  const canRemove = email !== h.owner && email !== S.user.email;
+  const s = haSheet({
+    title: names()[email] || 'Household member', closeLabel: 'Done', grey: true,
+    body: `<ul class="ha-list"><li><div class="ha-row"><span class="ha-row-icon">${icon('mail')}</span><span class="ha-row-body"><span class="ha-row-title kh-break">${esc(email)}</span>
+        <span class="ha-row-sub">${email === h.owner ? 'Started the household' : 'Google account'}${email === S.user.email ? ' · you' : ''}</span></span></div></li></ul>
+      <form id="kh-person" class="kh-person-form" novalidate>
+        <label class="ha-field"><span class="ha-field-label">Name</span>
+          <input class="ha-input" name="name" id="kh-person-name" value="${esc(names()[email] || '')}" maxlength="${NAME_MAX}" autocomplete="off" placeholder="For example, Mum or Ah Mei"></label>
+        <p class="ha-section-footer">Everyone in the household sees this name instead of the email. Leave it empty to show the email.</p>
+        <button type="submit" class="ha-btn ha-btn--primary ha-btn--block">Save name</button>
+      </form>
+      <ul class="ha-list kh-person-acts">
+        ${email !== S.user.email ? `<li><a class="ha-row ha-row--action" href="${esc(inviteHref(email))}"><span class="ha-row-icon">${icon('mail')}</span><span class="ha-row-body"><span class="ha-row-title">Email an invite</span><span class="ha-row-sub">From your own mail app, with the link</span></span></a></li>` : ''}
+        ${canRemove ? `<li><button type="button" class="ha-row ha-row--danger ha-row--center" data-act="member-del" data-v="${esc(email)}"><span class="ha-row-body"><span class="ha-row-title">Stop sharing</span></span></button></li>` : ''}
+      </ul>`,
+    onClose: afterSheet,
+  });
+  $('#kh-person', s.el).addEventListener('submit', async e => {
+    e.preventDefault();
+    const v = $('#kh-person-name', s.el).value.trim().replace(/\s+/g, ' ').slice(0, NAME_MAX);
+    const next = { ...names() };
+    if (v) next[email] = v; else delete next[email];
+    save('settings', { id: 'people', names: next, updatedAt: new Date().toISOString() });
+    await haCloseSheet(s.el);
+    redraw();
+    haToast(v ? `Saved: ${v}` : 'Name removed; the email shows instead');
+  });
+  // Stop sharing from inside the sheet: confirm, then close the card
+  s.el.addEventListener('click', async e => {
+    const b = e.target.closest('[data-act="member-del"]'); if (!b) return;
+    e.stopPropagation();
+    const label = personLabel(email);
+    if (!(await haConfirm({ title: 'Stop sharing?', text: `${label} won’t see Kaki Home any more. You can add them again later.`, ok: 'Stop sharing', danger: true }))) return;
+    try {
+      await S.cloud.setMembers(h.id, h.members.filter(x => x !== email));
+      await haCloseSheet(s.el);
+      haToast(`Stopped sharing with ${label}`);
+    } catch (err) { haToast(S.cloud.explain(err, 'Removing them')); }
+  }, true);
+  return s;
 }
 
 // An invite from the person's own mail app (no email server: Kaki Home never sends mail itself).

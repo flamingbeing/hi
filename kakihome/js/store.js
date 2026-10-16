@@ -7,7 +7,8 @@
 // The memory backend (demo mode, ?demo) keeps made-up items in memory only: nothing is saved anywhere.
 // The cloud backend (cloud.js) keeps the household's shared copy in Firestore.
 
-export const KINDS = ['items', 'events', 'shop'];
+// settings: shared household settings, one document per id (today only 'people': the names given to members)
+export const KINDS = ['items', 'events', 'shop', 'settings'];
 const DB = 'kakihome', STORE = 'docs', VER = 1;
 
 function idb() {
@@ -38,7 +39,7 @@ export async function openLocal() {
         t.oncomplete = () => res(out);
         t.onerror = () => rej(t.error);
       });
-      const data = { items: [], events: [], shop: [] };
+      const data = Object.fromEntries(KINDS.map(k => [k, []]));
       for (const [k, v] of all) {
         const kind = String(k).split('/')[0];
         if (data[kind]) data[kind].push(v);

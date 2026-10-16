@@ -2,6 +2,9 @@
 
 ## Now
 
+- 16 Oct 2026: names for household members (PR "Kaki Home: names for household members"); the owner's household
+  ("Our home") was created with the pantry family's members by the owner's helper.
+
 - 16 Oct 2026: hands-on walkthrough (PR "Kaki Home: hands-on walkthrough for first-time users"), same as the pantry's.
 - 16 Oct 2026: first version (PR "Kaki Home: household inventory to try out the Kaki Home idea"): copied from the
   pantry, plus the dashboard tiles, used before expiry and expired, Say or type, who added and changed what, the
