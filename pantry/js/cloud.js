@@ -18,7 +18,7 @@
 // (the anawj.com logbook's fix for "missing initial state").
 
 import { firebaseConfig } from '../config.js';
-import { KINDS } from './store.js';
+import { KINDS, prefs } from './store.js';
 
 const SDK = 'https://www.gstatic.com/firebasejs/10.14.1/';
 export const APP_HOST = 'pantry.flamingbeing.com';
@@ -77,7 +77,17 @@ export function explain(err, doing = 'That') {
   if (/unauthorized-domain/.test(code)) return 'This address isn’t allowed to sign in yet. The pantry’s setup needs finishing (SETUP.md).';
   if (/permission-denied/.test(code)) return 'This Google account isn’t in that family pantry.';
   if (/too-many-requests|resource-exhausted/.test(code)) return 'Too many tries. Wait a minute and try again.';
-  if (/user-disabled/.test(code)) return 'This Google account can’t sign in.';
+  if (/user-disabled/.test(code)) return 'This account can’t sign in.';
+  if (/wrong-password|invalid-credential/.test(code)) return 'That email and password don’t match. Check them, or tap Forgot password.';
+  if (/user-not-found/.test(code)) return 'There’s no account with that email yet. Tap Create account to make one.';
+  if (/email-already-in-use/.test(code)) return 'That email already has an account. Tap Sign in, or Forgot password.';
+  if (/weak-password/.test(code)) return 'That password is too easy to guess. Use at least 8 characters.';
+  if (/invalid-email/.test(code)) return 'That doesn’t look like an email address.';
+  if (/missing-email/.test(code)) return 'Type your email address first.';
+  if (/missing-password/.test(code)) return 'Type your password.';
+  if (/expired-action-code/.test(code)) return 'That link has expired or was already used. Ask for a new one.';
+  if (/invalid-action-code/.test(code)) return 'That link isn’t valid any more. Ask for a new one.';
+  if (/operation-not-allowed/.test(code)) return 'This way of signing in isn’t switched on yet.';
   return `${doing} didn’t work. Try again in a moment.`;
 }
 
@@ -94,8 +104,13 @@ export async function onUser(cb) {
   const { A, auth } = await sdk();
   // finishes a redirect sign-in when the page loads again
   A.getRedirectResult(auth).catch(e => console.warn('Redirect sign-in failed', e?.code || e));
-  A.onAuthStateChanged(auth, u => cb(u ? { email: lc(u.email), name: u.displayName || u.email, photo: u.photoURL || '' } : null));
+  A.onAuthStateChanged(auth, u => cb(userInfo(u)));
 }
+// What the app needs to know about the signed-in account. `verified` is false for a new password account until the
+// person taps the emailed link: the rules need a verified email, so the app shows no family data until then. (Google
+// and email-link sign-ins are verified already.)
+export const userInfo = u => u ? { email: lc(u.email), name: u.displayName || u.email, photo: u.photoURL || '', verified: u.emailVerified === true } : null;
+
 export async function signIn() {
   const { A, auth } = await sdk();
   const provider = new A.GoogleAuthProvider();
@@ -106,6 +121,84 @@ export async function signIn() {
     if (!REDIRECT_CODES.includes(e?.code)) throw e;
     await A.signInWithRedirect(auth, provider);
   }
+}
+// ---- email link and password (besides Google) ----------------------------------------------------------------------
+
+// Where an emailed link brings the person back: the app's own address (installed apps and the home screen open this).
+// On localhost (the emulator tests) it is the page the test is on.
+export const continueUrl = ({ hostname = '', origin = '', pathname = '/' } = {}) =>
+  /^(localhost|127\.0\.0\.1)$/.test(hostname) ? origin + pathname : `https://${APP_HOST}/`;
+const here = () => continueUrl({ hostname: location.hostname, origin: location.origin, pathname: location.pathname });
+export const goodEmail = e => /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(String(e || '').trim());
+export const MIN_PASSWORD = 8;
+// The query that Firebase's emailed link adds (apiKey, oobCode, mode, lang) comes off the address once used.
+export const stripLinkParams = (href, keep = ['emulator']) => {
+  const u = new URL(href);
+  const q = u.search.slice(1).split('&').filter(p => p && keep.includes(decodeURIComponent(p.split('=')[0])));
+  return u.pathname + (q.length ? '?' + q.join('&') : '') + u.hash;
+};
+const KEY = 'emailForSignIn';
+export const savedEmail = () => lc(prefs.get(KEY, ''));
+
+export async function sendLink(email) {
+  const e = lc(email);
+  if (!e) throw { code: 'auth/missing-email' };
+  if (!goodEmail(e)) throw { code: 'auth/invalid-email' };
+  const { A, auth } = await sdk();
+  await A.sendSignInLinkToEmail(auth, e, { url: here(), handleCodeInApp: true });
+  prefs.set(KEY, e);   // the link may open in this same browser (no need to type the email again) or another one
+}
+export async function isEmailLink(href = location.href) {
+  const { A, auth } = await sdk();
+  return A.isSignInWithEmailLink(auth, href);
+}
+// Finishes the sign-in with the emailed link. The address is the one saved on this phone when the link was asked for;
+// a link opened in another browser needs the person to type it.
+export async function finishLink(email, href = location.href) {
+  const e = lc(email);
+  if (!e) throw { code: 'auth/missing-email' };
+  const { A, auth } = await sdk();
+  await A.signInWithEmailLink(auth, e, href);
+  prefs.del(KEY);
+}
+export async function passwordSignIn(email, password) {
+  const e = lc(email);
+  if (!e) throw { code: 'auth/missing-email' };
+  if (!password) throw { code: 'auth/missing-password' };
+  const { A, auth } = await sdk();
+  await A.signInWithEmailAndPassword(auth, e, password);
+}
+// A new account: the person must tap the emailed link before the app treats them as signed in.
+export async function passwordCreate(email, password) {
+  const e = lc(email);
+  if (!e) throw { code: 'auth/missing-email' };
+  if (!goodEmail(e)) throw { code: 'auth/invalid-email' };
+  if (String(password || '').length < MIN_PASSWORD) throw { code: 'auth/weak-password' };
+  const { A, auth } = await sdk();
+  const c = await A.createUserWithEmailAndPassword(auth, e, password);
+  await A.sendEmailVerification(c.user, { url: here() });
+  return userInfo(c.user);
+}
+export async function resendVerification() {
+  const { A, auth } = await sdk();
+  if (!auth.currentUser) throw { code: 'auth/user-not-found' };
+  await A.sendEmailVerification(auth.currentUser, { url: here() });
+}
+// "I've verified": reload the account and its sign-in token (the token carries email_verified), then say how it stands.
+export async function refreshUser() {
+  const { auth } = await sdk();
+  const u = auth.currentUser;
+  if (!u) return null;
+  await u.reload();
+  await u.getIdToken(true);
+  return userInfo(u);
+}
+export async function resetPassword(email) {
+  const e = lc(email);
+  if (!e) throw { code: 'auth/missing-email' };
+  if (!goodEmail(e)) throw { code: 'auth/invalid-email' };
+  const { A, auth } = await sdk();
+  await A.sendPasswordResetEmail(auth, e, { url: here() });
 }
 // Tests only (?emulator): sign in as a made-up Google account.
 export async function emulatorSignIn(email) {

@@ -20,6 +20,8 @@ project id and who's in the pantry in `flamingbeing/life` (`plans/`), not here.
    command to run in Cloud Shell.
 6. **Google sign-in.** Build → Authentication → Get started → Sign-in method → **Google** → Enable (pick your support
    email) → Save. Then Authentication → Settings → **Authorised domains** → Add `pantry.flamingbeing.com`.
+   Also on **Sign-in method**: **Email/Password** → Enable, and tick **Email link (passwordless sign-in)** → Save. This
+   lets family members without a Google account sign in with an emailed link or a password.
    Never add a `*.workers.dev` preview address: previews can't sign in, on purpose.
 7. **The Google sign-in client** (so sign-in can finish on the pantry's own address). Google Cloud console
    (<https://console.cloud.google.com>, same project) → APIs & Services → Credentials → **Web client (auto created by
@@ -42,7 +44,7 @@ project id and who's in the pantry in `flamingbeing/life` (`plans/`), not here.
    - the same page → **Variables**: `PANTRY_FIREBASE_PROJECT` = the project id (e.g. `family-pantry`).
    Then Actions → Deploy Firestore rules → Run workflow once (it deploys the pantry rules), and check it's green.
    Until both are set, the workflow skips with a notice instead of failing.
-10. **On your phone.** Open `https://pantry.flamingbeing.com` → Settings → **Sign in with Google** → **Start our family
+10. **On your phone.** Open `https://pantry.flamingbeing.com` → Settings → **Continue with Google** (or **Use email instead**) → **Start our family
     pantry** → add each family member's Google (Gmail) address. If you had added items on that phone before, tap
     "Copy … from this phone". Family members open the same address and sign in; they see the pantry straight away.
     Then Add to Home Screen (Settings shows how).

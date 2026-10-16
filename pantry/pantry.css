@@ -132,3 +132,14 @@ label.ha-row:focus-within:has(.pa-file){outline:2px solid var(--home-focus);outl
 /* scan many: the mode on top, a shorter camera, the tally under it */
 .pa-sm-mode{margin:0 0 var(--home-s3)}
 .pa-sm-video{aspect-ratio:16/9}
+
+/* sign in by email: the quiet link under Continue with Google, and the email sheet */
+.pa-quiet{margin:var(--home-s2) 0 0;text-align:center}
+.pa-em-second{margin-top:var(--home-s3)}
+.pa-em-hint{padding:0;margin:calc(var(--home-s2) * -1) 0 var(--home-s4)}
+.pa-em-links{display:flex;flex-wrap:wrap;justify-content:space-between;gap:var(--home-s2);margin-top:var(--home-s3)}
+.pa-em-note{display:flex;gap:var(--home-s3);align-items:flex-start;margin:0 0 var(--home-s5)}
+.pa-em-note p{margin:0 0 var(--home-s3);line-height:1.45}
+.pa-em-title{font-weight:600}
+.pa-em-lead{margin:0 0 var(--home-s4);line-height:1.45}
+#pa-em-form .ha-field-error{margin:0 0 var(--home-s3)}

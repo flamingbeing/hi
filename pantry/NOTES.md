@@ -6,7 +6,7 @@ Lasting decisions and how to test. What's going on now: [STATUS.md](STATUS.md). 
 
 - **16 Oct 2026, first build (PR #5, closed):** plain HTML and JS modules, no build step. Data lives on the phone
   (IndexedDB) until family sharing is set up; then in Firestore, one household per family: `households/{hid}` with
-  `members` (Google emails, lower case), and `items`, `events`, `shop` under it. Rules: only members read or write; the
+  `members` (emails, lower case; Google, emailed link or password), and `items`, `events`, `shop` under it. Rules: only members read or write; the
   person who started it can't be removed and stays owner. Real household data never goes in this public repo.
 - **Stock is batches** (qty, best-before, opened date). An opened item is due by the earlier of its printed date and
   opened + "keeps once opened" days. Taking out is first expiring first (opened ones first). The pace comes from
@@ -184,6 +184,28 @@ Lasting decisions and how to test. What's going on now: [STATUS.md](STATUS.md). 
   now takes the one this phone last used (`pantry:household`), else the one with most members, else the oldest
   (`pickHousehold`); "Start our family pantry" first looks for an existing one.
 
+- **16 Oct 2026, sign in by email too** (owner; Google stays the main button): Settings → Family sharing shows
+  **Continue with Google** and a quiet **Use email instead** (a sheet: the address, then **Email me a sign-in link** or
+  **Use a password** with Sign in, Create account and Forgot password). Not offered in the demo or on-this-phone mode.
+  - **Rules still need `request.auth.token.email_verified == true`** (unchanged). Google and email-link sign-ins are
+    verified already. A new password account is not: `userInfo().verified` is false, the app keeps it as `S.pending`
+    (never `S.user`), does no household lookup and reads nothing from Firestore, and Settings shows "Check your email"
+    with **I've verified** (`reload()` + `getIdToken(true)`, then carries on) and **Send it again**. Coming back to the
+    app checks quietly too.
+  - **Email link:** `sendSignInLinkToEmail` with `handleCodeInApp: true`, continue URL `https://pantry.flamingbeing.com/`
+    (localhost: the page itself, `continueUrl()`). The address is saved in `localStorage pantry:emailForSignIn`. On
+    load, `isSignInWithEmailLink` finishes it with that address, or, when the link was opened elsewhere (Safari instead
+    of the home-screen app), a small sheet asks for it. Then the link's query comes off the address and the saved
+    address is cleared. The "link sent" text says that on an iPhone the link may open in Safari, that's fine, and to use
+    a password in the home-screen app.
+  - Errors in plain words through `explain()` (wrong password, no account, already in use, weak password (8+ here),
+    bad or missing email, expired or used link, "This way of signing in isn't switched on yet."). Passwords are
+    only ever sent to Firebase Auth; nothing is stored here.
+  - **The owner must switch it on** (SETUP.md step 6): Authentication → Sign-in method → Email/Password, with "Email
+    link (passwordless sign-in)" ticked. Until then the sheet says it isn't switched on yet.
+  - Tests: `test/signin.e2e.mjs` (run by `run-sync.sh`, reads the Auth emulator's `oobCodes`), helpers in
+    `test/config.test.mjs`.
+
 ## How to test
 
 ```
@@ -196,7 +218,7 @@ node pantry/test/scan.test.mjs         # the barcode look-up chain with a stubbe
 node pantry/test/photo.test.mjs        # thumbnail and photo sizes, stepping down to fit the limits (plain node)
 node pantry/test/config.test.mjs       # set-config, sign-in choice, plain-word errors, sw.js rules
 node pantry/test/e2e.mjs               # phone browser test with axe; SHOTS=<dir> saves screenshots
-pantry/test/run-sync.sh                # family sharing, the rules (photo size caps, places and names too) and moving old-style photos in the
+pantry/test/run-sync.sh                # sign-in by email link and password (signin.e2e.mjs), family sharing, the rules (photo size caps, places and names too) and moving old-style photos in the
                                        # local emulators (demo-pantry, fake accounts)
 node tools/check.mjs && node tools/stamp-versions.mjs --check
 ```

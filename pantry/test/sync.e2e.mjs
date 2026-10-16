@@ -58,7 +58,7 @@ try {
   assert.equal(await card.locator('[data-pp="remove"]').count(), 1, 'Stop sharing on someone else');
   const invite = await card.locator('a', { hasText: 'Email an invite' }).getAttribute('href');
   assert.match(invite, /^mailto:dad%40example\.com\?subject=Our%20family%20pantry&body=/);
-  assert.match(decodeURIComponent(invite), /Sign in with Google, using this account \(dad@example\.com\)/);
+  assert.match(decodeURIComponent(invite), /Continue with Google \(or Use email instead\), using this email address \(dad@example\.com\)/);
   // name him: the list shows the name with the email underneath
   await mum.fill('#pa-person-name', '  Dad  ');
   await card.locator('button[type=submit]').click(); await settle(mum);
