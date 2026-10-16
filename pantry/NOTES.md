@@ -63,10 +63,23 @@ Lasting decisions and how to test. What's going on now: [STATUS.md](STATUS.md). 
 - **Rules deploy on merge** through `.github/workflows/deploy-firestore-rules.yml` (project id from the repo variable
   `PANTRY_FIREBASE_PROJECT`, key from the secret `FIREBASE_SERVICE_ACCOUNT`); it skips cleanly until both are set.
 
+- **16 Oct 2026, from Kaki Home** (`kakihome/`, a separate app built from this one; owner asked for its lessons to
+  come back here):
+  - **Used before expiry and expired are recorded when they happen.** Whether a unit was still in date is lost once
+    its batch is gone, so a "used up" event stores `saved` (units from dated batches still in date) and binning a
+    batch already past its date is recorded as type `expired` (counted with thrown away). This month on Home shows
+    "Used before expiry" and how many of the thrown away were past their date.
+  - **Say or type** (`js/quick.js`, mic on Home and on Add): the phone's own speech-to-text (or the keyboard's mic),
+    then plain rules for quantity, place and date, matched against the pantry and the catalogue; a list to confirm
+    before anything is added, with one Undo. No AI; nothing leaves the phone.
+  - **Who added and last changed an item** (`createdBy`, `updatedBy`), in its details.
+  - **"Use soon" setting** (Settings → Reminders: 3 days, 1 week or 2 weeks; default 2 weeks as before; per phone).
+
 ## How to test
 
 ```
 node pantry/test/logic.test.mjs        # logic, catalogue, backups (plain node; also in the repo Checks)
+node pantry/test/quick.test.mjs        # Say or type: dates, places, quantities, matching
 node pantry/test/config.test.mjs       # set-config, sign-in choice, plain-word errors, sw.js rules
 node pantry/test/e2e.mjs               # phone browser test with axe; SHOTS=<dir> saves screenshots
 pantry/test/run-sync.sh                # family sharing and the rules in the local emulators (demo-pantry, fake accounts)

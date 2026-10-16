@@ -25,6 +25,7 @@ const SHELL = [
   'js/scan.js',
   'js/guide.js',
   'js/photo.js',
+  'js/quick.js',
   'icons/icon.svg',
   'icons/apple-touch-icon.png',
   'icons/icon-192.png',

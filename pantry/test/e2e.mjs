@@ -200,6 +200,31 @@ try {
     await axe(page, 'home');
     await shot(page, '06-home', true);
 
+    // binning the expired bread counts as expired
+    await page.locator('#h-expired').locator('xpath=..').locator('a.ha-row', { hasText: 'Wholemeal bread' }).click(); await settle(page);
+    await page.locator('[data-act="toss"]').first().click(); await settle(page);
+    ok((await toast(page).textContent()).includes('(expired)'), 'binning past its date says expired');
+    ok((await page.locator('#h-history').locator('xpath=..').innerText()).includes('Expired, thrown away'), 'history says expired');
+    await page.click('.ha-back'); await settle(page);
+    ok((await page.locator('#h-month').locator('xpath=..').innerText()).includes('Used before expiry'), 'This month counts used before expiry');
+
+    // Say or type: a sentence becomes items to confirm
+    await page.click('#bar-trail [data-act="quick"]'); await settle(page);
+    ok(await page.locator('dialog.ha-sheet[open] .ha-sheet-title').textContent() === 'Say or type', 'the mic opens Say or type');
+    await page.fill('#pa-quick-text', '2 Meiji milk in the fridge expires 25 Oct, salmon fillet freezer in 3 months and 3 tins of sardines');
+    await settle(page);
+    ok(await page.locator('#pa-quick-list li').count() === 3, 'three things heard');
+    await page.locator('#pa-quick-list input').nth(2).uncheck();
+    ok(await page.locator('#pa-quick-go').textContent() === 'Add 2 items', 'unticking one leaves it out');
+    await axe(page, 'say or type');
+    await shot(page, '06b-quick');
+    const before = await page.evaluate(() => window.__pantry.S.items.size);
+    await page.click('#pa-quick-go'); await settle(page);
+    ok((await toast(page).textContent()).includes('Added 2 items'), 'adds them');
+    ok(await page.evaluate(() => window.__pantry.S.items.size) === before + 1, 'milk adds to the one at home, salmon is new');
+    await toast(page).locator('.ha-toast-action').click(); await settle(page);
+    ok(await page.evaluate(() => window.__pantry.S.items.size) === before, 'Undo takes them back out');
+
     // items: search, place chips, sort
     await page.click('.ha-tabbar a[href="#/items"]'); await settle(page);
     await page.fill('#pa-q', 'kaya');
@@ -220,6 +245,8 @@ try {
 
     // settings: backup JSON, version lines
     await page.click('.ha-tabbar a[href="#/settings"]'); await settle(page);
+    await page.click('[data-act="soon"][data-v="7"]'); await settle(page);
+    ok(await page.locator('[data-act="soon"][data-v="7"]').getAttribute('aria-pressed') === 'true', 'Use soon can be 1 week');
     ok((await page.locator('#h-help').locator('xpath=..').innerText()).includes('How to use the pantry'), 'Settings has a Help section');
     await page.click('#main a[href="#/guide"]'); await settle(page);
     ok(hash(page) === '#/guide' && (await page.locator('h1').textContent()) === 'How to use the pantry', 'the guide opens from Settings');

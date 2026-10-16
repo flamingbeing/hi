@@ -12,6 +12,9 @@
 - 16 Oct 2026: first-time help (PR "Pantry: welcome walkthrough and how-to guide for first-time users"): a welcome on
   first open (once per phone), the guide screen `#/guide`, quiet hints; the invite link now lands on Settings.
 
+- 16 Oct 2026: improvements from Kaki Home (PR "Pantry: used before expiry, Say or type and who changed what"):
+  used-before-expiry and expired recorded, Say or type quick entry, added and changed by, Use soon setting.
+
 ## Waiting on the owner
 
 - Billing: waiting on the owner (Blaze), then the US$5 budget and daily backups.

@@ -25,6 +25,7 @@ jobs:
           java-version: 21
       - run: node pantry/test/logic.test.mjs
       - run: node pantry/test/config.test.mjs
+      - run: node pantry/test/quick.test.mjs
       - name: Install Playwright and axe-core
         run: |
           npm install --no-save playwright@1.56.1 axe-core

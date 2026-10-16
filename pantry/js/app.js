@@ -47,6 +47,10 @@ function eventsByItem() {
   return m;
 }
 const today = () => L.ymd();
+// How many days ahead Home's "Use soon" looks (Settings; per phone; two weeks as before).
+const soonDays = () => Number(prefs.get('soonDays', 14)) || 14;
+const SOON = { 3: '3 days', 7: '1 week', 14: '2 weeks' };
+const soonText = () => SOON[soonDays()] || plural(soonDays(), 'day');
 const plural = (n, one, many = one + 's') => `${n} ${n === 1 ? one : many}`;
 const route = () => R?.route || { parts: [] };
 const screen = () => route().parts[0] || 'home';
@@ -54,7 +58,7 @@ const screen = () => route().parts[0] || 'home';
 // ---- saving ----------------------------------------------------------------------------------------------------
 
 function save(kind, obj) {
-  if (kind === 'items') obj = { ...obj, updatedAt: new Date().toISOString() };
+  if (kind === 'items') obj = { ...obj, updatedAt: new Date().toISOString(), updatedBy: who() };
   S[kind].set(obj.id, obj);
   S.backend.put(kind, obj);
   return obj;
@@ -150,7 +154,7 @@ function viewHome() {
     </div>`;
   }
   const t = today();
-  const exp = L.expiring(all, { days: 14, today: t });
+  const exp = L.expiring(all, { days: soonDays(), today: t });
   const expired = exp.filter(x => x.date < t), soon = exp.filter(x => x.date >= t);
   const buy = L.toBuy(all, eventsByItem());
   const listed = new Set(exp.map(x => x.item.id));
@@ -162,7 +166,7 @@ function viewHome() {
     <div class="ha-stat"><span class="ha-stat-value">${buy.length}</span><span class="ha-stat-label">To buy</span></div>
   </div>`;
   if (expired.length) h += section('Expired', `<ul class="ha-list">${expired.map(x => itemRow(x.item)).join('')}</ul>`, { count: expired.length, footer: 'Used it or binned it? Open the item and tap Used 1 or Bin 1.' });
-  h += section('Use soon', soon.length ? `<ul class="ha-list">${soon.map(x => itemRow(x.item)).join('')}</ul>` : '', { count: soon.length || '', footer: soon.length ? 'Within the next two weeks.' : 'Nothing runs out of date in the next two weeks.' });
+  h += section('Use soon', soon.length ? `<ul class="ha-list">${soon.map(x => itemRow(x.item)).join('')}</ul>` : '', { count: soon.length || '', footer: soon.length ? `Within the next ${soonText()}.` : `Nothing runs out of date in the next ${soonText()}.` });
   if (opened.length) h += section('Opened', `<ul class="ha-list">${opened.map(it => itemRow(it)).join('')}</ul>`, { count: opened.length });
   if (buy.length) {
     h += section('Running low', `<ul class="ha-list">${buy.slice(0, 5).map(b => itemRow(b.item, { sub: esc(L.whyText(b, t)), trail: '' })).join('')}</ul>`,
@@ -171,7 +175,8 @@ function viewHome() {
   h += section('This month', `<ul class="ha-list">
     <li><div class="ha-row"><span class="ha-row-icon">${icon('check')}</span><span class="ha-row-body"><span class="ha-row-title">Used up</span></span><span class="ha-row-value">${m.used}</span></div></li>
     <li><div class="ha-row"><span class="ha-row-icon ha-row-icon--grey">${icon('cart')}</span><span class="ha-row-body"><span class="ha-row-title">Bought</span></span><span class="ha-row-value">${m.bought}</span></div></li>
-    <li><div class="ha-row"><span class="ha-row-icon ha-row-icon--bad">${icon('trash')}</span><span class="ha-row-body"><span class="ha-row-title">Thrown away</span></span><span class="ha-row-value">${m.wasted}</span></div></li>
+    <li><div class="ha-row"><span class="ha-row-icon">${icon('clock')}</span><span class="ha-row-body"><span class="ha-row-title">Used before expiry</span></span><span class="ha-row-value">${m.saved}</span></div></li>
+    <li><div class="ha-row"><span class="ha-row-icon ha-row-icon--bad">${icon('trash')}</span><span class="ha-row-body"><span class="ha-row-title">Thrown away</span>${m.expired ? `<span class="ha-row-sub">${m.expired} past ${m.expired === 1 ? 'its' : 'their'} date</span>` : ''}</span><span class="ha-row-value">${m.wasted}</span></div></li>
   </ul>`, { id: 'month' });
   return h;
 }
@@ -215,7 +220,7 @@ function drawItemsList() {
 
 // ---- Item -------------------------------------------------------------------------------------------------------
 
-const VERB = { add: 'Bought', use: 'Used up', open: 'Opened', discard: 'Thrown away' };
+const VERB = { add: 'Bought', use: 'Used up', open: 'Opened', discard: 'Thrown away', expired: 'Expired, thrown away' };
 function viewItem(it) {
   const evs = eventsFor(it.id).sort((a, b) => (a.at < b.at ? 1 : -1));
   const u = L.usage(evs);
@@ -269,7 +274,7 @@ function viewItem(it) {
 
   // details
   const detail = (label, value) => value === '' || value == null ? '' : `<li><div class="ha-row"><span class="ha-row-body"><span class="ha-row-title">${label}</span></span><span class="ha-row-value pa-wrap">${esc(value)}</span></div></li>`;
-  h += section('Details', `<ul class="ha-list">${detail('Category', it.category)}${detail('Kept in', it.location)}${detail('Keeps once opened', it.openDays ? plural(it.openDays, 'day') : 'Not set')}${detail('Shopping list at', it.lowAt ? `${it.lowAt} left` : 'None left')}${detail('Barcode', it.barcode)}</ul>`, { id: 'details' });
+  h += section('Details', `<ul class="ha-list">${detail('Category', it.category)}${detail('Kept in', it.location)}${detail('Keeps once opened', it.openDays ? plural(it.openDays, 'day') : 'Not set')}${detail('Shopping list at', it.lowAt ? `${it.lowAt} left` : 'None left')}${detail('Barcode', it.barcode)}${detail('Added by', it.createdBy || '')}${detail('Last changed by', it.updatedBy || '')}</ul>`, { id: 'details' });
 
   // history
   h += section('History', evs.length
@@ -302,8 +307,8 @@ function viewForm(id) {
         <input type="search" id="pa-find" placeholder="Soy sauce, Milo, Dynamo…" aria-label="Find a product" autocomplete="off" enterkeyhint="search">
         <button type="button" class="ha-search-clear" data-act="find-clear" aria-label="Clear">${icon('close')}</button></div>
       <ul class="ha-list" id="pa-sugg" hidden></ul>
-      <div class="ha-btn-row"><button type="button" class="ha-btn ha-btn--secondary" data-act="scan">${icon('barcode')}Scan barcode</button></div>
-      <p class="ha-section-footer" id="pa-find-foot">Pick a common Singapore supermarket product, or scan its barcode, to fill in the details.</p>
+      <div class="ha-btn-row"><button type="button" class="ha-btn ha-btn--secondary" data-act="scan">${icon('barcode')}Scan barcode</button><button type="button" class="ha-btn ha-btn--secondary" data-act="quick">${icon('mic')}Say or type a list</button></div>
+      <p class="ha-section-footer" id="pa-find-foot">Pick a common Singapore supermarket product, scan its barcode, or say what you bought, to fill in the details.</p>
     </section>`;
   }
   h += `<form id="pa-form" novalidate>
@@ -394,7 +399,7 @@ function submitForm(e) {
   const base = d._for !== 'new' ? S.items.get(d._for) : null;
   const num = v => Math.max(0, parseInt(v, 10) || 0);
   const it = {
-    ...(base || { id: L.uid(), batches: [], createdAt: new Date().toISOString() }),
+    ...(base || { id: L.uid(), batches: [], createdAt: new Date().toISOString(), createdBy: who() }),
     name: d.name.trim(), brand: String(d.brand || '').trim(), size: String(d.size || '').trim(), category: d.category, location: d.location,
     openDays: num(d.openDays) || null, lowAt: num(d.lowAt), barcode: String(d.barcode || '').trim(), photo: d.photo || '',
   };
@@ -505,6 +510,82 @@ function openBought(it, { shopId = null } = {}) {
     apply(res, `Added ${n} ${it.name}`);
   });
 }
+// ---- "Say or type" (quick.js): a sentence becomes items to confirm -----------------------------------------------
+
+async function openQuick() {
+  const Q = await import('./quick.js');
+  let found = [], mic = null;
+  const s = haSheet({
+    title: 'Say or type', closeLabel: 'Cancel', grey: true,
+    body: `<form id="pa-quick" novalidate>
+      <label class="ha-field"><span class="ha-field-label">What did you buy?</span>
+        <textarea class="ha-input pa-quick-text" id="pa-quick-text" autocomplete="off" placeholder="2 Meiji milk in the fridge expires 25 Oct, eggs and 3 tins of sardines"></textarea></label>
+      ${Q.canListen() ? `<div class="ha-btn-row"><button type="button" class="ha-btn ha-btn--secondary pa-mic" id="pa-mic" aria-pressed="false">${icon('mic')}<span>Speak</span></button></div>` : ''}
+      <p class="ha-section-footer" id="pa-quick-hint">${Q.canListen() ? 'Tap Speak, or type.' : 'Type, or tap the microphone on your keyboard.'} Say how many, where it’s kept and the date; separate things with “and” or commas.</p>
+      <ul class="ha-list" id="pa-quick-list" aria-live="polite"></ul>
+    </form>`,
+    footer: `<button type="submit" form="pa-quick" class="ha-btn ha-btn--primary ha-btn--block" id="pa-quick-go" disabled>Add items</button>`,
+    onClose: () => { mic?.stop(); afterSheet(); },
+  });
+  const ta = $('#pa-quick-text', s.el), ul = $('#pa-quick-list', s.el), go = $('#pa-quick-go', s.el);
+  const describe = x => [x.brand, plural(x.qty, 'unit'), x.location, x.expiry ? `use by ${fmt(x.expiry)}` : 'no date',
+    x.match?.mine ? 'adds to the one at home' : x.match?.cat ? '' : 'new item'].filter(Boolean).join(' · ');
+  const show = () => {
+    found = Q.parseQuick(ta.value, { today: today(), items: items(), catalogue: CATALOGUE });
+    ul.innerHTML = found.map((x, i) => `<li><label class="ha-row"><input type="checkbox" data-q="${i}" checked>
+      <span class="ha-row-body"><span class="ha-row-title">${esc(x.name)}</span><span class="ha-row-sub">${esc(describe(x))}</span></span></label></li>`).join('');
+    count();
+  };
+  const count = () => {
+    const n = ul.querySelectorAll('input:checked').length;
+    go.disabled = !n;
+    go.textContent = n ? `Add ${plural(n, 'item')}` : 'Add items';
+  };
+  ta.addEventListener('input', show);
+  ul.addEventListener('change', count);
+  $('#pa-mic', s.el)?.addEventListener('click', e => {
+    const btn = e.currentTarget;
+    if (mic) { mic.stop(); return; }
+    const before = ta.value.trim();
+    btn.classList.add('is-on'); btn.setAttribute('aria-pressed', 'true'); btn.lastElementChild.textContent = 'Stop';
+    try {
+      mic = Q.listen({
+        onText: text => { ta.value = [before, text].filter(Boolean).join(', '); show(); },
+        onEnd: err => {
+          mic = null; btn.classList.remove('is-on'); btn.setAttribute('aria-pressed', 'false'); btn.lastElementChild.textContent = 'Speak';
+          if (err && err !== 'no-speech' && err !== 'aborted') haToast(/not-allowed|service/.test(err) ? 'The microphone is blocked. Allow it in the browser’s settings, or type instead.' : 'Didn’t catch that. Try again or type.');
+        },
+      });
+    } catch { mic = null; haToast('Speech isn’t available here. Type instead.'); }
+  });
+  $('#pa-quick', s.el).addEventListener('submit', async e => {
+    e.preventDefault();
+    mic?.stop();
+    const picked = [...ul.querySelectorAll('input:checked')].map(c => found[Number(c.dataset.q)]);
+    if (!picked.length) return;
+    const undo = [];
+    for (const x of picked) {
+      const mine = x.match?.mine && S.items.get(x.match.mine.id);
+      const c = x.match?.cat;
+      const base = mine || {
+        id: L.uid(), batches: [], createdAt: new Date().toISOString(), createdBy: who(),
+        name: x.name, brand: x.brand || '', size: c?.size || '', category: c?.category || 'Other',
+        location: x.location || c?.location || 'Kitchen cabinet', openDays: c?.openDays ?? null, lowAt: 0, barcode: '', photo: '',
+      };
+      const res = L.addStock(base, { qty: x.qty, expiry: x.expiry || null, by: who() });
+      undo.push({ before: mine || null, id: base.id, ev: save('events', res.event).id });
+      save('items', res.item);
+    }
+    await haCloseSheet(s.el);
+    if (screen() === 'add') { S.draft = null; S.dirty = false; haGo('#/', { replace: true }); } else redraw();
+    haToast(`Added ${plural(picked.length, 'item')}`, { action: 'Undo', onAction: () => {
+      for (const u of undo.reverse()) { if (u.before) save('items', u.before); else remove('items', u.id); remove('events', u.ev); }
+      redraw(); haAnnounce('Undone');
+    } });
+  });
+  setTimeout(() => ta.focus(), 50);
+}
+
 // A sheet closed: draw anything the family changed while it was open.
 function afterSheet() {
   if (S.pendingRender && !haSheetOpen()) redraw();
@@ -585,6 +666,9 @@ function viewSettings() {
   }
   return `<h1 class="ha-large-title">Settings</h1>
     ${section('Family sharing', fam, { id: 'family', footer: famFoot })}
+    ${section('Reminders', `<div class="ha-chips ha-chips--wrap" role="group" aria-label="Use soon means within">${Object.entries(SOON).map(([v, l]) =>
+      `<button type="button" class="ha-chip" aria-pressed="${soonDays() === Number(v)}" data-act="soon" data-v="${v}">${l}</button>`).join('')}</div>`,
+      { id: 'remind', footer: 'How far ahead “Use soon” looks, on Home. Kept on this phone.' })}
     ${section('Help', `<ul class="ha-list">
       <li><a class="ha-row" href="#/guide"><span class="ha-row-icon">${icon('info')}</span><span class="ha-row-body"><span class="ha-row-title">How to use the pantry</span></span>${chevron()}</a></li>
       ${btnRow('welcome', 'Show the welcome again', { iconName: 'home' })}
@@ -632,7 +716,7 @@ function draw(r, { keep = false } = {}) {
   $('#pa-toolbar').hidden = !task;
 
   let title = TOP[name] || '';
-  if (name === 'home') { main.innerHTML = viewHome(); setBar({ title, trail: iconBtn('barcode', 'Scan a barcode', 'scan-home') }); }
+  if (name === 'home') { main.innerHTML = viewHome(); setBar({ title, trail: iconBtn('mic', 'Say or type what you bought', 'quick') + iconBtn('barcode', 'Scan a barcode', 'scan-home') }); }
   else if (name === 'items') { main.innerHTML = viewItems(); setBar({ title }); }
   else if (name === 'item') {
     title = it.name;
@@ -694,7 +778,12 @@ async function onClick(e) {
     case 'scan': return openScan();
     case 'edit': return haGo('#/edit/' + it.id);
     case 'use': return apply(L.takeOut(it, { type: 'use', by: who(), batchId: b.dataset.b || null }), `Used 1 ${it.name}`);
-    case 'toss': return apply(L.takeOut(it, { type: 'discard', by: who(), batchId: b.dataset.b || null }), `Binned 1 ${it.name}`);
+    case 'toss': {
+      const res = L.takeOut(it, { type: 'discard', by: who(), batchId: b.dataset.b || null });
+      return apply(res, res.event?.type === 'expired' ? `Binned 1 ${it.name} (expired)` : `Binned 1 ${it.name}`);
+    }
+    case 'quick': return openQuick();
+    case 'soon': { prefs.set('soonDays', Number(b.dataset.v)); redraw(); return haToast(`Use soon: within ${SOON[b.dataset.v]}`); }
     case 'open': return apply(L.openOne(it, { by: who(), batchId: b.dataset.b || null }), `Opened 1 ${it.name}`);
     case 'bought': return openBought(it);
     case 'to-list': return addToList(it);

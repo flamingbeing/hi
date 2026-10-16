@@ -91,20 +91,27 @@ export function addStock(item, { qty = 1, expiry = null, by, at, price = null } 
 }
 
 // Take n units out of the batches, first expiring first. type: 'use' (used up) or 'discard' (thrown away).
-export function takeOut(item, { qty = 1, type = 'use', by, at, batchId = null } = {}) {
+// The event also says how the units stood against their dates, for "used before expiry": saved = units used up
+// while still in date (dated batches only); a discard where every unit was already past its date is recorded as
+// type 'expired', so wasted-because-forgotten shows apart from thrown away.
+export function takeOut(item, { qty = 1, type = 'use', by, at, batchId = null, today = ymd() } = {}) {
   let left = Number(qty) || 1;
   const order = batchId ? (item.batches || []).filter(b => b.id === batchId) : fefo(item);
   const take = new Map();
+  let inDate = 0, past = 0;
   for (const b of order) {
     if (left <= 0) break;
     const n = Math.min(b.qty, left);
     take.set(b.id, n);
     left -= n;
+    const d = batchUseBy(b, item);
+    if (d && d < today) past += n; else if (d) inDate += n;
   }
   const taken = (Number(qty) || 1) - left;
   if (!taken) return { item, event: null };
   const batches = (item.batches || []).map(b => take.has(b.id) ? { ...b, qty: b.qty - take.get(b.id) } : b).filter(b => b.qty > 0);
-  return { item: { ...item, batches }, event: ev(item, type, taken, by, at) };
+  const kind = type === 'discard' && past === taken ? 'expired' : type;
+  return { item: { ...item, batches }, event: ev(item, kind, taken, by, at, kind === 'use' && inDate ? { saved: inDate } : {}) };
 }
 
 // Open one unit: split it off its batch with today's opening date (so "keeps N days after opening" starts).
@@ -122,12 +129,15 @@ export function openOne(item, { by, at, today = ymd(), batchId = null } = {}) {
 
 // ---- consumption patterns ------------------------------------------------------------------------------------
 
+// Thrown away, for whatever reason ('expired': it was already past its date).
+export const WASTE = new Set(['discard', 'expired']);
+
 // From an item's events: how fast the family gets through it.
 // daysPerUnit: average days one unit lasts (needs two or more "used up" events).
 export function usage(events, now = new Date()) {
   const uses = events.filter(e => e.type === 'use').sort((a, b) => (a.at < b.at ? -1 : 1));
   const units = uses.reduce((n, e) => n + (e.qty || 1), 0);
-  const discards = events.filter(e => e.type === 'discard').reduce((n, e) => n + (e.qty || 1), 0);
+  const discards = events.filter(e => WASTE.has(e.type)).reduce((n, e) => n + (e.qty || 1), 0);
   const out = { uses: uses.length, units, discards, daysPerUnit: null, perMonth: null, lastUse: uses.length ? uses[uses.length - 1].at : null };
   if (uses.length >= 2) {
     const span = (new Date(uses[uses.length - 1].at) - new Date(uses[0].at)) / DAY;
@@ -150,7 +160,7 @@ export function usage(events, now = new Date()) {
     const m = months.find(x => x.key === k);
     if (!m) continue;
     if (e.type === 'use') m.used += e.qty || 1;
-    if (e.type === 'discard') m.wasted += e.qty || 1;
+    if (WASTE.has(e.type)) m.wasted += e.qty || 1;
   }
   out.months = months;
   return out;
@@ -267,17 +277,24 @@ export function whyText(b, today = ymd()) {
   return d <= 0 ? 'Runs out about now' : `Runs out in about ${d} day${d === 1 ? '' : 's'}`;
 }
 
-// This month's totals from the events: { used, wasted, bought } (units).
+// This month's totals from the events (units): used, bought, wasted (thrown away, expired included), expired, and
+// saved: used up while still in date (waste the pantry helped prevent).
 export function monthStats(events, month = ymd().slice(0, 7)) {
-  const out = { used: 0, wasted: 0, bought: 0 };
+  const out = { used: 0, wasted: 0, bought: 0, expired: 0, saved: 0 };
   for (const e of events) {
     if (!String(e.at).startsWith(month)) continue;
     const n = Number(e.qty) || 1;
-    if (e.type === 'use') out.used += n;
-    else if (e.type === 'discard') out.wasted += n;
+    if (e.type === 'use') { out.used += n; out.saved += Math.min(n, Number(e.saved) || 0); }
+    else if (WASTE.has(e.type)) { out.wasted += n; if (e.type === 'expired') out.expired += n; }
     else if (e.type === 'add') out.bought += n;
   }
   return out;
+}
+
+// Items added in the last `days` days, newest first (for "Recently added").
+export function recent(items, { days = 7, now = new Date() } = {}) {
+  const since = new Date(now.getTime() - days * DAY).toISOString();
+  return items.filter(it => !it.archived && (it.createdAt || '') >= since).sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1));
 }
 
 // The shopping list as plain text to share (WhatsApp, Notes).
