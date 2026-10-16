@@ -15,9 +15,21 @@ Lasting decisions and how to test. What's going on now: [STATUS.md](STATUS.md). 
 - **Photos** are shrunk to about 480px JPEG data URLs inside the item (fits Firestore's 1 MB document limit; no
   Storage bucket to pay for or secure).
 - **Shops:** items link to FairPrice, Sheng Siong, Cold Storage and Shopee search (`SHOPS` in `js/logic.js`; Cold Storage and Shopee added 16 Oct 2026 at the owner's request). FairPrice and Sheng Siong have no public product API and block cross-site requests, so the app has its own
-  list of common Singapore goods (`js/catalogue.js`) and links to each shop's search. Barcodes go to Open Food Facts
-  (open, CORS, patchy for Singapore; an unknown barcode is remembered once the item is named). iPhone has no built-in
+  list of common Singapore goods (`js/catalogue.js`) and links to each shop's search. Barcodes: see below. iPhone has no built-in
   barcode reader, so a ZXing WebAssembly polyfill loads from jsDelivr on the first scan (then works offline).
+- **Barcode look-ups (16 Oct 2026, owner):** a scan first checks the family's own pantry (found: the item opens with
+  Bought more, nothing asked online). Otherwise `lookup()` in `js/scan.js` asks Open Food Facts, Open Products Facts
+  (household goods) and Open Beauty Facts (toiletries) at once, same API (`/api/v2/product/<code>.json`), all
+  `access-control-allow-origin: *`, each with a 6 second limit; the first hit in that order wins and the slower ones are
+  stopped. Errors, 404s, 500s and no signal all count as "not known" (it never throws). A household hit guesses Laundry
+  & cleaning / Store room, a toiletry hit Toiletries / Bathroom, used only while the form still has the default and
+  nobody has picked one. The product picture is fetched as before. **Unknown barcodes** open the sheet "We don't know
+  this barcode yet" (a history entry; Cancel keeps the barcode in the form): a search over the pantry and the
+  catalogue (the Add screen's own scoring; a catalogue product already in the pantry shows once, as the pantry item).
+  A catalogue pick fills the form with the barcode; a pantry pick saves the barcode on that item (replacing any older
+  one) and opens Bought more; "Type a new name" focuses Name, starting with what was typed. The browser test fakes the
+  camera (a canvas stream and a stub `BarcodeDetector` reading `window.__scanCode`) and routes the three hosts; the
+  app itself has no test hook.
 - **16 Oct 2026, rebuilt on the home design kit** (owner): `/homedesign/tokens.css`, `app.css`, `app.js`; the app's own
   CSS is only `pantry.css` with a `pa-` prefix; no emoji (category icons from the kit's sprite, which gained 22 icons for
   household things). Every screen (`#/`, `#/items`, `#/item/<id>`, `#/add`, `#/edit/<id>`, `#/shop`, `#/settings`) and
@@ -80,6 +92,7 @@ Lasting decisions and how to test. What's going on now: [STATUS.md](STATUS.md). 
 ```
 node pantry/test/logic.test.mjs        # logic, catalogue, backups (plain node; also in the repo Checks)
 node pantry/test/quick.test.mjs        # Say or type: dates, places, quantities, matching
+node pantry/test/scan.test.mjs         # the barcode look-up chain with a stubbed fetch (plain node)
 node pantry/test/config.test.mjs       # set-config, sign-in choice, plain-word errors, sw.js rules
 node pantry/test/e2e.mjs               # phone browser test with axe; SHOTS=<dir> saves screenshots
 pantry/test/run-sync.sh                # family sharing and the rules in the local emulators (demo-pantry, fake accounts)
