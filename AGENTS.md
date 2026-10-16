@@ -46,6 +46,23 @@ are fine (the rules are the protection).
   `.github/workflows/deploy-firestore-rules.yml` (once set up): run the rules tests first, merge only when Checks are
   green, confirm the deploy run, and say what the rules now allow or deny. Never loosen rules to make a test pass.
 
+## Cloud changes go through firetop
+
+Since 16 Oct 2026 the owner has given **firetop** (a Claude session on the owner's home computer, session name
+`firetop-partitioned-rose`) standing read-write access to the owner's Firebase projects and Cloudflare account. When
+work needs something a cloud session can't or mustn't do itself (create or change a Firebase project, Firestore data
+or rules, Auth settings and authorised domains, Hosting, IAM roles, budgets and backups, GitHub secrets or variables
+for those, Cloudflare DNS, Workers or rules checks), send firetop a job with `SendMessage` instead of asking the owner.
+
+- **A job gives:** the project or zone; the exact change (file, rule text, record, document ids); why; how to verify.
+  Never send secrets or real household or patient data.
+- **firetop** saves the before-state, makes the change, verifies it, logs it and replies.
+- **Not through firetop without the owner:** deleting databases, backups, buckets or domains; making private data
+  public; spending beyond the owner's budgets; account security (members, API tokens, sign-in methods).
+- **Console-only clicks** (turning on a sign-in provider, OAuth client origins, publishing a consent screen) still
+  need the owner; firetop gives the owner the exact clicks.
+- If firetop isn't reachable (not listed by `ListAgents`, or messages fail), ask the owner as before.
+
 ## Checks before merging
 
 ```
