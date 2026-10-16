@@ -570,6 +570,7 @@ node pantry/test/order.test.mjs        # My order: midpoints, append, prepend, c
 node pantry/test/select.test.mjs       # selecting: the selection state and the press and hold with a fake pointer (plain node)
 node pantry/test/syncnow.test.mjs      # Sync now: each waiting change in words, last heard, what it says (plain node)
 node pantry/test/removed.test.mjs      # removed markers, Restore, days left, the sweep's choice, backups and merging, every list skips removed (plain node)
+node pantry/test/live-guards.test.mjs  # the live-service harness's safety guards (plain node; the harness itself: pantry/test/LIVE-TEST.md)
 node pantry/test/config.test.mjs       # set-config, sign-in choice, plain-word errors, sw.js rules
 node pantry/test/e2e.mjs               # phone browser test with axe; SHOTS=<dir> saves screenshots
 node pantry/test/items.e2e.mjs         # the Items list with real touch (CDP): selecting, press and hold, the actions and their Undo, group by place, grip drags, My order, Bulk edit, axe
@@ -580,4 +581,7 @@ node tools/check.mjs && node tools/stamp-versions.mjs --check
 
 `e2e.mjs` needs Playwright (`PLAYWRIGHT_PATH`) and axe-core (`AXE_PATH`, or `npm install --no-save axe-core`);
 `run-sync.sh` needs Java 21 and fetches `firebase-tools` with npx. The "Pantry checks" workflow runs all of them on PRs
-touching `pantry/`, `homedesign/` or `__/`. Never point a test at the live Firebase project.
+touching `pantry/`, `homedesign/` or `__/`. Never point a test at the live Firebase project, with one exception: the
+live-service harness (`pantry/test/live-multidevice.mjs`, runbook `pantry/test/LIVE-TEST.md`) that firetop runs against a
+throwaway `robust-test-` household with three throwaway accounts; sessions only run it with `--dry` (`pantry/test/run-live-dry.sh`,
+local emulators).
