@@ -10,6 +10,7 @@ on:
     branches: [main]
     paths:
       - 'pantry/firestore.rules'
+      - 'kakihome/firestore.rules'
   workflow_dispatch:
 
 jobs:
@@ -17,6 +18,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       pantry: ${{ steps.filter.outputs.pantry }}
+      kakihome: ${{ steps.filter.outputs.kakihome }}
     steps:
       - uses: actions/checkout@v4
       - id: filter
@@ -24,6 +26,7 @@ jobs:
         with:
           filters: |
             pantry: 'pantry/firestore.rules'
+            kakihome: 'kakihome/firestore.rules'
 
   deploy:
     needs: changes
@@ -35,6 +38,9 @@ jobs:
           - dir: pantry
             project_var: PANTRY_FIREBASE_PROJECT
             changed: pantry
+          - dir: kakihome
+            project_var: KAKIHOME_FIREBASE_PROJECT
+            changed: kakihome
     steps:
       - name: Ready to deploy?
         id: ready

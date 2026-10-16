@@ -1,6 +1,8 @@
 # Status (site-wide)
 
 ## Now
+- Kaki Home (`kakihome/`, 16 Oct): a separate household inventory to try out a product idea; status in
+  `kakihome/STATUS.md`. Its Firebase project was requested from the owner's helper.
 - Home design system (`homedesign/`): merged (#8); the pantry PR adds 22 household icons to it.
 - Pantry: rebuilt on the design system (PR "Pantry: family household inventory on the home design kit"; first version
   was PR #5, closed). Status in `pantry/STATUS.md`.

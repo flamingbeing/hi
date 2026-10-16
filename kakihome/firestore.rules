@@ -1,0 +1,32 @@
+rules_version = '2';
+// Household. Only Google accounts listed in a household's members can read or change it.
+// Deployed on merge to main by .github/workflows/deploy-firestore-rules.yml. Tests: test/run-sync.sh (local emulators).
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function email() { return request.auth.token.email.lower(); }
+    function signedIn() { return request.auth != null && request.auth.token.email_verified == true; }
+    function member(hid) {
+      return signedIn() && email() in get(/databases/$(database)/documents/households/$(hid)).data.members;
+    }
+
+    match /households/{hid} {
+      allow read: if signedIn() && email() in resource.data.members;
+      // start a household: you are its owner and only member
+      allow create: if signedIn()
+        && request.resource.data.owner == email()
+        && request.resource.data.members == [email()]
+        && request.resource.data.keys().hasOnly(['name', 'owner', 'members', 'createdAt']);
+      // members may add or remove family, rename it; the owner stays and stays a member
+      allow update: if signedIn() && email() in resource.data.members
+        && request.resource.data.owner == resource.data.owner
+        && resource.data.owner in request.resource.data.members
+        && request.resource.data.members is list && request.resource.data.members.size() <= 20
+        && request.resource.data.keys().hasOnly(['name', 'owner', 'members', 'createdAt']);
+      allow delete: if signedIn() && email() == resource.data.owner;
+
+      match /{kind}/{id} {
+        allow read, write: if kind in ['items', 'events', 'shop'] && member(hid);
+      }
+    }
+  }
+}

@@ -40,3 +40,4 @@
 - 16 Oct 2026: **22 more icons** for household things and actions (from the pantry): bottle, jar, tin, bowl, cup,
   carton, bread, leaf, fish, snowflake, cookie, sparkle, roll, droplet, pill, paw, heart, download, upload, external,
   refresh, cloud (46 in all). The guide and specimen list them; the e2e test counts the sprite instead of a fixed 24.
+- 16 Oct 2026: **Mic icon** (`i-mic`, 47 in all) for Kaki Home's "Say or type" quick entry.
