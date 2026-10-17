@@ -838,6 +838,8 @@ try {
 
   // ---- the Items list: a bulk move and a reorder racing another phone: both kept; every phone shows the same order ----
   {
+    // a phone hears the other phone's last write a moment after the server has it: wait for it, then the asserts say what differs
+    const settle = (ph, fn, arg) => ph.waitForFunction(fn, arg, { timeout: 15000 }).catch(() => {});
     const mk = async (id, name, extra = {}) => { await admin.put(`households/${hid}/items/${id}`, { id, name, ...base, batches: { a: { qty: 5, expiry: '2027-01-01', openedAt: null, addedAt: '2026-10-01' } }, ...extra }); await has(mum, id); await has(dad, id); };
     for (const [id, n] of [['bm1', 'Bulk 1'], ['bm2', 'Bulk 2'], ['bm3', 'Bulk 3']]) await mk(id, n);
     // A moves all three to the Garage in ONE batch while B, with no signal, uses one of them and renames another
@@ -850,6 +852,7 @@ try {
     for (const [id, loc, qty, name] of [['bm1', 'Garage', 5, 'Bulk 1'], ['bm2', 'Garage', 4, 'Bulk 2'], ['bm3', 'Garage', 5, 'Bulk 3 renamed']]) {
       const raw = await admin.get(`households/${hid}/items/${id}`);
       assert.equal(raw.location, loc, id + ' place'); assert.equal(raw.batches.a.qty, qty, id + ' stock'); assert.equal(raw.name, name, id + ' name');
+      for (const ph of [mum, dad]) await settle(ph, ([i, w]) => { const it = window.__pantry.S.items.get(i); return JSON.stringify([it.location, it.batches[0].qty, it.name]) === w; }, [id, JSON.stringify([loc, qty, name])]);
       for (const ph of [mum, dad]) assert.deepEqual(await ph.evaluate(i => { const it = window.__pantry.S.items.get(i); return [it.location, it.batches[0].qty, it.name]; }, id), [loc, qty, name], id + ' on a phone');
     }
     // two bulk moves of the same item to different places at once: one place wins, on every phone (a field: last write)
@@ -858,6 +861,7 @@ try {
     await net(dad, true); await drain(dad);
     const won = (await admin.get(`households/${hid}/items/bm1`)).location;
     assert.ok(['Fridge', 'Laundry'].includes(won), 'one of the two places: ' + won);
+    for (const ph of [mum, dad]) await settle(ph, w => window.__pantry.S.items.get('bm1').location === w, won);
     for (const ph of [mum, dad]) assert.equal(await ph.evaluate(() => window.__pantry.S.items.get('bm1').location), won, 'both phones agree');
 
     // My order: a category of four (nothing numbered yet): a move is ONE field; after an item with no number, the category is numbered in one batch
