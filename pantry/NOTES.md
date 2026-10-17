@@ -581,6 +581,31 @@ Lasting decisions and how to test. What's going on now: [STATUS.md](STATUS.md). 
     catches up inside 15 s, once (a second nudge inside 30 s does nothing); and with a write acknowledged on a dead stream it acts by
     itself (no event) and catches up.
 
+## Live-service findings (16 Oct 2026)
+
+The harness (`pantry/test/live-multidevice.mjs`, runbook `LIVE-TEST.md`) ran against the real Firestore service, not the emulator,
+on a throwaway household with three throwaway verified users (the household id must start `robust-test-`; credentials stay on
+the machine that runs it, never in the repo).
+
+- chromium and Google Chrome passed all nine scenarios; Firefox passed all but "reload while offline" (the browser refuses it,
+  so that scenario errors, it is not a verdict); WebKit failed that scenario (after an offline reload and reconnecting, no phone
+  matched the server until the listener was restarted; WebKit on Windows is a hint, not Safari). The listener watchdog came from this.
+- `increment()` is at-least-once on the real service: with the connection cut within about 75 ms of sending, 4 to 9 of 20
+  increments applied twice (the emulator: 10 to 11); no doubles for cuts of 100 ms or more, none when the acknowledgement came
+  first, no lost writes. Around a refused write in the queue, Chromium double-counted two valid increments in 1 of 4 runs.
+  Fix planned: idempotent entries (STATUS.md, PR-E). Until then keep refused writes rare.
+- Seeded random three-phone runs (seeds 11, 2026, 7) passed live; seed 11 had failed in the emulator dry run (the dead listener).
+- The 37 live rules cases matched the emulator on every engine: 14 allowed, 23 refused with permission-denied.
+- Cost lesson: the harness estimated about 3,600 reads and the project counted about 37,600, because each phone's listeners
+  re-read their result sets on every offline/online toggle (and the shadow listener doubled it). Keep live runs small, read the
+  project's usage metrics before and after, and remember rules `get()` lookups are billed as reads. A rules-only run
+  (`--only 8`) cost well under 100.
+- A rule that reads the household with `get()` ERRORS (it does not deny) when the household document no longer exists; eleven such
+  errors appeared when a phone resumed on a pantry that had been deleted. The app now leaves a dead pantry (watchHousehold).
+- `enableNetwork` while the network is already enabled crashes Firestore 10.14.1 in the tests: only call it after `disableNetwork`.
+- A CI run can flake once on the welcome check "installed: two cards" (e2e.mjs); re-run once, and look for a race in the welcome
+  sheet if it repeats.
+
 ## How to test
 
 ```

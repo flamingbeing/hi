@@ -66,26 +66,53 @@
   Commit 5: a listener watchdog (a phone whose connection died after an offline spell listens again, then restarts the connection if
   nothing is unacknowledged; found by the live harness, seed 11).
 
+- 16 Oct 2026: the combined PR merged (#38) and is live: Sync now, select mode, Group by place, grip drag, My order, Bulk edit,
+  the listener watchdog, the chip fix; rules change `order` absent or a number (deployed). One CI run flaked once on the
+  welcome check "installed: two cards" (e2e.mjs) and passed on re-run and in 5 local runs; if it fails again, treat it as a
+  real race in the welcome sheet.
+
+- 16 Oct 2026: live-service robustness harness merged (#37, tests only; `pantry/test/live-multidevice.mjs`, runbook
+  `pantry/test/LIVE-TEST.md`), run by the owner's home-computer helper on a throwaway household and three throwaway users.
+  Results in NOTES.md "Live-service findings". Main finding: `increment()` can apply twice when the connection is cut within
+  about 75 ms of sending. The small rules-only smoke run after #38 passed (37 cases).
+
 ## Waiting on the owner
 
-- Billing: waiting on the owner (Blaze), then the US$5 budget and daily backups.
-- Email sign-in switch (Firebase console, project `flamingbeing-pantry`, via Firetop if easier): Authentication →
-  Sign-in method → **Email/Password** → Enable, and tick **Email link (passwordless sign-in)** → Save. The authorised
-  domain `pantry.flamingbeing.com` is already there. Until then "Use email instead" says "This way of signing in isn't
-  switched on yet."
-- Google sign-in clicks (SETUP.md steps 6–7): Authentication → Get started → Google → Enable; the OAuth web client's
-  origin `https://pantry.flamingbeing.com` and redirect `https://pantry.flamingbeing.com/__/auth/handler`; publish the
-  "Pantry" consent screen. Then the authorised domain is added. Until then sign-in shows an error and
-  the app keeps working on the phone.
+- Nothing blocks the build. Please try on a real phone and say how it feels: press and hold a row, drag by the grip, Bulk
+  edit, Sync now. iPhone touch behaviour is untested (only real touch events in Chromium).
+- Email sign-in is switched on in the Firebase project (checked 16 Oct). Billing (Blaze, budget, daily backups) and Google
+  sign-in are done.
 
-## Next
+## Next (half-done and agreed, in this order)
 
-- After the sign-in clicks: a first sign-in on the phone, Start our family pantry, add the family.
-- Ideas: reminders for things about to expire (needs a server or push), prices per purchase (`price` is already
-  accepted on "add" events), receipt photo to items, more catalogue lines. From the research still open: real
-  reminders (push, needs a Worker cron), money saved or wasted, recipe-idea links, pasting an online order.
+1. PR-E, safe counting (not started): every use or add recorded as its own entry keyed by a unique op id inside the batch
+   (`batches.<id>.d.<opId>`), stock = base qty + sum of entries, so a resend changes nothing; fold entries older than about a
+   week into the base quantity (online, per item); rules caps (at most 40 entries per batch, op id pattern, number range);
+   `normalizeItem` reads `qty` plus the entries; old `increment` writers keep working on `qty`. Replaces `increment()`.
+2. Harness v2 and the full live run (needs the owner's home-computer helper; free reads reset daily, so run it the next
+   day): smaller default (no shadow listener, one seed, fewer steps), a read estimate that counts listener re-reads,
+   chromium, Chrome and WebKit; compare with the baseline in NOTES.md. Do not tell Kaki Home the sync is proven until it passes.
+3. PR-F, the Items tab (owner, 16 Oct; not started), after PR-E because the stepper makes many quick count changes:
+   - a pinned-places bar under the search bar, always shown even when empty, chips are filters and drop targets for drag;
+     pinned and order live on the place records (`pinned` boolean, existing `order`), shared with the family;
+   - compact rows (about 56 px): name, then place and the soonest expiry in words and colour, a stepper (minus uses one,
+     plus adds one, Undo) and a menu for Bin 1 / Use all / Throw away all / Edit; staples get a Plenty / Low / Out control;
+   - remove My order (dragging is only for moving to a place): drop the reorder UI, `order.js` reorder code, Move up/down;
+   - sync status in the top bar of every screen (one icon: saved, "1 waiting", "Needs attention"; tap opens the Saving to
+     the family sheet with Sync now), replacing the chip on Home and the Settings section.
+4. Tell the Kaki Home session when PR-E and the full run have passed (it ports sign-in, the household fixes and the sync
+   work from here, and keeps its save paths unchanged until then).
+- Ideas (unchanged): reminders for things about to expire (push, needs a Worker cron), prices per purchase, receipt photo,
+  more catalogue lines, money saved or wasted, recipe links, pasting an online order.
 
 ## Decisions
+
+- 17 Oct 2026 (owner, 16 Oct): My order is to be removed; dragging only moves an item to a place. Drag starts from the grip
+  handle. Places get a pinned bar under the search bar. Sync status goes in the top bar of every screen. "Delete" (not "Bin")
+  is the word on the selection bar because "Bin 1" on an item already means throw one unit away.
+
+- 17 Oct 2026: the live service double-applied `increment()` when the connection was cut shortly after sending, so counting
+  moves to idempotent entries (PR-E); until then refusals and bad connections can drift a count by one (NOTES.md).
 
 - 16 Oct 2026: names are one field each (keyed instruction, FieldPath); places are one document each with a midpoint `order`;
   migrating from the old list is made safe by the rules (fixed 1970 `updatedAt`: only as new or identical), not by luck; old
