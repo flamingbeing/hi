@@ -1,0 +1,218 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 300" width="1000" height="300">
+<defs>
+<linearGradient id="bg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FBF6EC"/><stop offset="1" stop-color="#F1E6D2"/></linearGradient>
+<linearGradient id="gold" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#E9C878"/><stop offset=".5" stop-color="#D4A84B"/><stop offset="1" stop-color="#A9802F"/></linearGradient>
+<radialGradient id="med" cx=".4" cy=".35" r=".75"><stop offset="0" stop-color="#FFFDF8"/><stop offset="1" stop-color="#F1E5CF"/></radialGradient>
+<radialGradient id="medS" cx=".4" cy=".35" r=".75"><stop offset="0" stop-color="#FFF6F2"/><stop offset="1" stop-color="#F3D9D4"/></radialGradient>
+<linearGradient id="silver" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#F3F5F8"/><stop offset=".5" stop-color="#C9CED6"/><stop offset="1" stop-color="#8E96A3"/></linearGradient>
+<radialGradient id="bagel" cx=".42" cy=".38" r=".7"><stop offset="0" stop-color="#E9B871"/><stop offset=".7" stop-color="#C98A42"/><stop offset="1" stop-color="#9C6127"/></radialGradient>
+<linearGradient id="skinA" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#C78A60"/><stop offset="1" stop-color="#9A5D3C"/></linearGradient>
+<linearGradient id="skinB" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#F3CDA8"/><stop offset="1" stop-color="#DDA87E"/></linearGradient>
+<linearGradient id="shell" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#F4FBFA"/><stop offset="1" stop-color="#BFE0DB"/></linearGradient>
+<linearGradient id="step" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#7A2A3E"/><stop offset="1" stop-color="#5B1A2B"/></linearGradient>
+<clipPath id="clip"><circle cx="0" cy="0" r="40.5"/></clipPath>
+<filter id="sh" x="-30%" y="-30%" width="160%" height="160%"><feDropShadow dx="0" dy="2.5" stdDeviation="2.5" flood-color="#2E1A33" flood-opacity=".28"/></filter>
+<g id="splint">
+ <path d="M-38 -4 L-8 -6 Q6 -6 16 2 L36 16 Q40 20 36 25 L31 22 L13 10 Q4 4 -8 4 L-38 6 Z" fill="url(#shell)" stroke="#2A9D8F" stroke-width="1.6" stroke-linejoin="round"/>
+ <path d="M-34 -2 L-9 -3.5 Q4 -3.5 13 3" fill="none" stroke="#FFFFFF" stroke-width="1.6" stroke-linecap="round" opacity=".9"/>
+</g>
+<g id="arm">
+ <path d="M-38 5 L-8 3.5 Q4 3.5 12 9 L30 21 Q34 24 31.5 27.5 Q29 30 25 27.5 L10 18 Q2 13 -8 13.5 L-38 15 Z" fill="url(#skinA)"/>
+</g>
+</defs>
+
+<rect width="1000" height="300" fill="url(#bg)"/>
+<rect x="8" y="8" width="984" height="284" rx="14" fill="none" stroke="#D4A84B" stroke-width="1.5"/>
+<rect x="13" y="13" width="974" height="274" rx="10" fill="none" stroke="#D4A84B" stroke-width=".6" opacity=".7"/>
+
+<!-- title -->
+<g font-family="Georgia, 'Times New Roman', serif" text-anchor="middle">
+ <text x="500" y="47" font-size="29" fill="#5B1A2B" letter-spacing="1.5">Twelve Weeks</text>
+ <text x="500" y="67" font-size="12" font-style="italic" fill="#2E1A33" opacity=".8">the long road from the cut to the fist</text>
+</g>
+<g stroke="#D4A84B" stroke-width="1.4" fill="none" stroke-linecap="round">
+ <path d="M300 40 H382"/><path d="M618 40 H700"/>
+ <path d="M382 40 q6 -6 12 0"/><path d="M606 40 q6 -6 12 0"/>
+</g>
+<circle cx="298" cy="40" r="2.5" fill="#D4A84B"/><circle cx="702" cy="40" r="2.5" fill="#D4A84B"/>
+
+<!-- the path -->
+<path id="road" d="M32 148 C46 156 54 140 68 140 C110 140 150 162 192 140 C234 118 274 162 316 140 C358 118 398 162 440 140 C482 118 522 162 564 140 C606 118 646 162 688 140 C730 118 770 162 812 140 C854 118 894 162 936 140 C952 132 962 138 968 138" fill="none" stroke="#2E1A33" stroke-width="15" stroke-linecap="round"/>
+<path d="M32 148 C46 156 54 140 68 140 C110 140 150 162 192 140 C234 118 274 162 316 140 C358 118 398 162 440 140 C482 118 522 162 564 140 C606 118 646 162 688 140 C730 118 770 162 812 140 C854 118 894 162 936 140 C952 132 962 138 968 138" fill="none" stroke="#D4A84B" stroke-width="2.4" stroke-dasharray="7 6" stroke-linecap="round"/>
+<!-- Scarlett's threads creeping along the road weeks 3-6 -->
+<g fill="none" stroke="#C2272D" stroke-width="1.3" stroke-linecap="round" opacity=".75">
+ <path d="M480 140 c12 -12 22 14 34 0 s20 -14 30 4 s26 10 34 -6 s22 -10 30 6 s24 8 32 -2"/>
+ <path d="M488 146 c10 8 22 -14 36 -2 s18 12 30 -4 s24 -10 34 6 s20 6 32 -6 s20 -4 26 4"/>
+</g>
+
+<!-- medallions -->
+<g filter="url(#sh)">
+ <circle cx="68" cy="140" r="44" fill="url(#med)" stroke="url(#gold)" stroke-width="3.5"/>
+ <circle cx="192" cy="140" r="44" fill="url(#med)" stroke="url(#gold)" stroke-width="3.5"/>
+ <circle cx="316" cy="140" r="44" fill="url(#med)" stroke="url(#gold)" stroke-width="3.5"/>
+ <circle cx="440" cy="140" r="44" fill="url(#med)" stroke="url(#gold)" stroke-width="3.5"/>
+ <circle cx="564" cy="140" r="44" fill="url(#medS)" stroke="#C2272D" stroke-width="3.5"/>
+ <circle cx="688" cy="140" r="44" fill="url(#med)" stroke="url(#gold)" stroke-width="3.5"/>
+ <circle cx="812" cy="140" r="44" fill="url(#med)" stroke="url(#gold)" stroke-width="3.5"/>
+ <circle cx="936" cy="140" r="44" fill="url(#med)" stroke="url(#gold)" stroke-width="3.5"/>
+</g>
+<g fill="none" stroke="#5B1A2B" stroke-width=".8" opacity=".55">
+ <circle cx="68" cy="140" r="39"/><circle cx="192" cy="140" r="39"/><circle cx="316" cy="140" r="39"/><circle cx="440" cy="140" r="39"/>
+ <circle cx="564" cy="140" r="39" stroke="#C2272D"/><circle cx="688" cy="140" r="39"/><circle cx="812" cy="140" r="39"/><circle cx="936" cy="140" r="39"/>
+</g>
+
+<!-- 1 Day 0: bagel + knife -->
+<g transform="translate(68 140)" clip-path="url(#clip)"><g transform="translate(0 0)">
+ <ellipse cx="-4" cy="18" rx="24" ry="5" fill="#2E1A33" opacity=".12"/>
+ <circle cx="-4" cy="6" r="22" fill="url(#bagel)"/>
+ <ellipse cx="-4" cy="6" rx="7.5" ry="6.5" fill="#F1E5CF"/>
+ <path d="M-11.5 4 a7.5 6.5 0 0 1 15 0" fill="none" stroke="#7E4A1C" stroke-width="1.5" opacity=".6"/>
+ <path d="M-24 0 Q-4 -6 16 0" fill="none" stroke="#F6EFE2" stroke-width="1.6" opacity=".55"/>
+ <g fill="#FBF3DD"><ellipse cx="-16" cy="-4" rx="1.6" ry="1" transform="rotate(30 -16 -4)"/><ellipse cx="-6" cy="-11" rx="1.6" ry="1"/><ellipse cx="6" cy="-6" rx="1.6" ry="1" transform="rotate(-30 6 -6)"/><ellipse cx="-19" cy="10" rx="1.6" ry="1" transform="rotate(70 -19 10)"/><ellipse cx="9" cy="14" rx="1.6" ry="1" transform="rotate(-50 9 14)"/><ellipse cx="-4" cy="22" rx="1.6" ry="1"/><ellipse cx="12" cy="3" rx="1.6" ry="1" transform="rotate(80 12 3)"/></g>
+ <g transform="translate(8 -10) rotate(-38)">
+  <rect x="-30" y="-4.5" width="17" height="9" rx="3.5" fill="#2E1A33"/>
+  <circle cx="-25" cy="0" r="1.2" fill="#C9CED6"/><circle cx="-18" cy="0" r="1.2" fill="#C9CED6"/>
+  <rect x="-13.5" y="-3.5" width="3" height="7" rx="1" fill="#8E96A3"/>
+  <path d="M-10.5 -3.5 L22 -3.5 Q28 -3 30 1 L28 2 L-10.5 4 Z" fill="url(#silver)" stroke="#8E96A3" stroke-width=".6"/>
+  <path d="M-8 -1.8 L22 -1.8" stroke="#FFFFFF" stroke-width=".9" opacity=".8"/>
+ </g>
+ <path d="M30 -16 q2.4 4 0 6 q-2.4 -2 0 -6z" fill="#C2272D"/>
+</g></g>
+
+<!-- 2 Day 2: wide-awake repair -->
+<g transform="translate(192 140)" clip-path="url(#clip)"><g transform="translate(0 0)">
+ <g transform="rotate(-42)">
+  <circle cx="-26" cy="-7" r="6.5" fill="none" stroke="url(#silver)" stroke-width="3"/>
+  <circle cx="-26" cy="7" r="6.5" fill="none" stroke="url(#silver)" stroke-width="3"/>
+  <path d="M-20 -6 L4 -1.4 L26 -1" stroke="#9AA2AE" stroke-width="3.2" stroke-linecap="round" fill="none"/>
+  <path d="M-20 6 L4 1.4 L26 1" stroke="#C9CED6" stroke-width="3.2" stroke-linecap="round" fill="none"/>
+  <circle cx="4" cy="0" r="3.2" fill="#8E96A3" stroke="#F3F5F8" stroke-width=".8"/>
+  <path d="M-14 -4.6 l3 9.2 M-11 -4 l3 8" stroke="#8E96A3" stroke-width="1"/>
+ </g>
+ <!-- curved needle held in the jaws -->
+ <path d="M14 -24 a9 9 0 1 1 10 12" fill="none" stroke="#5E6672" stroke-width="2.4" stroke-linecap="round"/>
+ <path d="M14 -24 a9 9 0 1 1 10 12" fill="none" stroke="#E6E9EE" stroke-width=".8" stroke-linecap="round"/>
+ <!-- suture thread -->
+ <path d="M24 -12 C30 0 14 6 18 16 S34 24 22 32" fill="none" stroke="#2E1A33" stroke-width="1.6" stroke-linecap="round"/>
+ <path d="M8 28 c4 -6 10 -6 14 0" fill="none" stroke="#2E1A33" stroke-width="1.4" stroke-linecap="round"/>
+</g></g>
+
+<!-- 3 Day 3: thermoplastic splint -->
+<g transform="translate(316 140)" clip-path="url(#clip)"><g transform="translate(0 -2)">
+ <use href="#arm"/>
+ <use href="#splint"/>
+ <g fill="#2A9D8F" stroke="#1E7268" stroke-width=".6">
+  <path d="M-30 -5.5 h7 v22 h-7 z"/>
+  <path d="M-12 -6 h7 v21 h-7 z"/>
+  <path d="M10 1 l6 4 l-9 14 l-6 -4 z"/>
+ </g>
+ <g fill="#F2C94C"><circle cx="-26.5" cy="5" r="1"/><circle cx="-8.5" cy="4.5" r="1"/></g>
+ <path d="M-8 -16 l2 -5 l2 5 l5 2 l-5 2 l-2 5 l-2 -5 l-5 -2z" fill="#D4A84B"/>
+</g></g>
+
+<!-- 4 Day 10: the stairs + warning spark -->
+<g transform="translate(440 140)" clip-path="url(#clip)"><g transform="translate(0 0)">
+ <ellipse cx="-2" cy="27" rx="30" ry="4" fill="#2E1A33" opacity=".12"/>
+ <path d="M-30 26 V12 H-15 V-2 H0 V-16 H15 V-30 H24 V26 Z" fill="url(#step)"/>
+ <path d="M-30 12 H-15 M-15 -2 H0 M0 -16 H15 M15 -30 H24" stroke="#D4A84B" stroke-width="2" stroke-linecap="round"/>
+ <!-- spark -->
+ <g transform="translate(-14 -18)">
+  <path d="M0 -14 L3.5 -4.5 L13 -6 L5 1 L10 10 L0 4.5 L-10 10 L-5 1 L-13 -6 L-3.5 -4.5 Z" fill="#F2C94C" stroke="#C2272D" stroke-width="1.6" stroke-linejoin="round"/>
+  <path d="M0 -6 V0.5" stroke="#C2272D" stroke-width="2.2" stroke-linecap="round"/><circle cx="0" cy="4" r="1.3" fill="#C2272D"/>
+ </g>
+ <g stroke="#C2272D" stroke-width="1.6" stroke-linecap="round"><path d="M-30 -14 l-5 -3"/><path d="M-30 -24 l-3 -5"/><path d="M2 -26 l4 -4"/></g>
+</g></g>
+
+<!-- 5 Weeks 3-6: Scarlett's reign -->
+<g transform="translate(564 140)" clip-path="url(#clip)"><g transform="translate(0 2)">
+ <g fill="none" stroke-linecap="round">
+  <path d="M-28 6 C-20 -18 -2 22 6 -6 S24 -20 28 4 S6 26 -6 10 S-26 -6 -12 -14 S16 -6 14 12 S-14 26 -24 14" stroke="#C2272D" stroke-width="2.4"/>
+  <path d="M-22 -6 C-8 -24 22 -16 18 2 S-6 20 -10 2 S8 -14 20 -6 S30 18 10 22" stroke="#8E1A22" stroke-width="1.6"/>
+  <path d="M-30 -2 c10 6 18 -10 26 2 s14 -4 22 6 s8 10 14 2" stroke="#E0525A" stroke-width="1.3"/>
+  <path d="M-16 20 c8 -10 12 6 22 -6 s12 4 18 -2" stroke="#C2272D" stroke-width="1.3"/>
+ </g>
+ <!-- tiny outlaw crown -->
+ <g transform="translate(0 -26)">
+  <path d="M-11 6 L-12 -5 L-5.5 0 L0 -8 L5.5 0 L12 -5 L11 6 Z" fill="url(#gold)" stroke="#8C6A23" stroke-width=".8" stroke-linejoin="round"/>
+  <circle cx="0" cy="2" r="1.8" fill="#C2272D"/><circle cx="-12" cy="-5.5" r="1.3" fill="#C2272D"/><circle cx="12" cy="-5.5" r="1.3" fill="#C2272D"/><circle cx="0" cy="-8.5" r="1.3" fill="#C2272D"/>
+ </g>
+</g></g>
+
+<!-- 6 Week 6: splint off -->
+<g transform="translate(688 140)" clip-path="url(#clip)"><g transform="translate(0 10)">
+ <use href="#arm"/>
+ <g transform="translate(4 -22) rotate(-10)" opacity=".95">
+  <use href="#splint"/>
+  <path d="M-26 6 q-3 8 2 14" fill="none" stroke="#2A9D8F" stroke-width="3" stroke-linecap="round"/>
+  <path d="M-8 6 q4 8 -1 14" fill="none" stroke="#2A9D8F" stroke-width="3" stroke-linecap="round"/>
+ </g>
+ <g fill="none" stroke="#D4A84B" stroke-width="1.6" stroke-linecap="round"><path d="M-20 -32 v-6"/><path d="M-4 -34 v-7"/><path d="M12 -30 v-6"/></g>
+ <path d="M30 -2 l1.6 -4 l1.6 4 l4 1.6 l-4 1.6 l-1.6 4 l-1.6 -4 l-4 -1.6z" fill="#D4A84B"/>
+</g></g>
+
+<!-- 7 Week 8: the first flicker -->
+<g transform="translate(812 140)" clip-path="url(#clip)"><g transform="translate(0 0)">
+ <!-- finger, side view, gently flexing -->
+ <path d="M-34 -2 L-6 -6 Q6 -8 13 -2 L24 10 Q28 15 24 19 Q20 22 16 18 L6 8 Q0 4 -8 6 L-34 10 Z" fill="url(#skinB)" stroke="#C48A5E" stroke-width="1"/>
+ <path d="M-34 -2 L-6 -6 Q6 -8 13 -2 L24 10 Q28 15 24 19 Q20 22 16 18 L6 8 Q0 4 -8 6 L-34 10 Z" fill="none"/>
+ <path d="M23 12 q2 2 1 4.5" fill="none" stroke="#E7B9A0" stroke-width="2.4" stroke-linecap="round"/>
+ <path d="M-4 -1 q2 2 0 4 M10 2 q2 2 0 4" fill="none" stroke="#B87A50" stroke-width=".9" stroke-linecap="round"/>
+ <!-- pearly tendon glimpsed along the palm side -->
+ <path d="M-32 7.5 L-8 4 Q2 2.5 8 7 L20 18" fill="none" stroke="#F4ECE1" stroke-width="2" stroke-linecap="round"/>
+ <path d="M-32 7.5 L-8 4 Q2 2.5 8 7 L20 18" fill="none" stroke="#C9CED6" stroke-width=".6" stroke-linecap="round"/>
+ <!-- motion arcs + spark -->
+ <g fill="none" stroke="#D4A84B" stroke-width="1.8" stroke-linecap="round"><path d="M30 -4 q8 10 4 22"/><path d="M36 -10 q11 13 6 30" opacity=".6"/></g>
+ <g transform="translate(22 -14)"><path d="M0 -8 L2 -2 L8 0 L2 2 L0 8 L-2 2 L-8 0 L-2 -2 Z" fill="#F2C94C" stroke="#D4A84B" stroke-width=".8"/><circle r="1.6" fill="#FFFFFF"/></g>
+ <circle cx="10" cy="-20" r="1.6" fill="#F2C94C"/><circle cx="32" cy="-24" r="1.2" fill="#F2C94C"/>
+</g></g>
+
+<!-- 8 Week 12: a full fist holding a small hand -->
+<g transform="translate(936 140)" clip-path="url(#clip)"><g transform="translate(0 2)">
+ <!-- child's sleeve + small hand entering from the right -->
+ <path d="M40 2 L24 2 L24 16 L40 18 Z" fill="#2A9D8F"/>
+ <path d="M24 2 L24 16" stroke="#F6EFE2" stroke-width="1.6"/>
+ <path d="M24 3 L-20 2 Q-27 3 -27 8 Q-27 13 -20 13 L24 15 Z" fill="url(#skinB)" stroke="#C48A5E" stroke-width=".8"/>
+ <!-- adult forearm from below -->
+ <path d="M-16 40 L-14 18 L18 18 L20 40 Z" fill="url(#skinA)"/>
+ <!-- palm / back of fist -->
+ <path d="M-20 -6 Q-21 22 -12 24 L14 24 Q21 22 20 -6 Z" fill="#B57650"/>
+ <!-- curled fingers wrapping the small hand -->
+ <g fill="url(#skinA)" stroke="#7E4A2C" stroke-width=".9">
+  <rect x="-20" y="-24" width="10.5" height="30" rx="5.2"/>
+  <rect x="-9.5" y="-27" width="10.5" height="33" rx="5.2"/>
+  <rect x="1" y="-26" width="10.5" height="32" rx="5.2"/>
+  <rect x="11.5" y="-22" width="9.5" height="27" rx="4.7"/>
+ </g>
+ <g fill="none" stroke="#7E4A2C" stroke-width=".8" opacity=".6"><path d="M-17 -12 h5 M-6.5 -14 h5 M4 -13 h5 M14 -10 h4.5"/></g>
+ <g fill="#E3A985" opacity=".7"><ellipse cx="-14.8" cy="-20" rx="3" ry="1.6"/><ellipse cx="-4.2" cy="-23" rx="3" ry="1.6"/><ellipse cx="6.2" cy="-22" rx="3" ry="1.6"/><ellipse cx="16.2" cy="-18" rx="2.6" ry="1.4"/></g>
+ <!-- adult thumb across the front -->
+ <path d="M-22 12 Q-20 6 -10 8 L8 10 Q13 11 12 15.5 Q11 19 6 18 L-14 18 Q-22 18 -22 12 Z" fill="#C78A60" stroke="#7E4A2C" stroke-width=".9"/>
+ <!-- child's fingertips peeking out on the left -->
+ <g fill="url(#skinB)" stroke="#C48A5E" stroke-width=".8"><rect x="-30" y="0.5" width="10" height="5" rx="2.5"/><rect x="-31" y="5.5" width="11" height="5" rx="2.5"/></g>
+ <!-- gold glow -->
+ <g fill="#D4A84B"><path d="M-30 -24 l1.4 -3.6 l1.4 3.6 l3.6 1.4 l-3.6 1.4 l-1.4 3.6 l-1.4 -3.6 l-3.6 -1.4z"/><path d="M28 -20 l1 -2.6 l1 2.6 l2.6 1 l-2.6 1 l-1 2.6 l-1 -2.6 l-2.6 -1z"/></g>
+</g></g>
+
+<!-- labels -->
+<g font-family="Georgia, 'Times New Roman', serif" text-anchor="middle">
+ <g fill="#5B1A2B">
+  <rect x="38" y="194" width="60" height="19" rx="9.5"/><rect x="162" y="194" width="60" height="19" rx="9.5"/><rect x="286" y="194" width="60" height="19" rx="9.5"/><rect x="410" y="194" width="60" height="19" rx="9.5"/>
+  <rect x="524" y="194" width="80" height="19" rx="9.5" fill="#C2272D"/><rect x="653" y="194" width="70" height="19" rx="9.5"/><rect x="777" y="194" width="70" height="19" rx="9.5"/><rect x="896" y="194" width="80" height="19" rx="9.5"/>
+ </g>
+ <g font-size="11" fill="#F6E3B4" letter-spacing="1.2" font-weight="bold">
+  <text x="68" y="207.5">DAY 0</text><text x="192" y="207.5">DAY 2</text><text x="316" y="207.5">DAY 3</text><text x="440" y="207.5">DAY 10</text>
+  <text x="564" y="207.5" fill="#FFF1E6">WEEKS 3–6</text><text x="688" y="207.5">WEEK 6</text><text x="812" y="207.5">WEEK 8</text><text x="936" y="207.5">WEEK 12</text>
+ </g>
+ <g font-size="13" fill="#2E1A33">
+  <text x="68" y="233">The bagel</text><text x="192" y="233">The repair</text><text x="316" y="233">The splint</text><text x="440" y="233">The stairs</text>
+  <text x="564" y="233" fill="#8E1A22">Scarlett’s reign</text><text x="688" y="233">Splint off</text><text x="812" y="233">First flicker</text><text x="936" y="233">A full fist</text>
+ </g>
+ <g font-size="11.5" font-style="italic" fill="#5B1A2B" opacity=".85">
+  <text x="68" y="250">a knife in the palm</text><text x="192" y="250">awake and stitched</text><text x="316" y="250">thermoplastic, teal</text><text x="440" y="250">one slip, one tug</text>
+  <text x="564" y="250">scar moves in</text><text x="688" y="250">free to glide</text><text x="812" y="250">Prox glides home</text><text x="936" y="250">holding Wren</text>
+ </g>
+</g>
+<g fill="#D4A84B"><circle cx="68" cy="187" r="2"/><circle cx="192" cy="187" r="2"/><circle cx="316" cy="187" r="2"/><circle cx="440" cy="187" r="2"/><circle cx="564" cy="187" r="2" fill="#C2272D"/><circle cx="688" cy="187" r="2"/><circle cx="812" cy="187" r="2"/><circle cx="936" cy="187" r="2"/></g>
+<path d="M440 272 H560" stroke="#D4A84B" stroke-width="1" opacity=".6"/>
+<path d="M500 266 l3 6 l-3 6 l-3 -6z" fill="#D4A84B"/>
+</svg>
