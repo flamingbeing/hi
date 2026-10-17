@@ -2,6 +2,12 @@
 
 ## Now
 
+- 17 Oct 2026: photo fix (#32) and email sign-in (#33) are merged. Still to do: **edits not lost between phones**. Waiting
+  on the pantry session: its sync PR-A is merged (hi #34: batches as a map, instruction-style updates, sync chip), but
+  PR-B (soft deletes, Recently removed) and PR-C (names and places one record each) are not, and none of it is proven in
+  real use. Port only when the pantry session pings that all three have landed; don't change Kaki Home save paths before.
+  Email sign-in has been tested only in the emulator: the owner is to try it live with their own address.
+
 - 16 Oct 2026: fixes only, at the owner's request ("go ahead and improve"): photo thumbnails and size limits (this PR),
   then email sign-in and one household per account (this PR; the Firebase side is switched on), then edits not lost
   between phones (the pantry builds it first; Kaki Home ports it after).
@@ -24,6 +30,9 @@
   repo variable were all set up by the owner's helper; the config is committed and the rules deploy on merge.)
 
 ## Next
+
+- Port the pantry's sync fix (map batches, dotted-path updates, soft deletes, sync chip, multi-device tests) once the
+  pantry session reports PR-A, B and C proven. Kaki Home's settings `names` and rules need the same dotted-path changes.
 
 - Nothing planned (feature freeze). If the owner asks: the pantry's photo thumbnails (cost) and its barcode name
   clean-up are the fixes worth porting.
