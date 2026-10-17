@@ -82,3 +82,4 @@ Plus each app's browser tests when it changes (listed in its `NOTES.md`; the app
 - Plain words, short; explain technical terms briefly the first time.
 - Each app keeps `NOTES.md` (lasting decisions, how to test) and `STATUS.md` (now, waiting on the owner, next,
   dated decisions). Update them when a task finishes and before a session ends.
+- Token savers: `.claude/settings.json` denies reading `__/` (Firebase hosting files). Ask the owner if one is really needed.
