@@ -2,9 +2,9 @@
 
 Without this Kaki Home works fully, but each phone keeps its own. These steps make one shared household that its members sign
 into with Google. Nothing here goes in the repo except the web config (a public client ID, not a secret). Keep the
-project id and who's in Kaki Home in `flamingbeing/life` (`plans/`), not here.
+project id and who's in Kaki Home in the owner's private notes, not here.
 
-1. **Cloudflare address.** First check `kakihome` isn't a name already used at home (HOSTING.md, "Names already in use").
+1. **Cloudflare address.** First check `kakihome` isn't a name already used at home (ask the owner; see [HOSTING.md](../HOSTING.md)).
    The address comes from `routes` in `wrangler.jsonc` (the deploy on merge creates it); if it doesn't appear,
    Cloudflare → Workers & Pages → **flamingbeing-home** → Settings → Domains & Routes → Add → Custom domain:
    `kakihome.flamingbeing.com`. Open it on the phone: Kaki Home opens, empty.
