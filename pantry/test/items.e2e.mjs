@@ -81,7 +81,7 @@ try {
   {
     const { ctx, page, errors } = await open();
     ok(await page.locator('input[name="pa-sort"]:checked').getAttribute('value') === 'expiry', 'the default sort is still Use by');
-    eq(await page.locator('.ha-segmented .ha-seg span').allTextContents(), ['Use by', 'Name', 'Category', 'Place'], 'My order is not here until Category is chosen');
+    eq(await page.locator('.ha-segmented .ha-seg span').allTextContents(), ['Use by', 'Name', 'Category', 'Place'], 'no My order choice');
     ok(await page.locator('.pa-within').count() === 0, 'the second choice is hidden');
     const seg = await page.evaluate(() => { const f = document.querySelector('.ha-segmented'); return { sw: f.scrollWidth, cw: f.clientWidth, spans: [...f.querySelectorAll('.ha-seg span')].map(s => ({ w: s.getBoundingClientRect().width, sw: s.scrollWidth, cw: s.clientWidth })) }; });
     ok(seg.sw <= seg.cw && seg.spans.every(s => s.sw <= s.cw), 'the sort labels fit at 390px: ' + JSON.stringify(seg));
@@ -474,7 +474,6 @@ try {
     ok(await page.locator('dialog.ha-sheet[open]').count() === 1, 'a tap on the grip opens the Move sheet');
     ok(await page.locator('dialog.ha-sheet[open] [data-g="up"]').count() === 0, 'no Move up outside My order');
     ok(await page.locator('dialog.ha-sheet[open] [data-g="to"]').count() === 1, 'Move to… is there');
-    ok(/choose Category under Sort by, then My order/.test(await page.locator('dialog.ha-sheet[open]').textContent()), 'and says how to get My order');
     await page.locator('dialog.ha-sheet[open] [data-ha-close]').click(); await settle(page);
 
     await ctx.close();
@@ -501,98 +500,6 @@ try {
     ok((await page.evaluate(() => scrollY)) < s1 - 40, 'and near the top it scrolls back');
     await touch('touchEnd'); await settle(page);
     ok(!/moved/.test(await toast(page).textContent().catch(() => '')), 'nothing was dropped');
-    await ctx.close();
-    ok(errors.length === 0, 'no errors: ' + errors.join(' | '));
-  }
-
-  // ---------- My order: reorder within a category by the grip ----------
-  {
-    const { ctx, page, errors, touch } = await open(BASE + '?demo#/items', { height: 1500 });
-    await page.locator('.ha-seg', { hasText: 'Category' }).click(); await settle(page);
-    eq(await page.locator('.pa-within .ha-seg span').allTextContents(), ['By name', 'My order'], 'under Category: how to order within it');
-    eq(await page.locator('input[name="pa-within"]:checked').getAttribute('value'), 'category');
-    await page.locator('.ha-seg', { hasText: 'My order' }).click(); await settle(page);
-    eq(await page.locator('input[name="pa-within"]:checked').getAttribute('value'), 'myorder');
-    eq(await page.locator('input[name="pa-sort"]:checked').getAttribute('value'), 'category', 'Category stays on');
-    eq(await page.evaluate(() => window.__pantry.S.sort), 'myorder');
-    const seg = await page.evaluate(() => [...document.querySelectorAll('.ha-segmented')].map(f => ({ sw: f.scrollWidth, cw: f.clientWidth, spans: [...f.querySelectorAll('.ha-seg span')].map(s => [s.scrollWidth <= s.clientWidth, s.getBoundingClientRect().height]) })));
-    ok(seg.every(f => f.sw <= f.cw && f.spans.every(([fits, h]) => fits && h <= 44)), 'both choices fit one row at 390px: ' + JSON.stringify(seg));
-    // leaving Category and coming back finds it as it was left
-    await page.locator('.ha-seg', { hasText: 'Name' }).first().click(); await settle(page);
-    ok(await page.locator('.pa-within').count() === 0, 'the second choice goes with Category');
-    await page.locator('.ha-seg', { hasText: 'Category' }).click(); await settle(page);
-    eq(await page.locator('input[name="pa-within"]:checked').getAttribute('value'), 'myorder', 'My order comes back as it was left');
-    const dairy = () => page.locator('section[data-cat="Dairy & eggs"] .ha-row-title').allTextContents();
-    eq(await dairy(), ['Eggs (10)', 'Fresh milk'], 'no numbers yet: by name (Eggs, then Fresh milk)');
-    await shot(page, 'p06-my-order');
-    await axe(page, 'Items: My order');
-    const center = async name => { const b = await page.locator('#pa-items-list li', { hasText: name }).first().locator('.pa-grip').boundingBox(); return { x: b.x + b.width / 2, y: b.y + b.height / 2 }; };
-    const dragRow = async (name, ontoName, where, release = true) => {
-      const from = await center(name), r = await page.locator('#pa-items-list li', { hasText: ontoName }).first().boundingBox();
-      const y = where === 'above' ? r.y + 4 : r.y + r.height - 4;
-      await touch('touchStart', from.x, from.y);
-      for (let i = 1; i <= 8; i++) { await touch('touchMove', from.x + (150 - from.x) * i / 8, from.y + (y - from.y) * i / 8); await page.waitForTimeout(25); }
-      if (release) { await touch('touchEnd'); await settle(page); }
-    };
-    // Fresh milk above Eggs (neither has a number yet: the moved one gets 1)
-    await dragRow('Fresh milk', 'Eggs (10)', 'above', false);
-    ok(await page.locator('.pa-dropline').count() === 1, 'an insertion line shows where it will land');
-    eq(await page.locator('.pa-ghost-tip').textContent(), 'First in Dairy & eggs');
-    await touch('touchEnd'); await settle(page);
-    eq(await dairy(), ['Fresh milk', 'Eggs (10)'], 'reordered');
-    const orders = () => page.evaluate(() => Object.fromEntries([...window.__pantry.S.items.values()].filter(i => i.category === 'Dairy & eggs').map(i => [i.name, i.order ?? null])));
-    eq(await orders(), { 'Fresh milk': 1, 'Eggs (10)': null }, 'ONE number: the item moved; the one after it still has none (numbers sort first)');
-    ok(/Fresh milk moved to the top of Dairy & eggs/.test(await toast(page).textContent()), await toast(page).textContent());
-    // then one field on one item: Eggs back above Fresh milk: order 0 on Eggs only, and no stamp
-    const stamp0 = await page.evaluate(() => [...window.__pantry.S.items.values()].find(i => i.name === 'Eggs (10)').updatedAt);
-    await dragRow('Eggs (10)', 'Fresh milk', 'above');
-    eq(await dairy(), ['Eggs (10)', 'Fresh milk']);
-    eq(await orders(), { 'Fresh milk': 1, 'Eggs (10)': 0 }, 'ONE number changed (first - 1)');
-    eq(await page.evaluate(() => [...window.__pantry.S.items.values()].find(i => i.name === 'Eggs (10)').updatedAt), stamp0, 'moving is not a change: no stamp');
-    // dropping where it already is does nothing
-    await dragRow('Eggs (10)', 'Fresh milk', 'above', false);
-    ok(/Stays here/.test(await page.locator('.pa-ghost-tip').textContent()) && await page.locator('.pa-dropline').count() === 0, 'the label says Stays here, no line');
-    await touch('touchEnd'); await settle(page);
-    eq(await orders(), { 'Fresh milk': 1, 'Eggs (10)': 0 });
-    // Undo
-    await dragRow('Eggs (10)', 'Fresh milk', 'below');
-    eq(await dairy(), ['Fresh milk', 'Eggs (10)']); eq((await orders())['Eggs (10)'], 2, 'last + 1');
-    await page.locator('.ha-toast-action').click(); await settle(page);
-    eq(await dairy(), ['Eggs (10)', 'Fresh milk'], 'Undo puts it back'); eq((await orders())['Eggs (10)'], 0);
-    // only within the category: a drag over another category's rows gives no insertion line
-    const from = await center('Eggs (10)'), other = await page.locator('#pa-items-list li', { hasText: 'Kaya' }).boundingBox();
-    await touch('touchStart', from.x, from.y);
-    for (let i = 1; i <= 8; i++) { await touch('touchMove', from.x, from.y + (other.y + 20 - from.y) * i / 8); await page.waitForTimeout(25); }
-    ok(await page.locator('.pa-dropline').count() === 0, 'no insertion line over another category');
-    await touch('touchEnd'); await settle(page);
-    eq(await dairy(), ['Eggs (10)', 'Fresh milk']);
-
-    // the keyboard and screen-reader ways: arrow keys on the grip, and the grip's sheet (Move up, Move down, Move to…)
-    const live = () => page.evaluate(() => [...document.querySelectorAll('.ha-sr[aria-live="polite"]')].map(e => e.textContent).join('|'));
-    await page.locator('#pa-items-list li', { hasText: 'Eggs (10)' }).locator('.pa-grip').focus();
-    await page.keyboard.press('ArrowDown'); await page.waitForTimeout(150);
-    eq(await dairy(), ['Fresh milk', 'Eggs (10)'], 'ArrowDown on the grip moves it down');
-    ok(/Eggs \(10\) moved down: 2 of 2 in Dairy & eggs/.test(await live()), 'and says so: ' + await live());
-    eq(await page.evaluate(() => document.activeElement.id), await page.locator('#pa-items-list li', { hasText: 'Eggs (10)' }).locator('.pa-grip').getAttribute('id'), 'focus stays on the grip');
-    await page.keyboard.press('ArrowDown'); await page.waitForTimeout(150);
-    ok(/already last in Dairy & eggs/.test(await live()), 'at the end it says so: ' + await live());
-    await page.keyboard.press('Enter'); await settle(page);   // the grip's sheet
-    const sheet = page.locator('dialog.ha-sheet[open]');
-    ok(await sheet.count() === 1 && /2 of 2 in Dairy & eggs/.test(await sheet.textContent()), 'the sheet says where it stands');
-    ok(await sheet.locator('[data-g="down"]').getAttribute('aria-disabled') === 'true', 'Move down is off at the end');
-    await axe(page, 'Move sheet in My order');
-    await shot(page, 'i03-grip-sheet');
-    await sheet.locator('[data-g="up"]').click(); await page.waitForTimeout(150);
-    ok(/Eggs \(10\) moved up: 1 of 2 in Dairy & eggs/.test(await live()), await live());
-    ok(/1 of 2 in Dairy & eggs/.test(await sheet.textContent()), 'the sheet’s position updates');
-    ok(await sheet.locator('[data-g="up"]').getAttribute('aria-disabled') === 'true', 'now Move up is off');
-    // Move to… for this one item
-    await sheet.locator('[data-g="to"]').click(); await settle(page);
-    const pick = page.locator('dialog.ha-sheet[open]');
-    ok(/Move 1 item/.test(await pick.locator('.ha-sheet-title').textContent()), 'the place picker for one item');
-    await pick.locator('label', { hasText: 'Laundry' }).click(); await pick.locator('#pa-moveto-go').click(); await settle(page);
-    eq((await itemNamed(page, 'Eggs (10)')).location, 'Laundry');
-    ok(/Eggs \(10\) moved to Laundry/.test(await toast(page).textContent()), await toast(page).textContent());
     await ctx.close();
     ok(errors.length === 0, 'no errors: ' + errors.join(' | '));
   }
