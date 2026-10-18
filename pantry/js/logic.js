@@ -589,13 +589,14 @@ export function toCsv(items, today = ymd()) {
 // tone: 'bad' (expired), 'warn' (within 7 days), 'plain' (within 30 days), '' (later or no date).
 export function shortLabel(date, today = ymd()) {
   if (!date) return { text: '', tone: '' };
-  const d = daysBetween(today, date);
-  if (d < 0) return { text: 'Expired', tone: 'bad' };
+  const d = daysBetween(today, date), n = Math.abs(d);
+  const unit = (v, w) => `${v} ${w}${v === 1 ? '' : 's'}`;
+  const span = n < 14 ? unit(n, 'day') : n < 60 ? unit(Math.round(n / 7), 'week') : Math.round(n / 30.4) < 12 ? unit(Math.round(n / 30.4), 'month') : unit(Math.max(1, Math.round(n / 365)), 'year');
+  if (d === -1) return { text: 'Expired yesterday', tone: 'bad' };
+  if (d < 0) return { text: `Expired ${span} ago`, tone: 'bad' };
   if (d === 0) return { text: 'Today', tone: 'warn' };
   if (d === 1) return { text: 'Tomorrow', tone: 'warn' };
-  if (d <= 7) return { text: `${d} days`, tone: 'warn' };
-  if (d <= 30) { const w = Math.round(d / 7); return { text: `${w} week${w === 1 ? '' : 's'}`, tone: 'plain' }; }
-  return { text: '', tone: '' };
+  return { text: `in ${span}`, tone: d <= 3 ? 'warn' : 'plain' };
 }
 
 // Why something is on the shopping list, in words.

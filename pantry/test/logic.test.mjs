@@ -98,12 +98,18 @@ for (const c of CATALOGUE) {
   assert.ok(c.openDays === null || c.openDays > 0, `${c.name}: openDays`);
 }
 // badges and words
-assert.deepEqual(L.shortLabel('2026-10-15', T), { text: 'Expired', tone: 'bad' });
+assert.deepEqual(L.shortLabel('2026-10-15', T), { text: 'Expired yesterday', tone: 'bad' });
+assert.deepEqual(L.shortLabel('2026-10-13', T), { text: 'Expired 3 days ago', tone: 'bad' });
+assert.deepEqual(L.shortLabel('2026-09-18', T), { text: 'Expired 4 weeks ago', tone: 'bad' });
 assert.deepEqual(L.shortLabel('2026-10-16', T), { text: 'Today', tone: 'warn' });
 assert.deepEqual(L.shortLabel('2026-10-17', T), { text: 'Tomorrow', tone: 'warn' });
-assert.deepEqual(L.shortLabel('2026-10-21', T), { text: '5 days', tone: 'warn' });
-assert.deepEqual(L.shortLabel('2026-10-30', T), { text: '2 weeks', tone: 'plain' });
-assert.deepEqual(L.shortLabel('2027-10-30', T), { text: '', tone: '' });
+assert.deepEqual(L.shortLabel('2026-10-19', T), { text: 'in 3 days', tone: 'warn' });
+assert.deepEqual(L.shortLabel('2026-10-20', T), { text: 'in 4 days', tone: 'plain' });
+assert.deepEqual(L.shortLabel('2026-10-29', T), { text: 'in 13 days', tone: 'plain' });
+assert.deepEqual(L.shortLabel('2026-10-30', T), { text: 'in 2 weeks', tone: 'plain' });
+assert.deepEqual(L.shortLabel('2026-12-15', T), { text: 'in 2 months', tone: 'plain' });
+assert.deepEqual(L.shortLabel('2027-10-30', T), { text: 'in 1 year', tone: 'plain' });
+assert.deepEqual(L.shortLabel('2029-10-16', T), { text: 'in 3 years', tone: 'plain' });
 assert.deepEqual(L.shortLabel(null, T), { text: '', tone: '' });
 assert.equal(L.whyText({ why: 'out' }, T), 'None left');
 assert.equal(L.whyText({ why: 'low', qty: 1 }, T), 'Only 1 left');
