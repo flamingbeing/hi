@@ -688,8 +688,8 @@ function openStarter() {
 // My order is a way of ordering WITHIN each category (the owner: "per category only"), so it is a second choice that appears under
 // Category rather than a fifth segment: five labels don't fit one row at 320 to 390 px.
 const SORTS = [['expiry', 'Use by'], ['name', 'Name'], ['category', 'Category'], ['place', 'Place']];
-const sortMode = () => (S.sort === 'myorder' || SORTS.some(([v]) => v === S.sort) ? S.sort : 'expiry');
-const topSort = () => (sortMode() === 'myorder' ? 'category' : sortMode());   // the segment that is on
+const sortMode = () => (SORTS.some(([v]) => v === S.sort) ? S.sort : 'expiry');   // a saved 'myorder' falls back to expiry; Category is plain by name now
+const topSort = () => sortMode();   // the segment that is on
 function viewItems() {
   const all = items();
   const { listed, unlisted } = placeChoices();
@@ -697,14 +697,12 @@ function viewItems() {
   if (S.place && !places.includes(S.place)) S.place = '';
   const chip = (v, label, n) => `<button type="button" class="ha-chip" aria-pressed="${S.place === v}" data-act="place" data-v="${esc(v)}"${v ? ` data-place="${esc(v)}"` : ''}>${esc(label)} <span class="ha-chip-count">${n}</span></button>`;
   const seg = (v, label) => `<label class="ha-seg"><input type="radio" name="pa-sort" id="pa-sort-${v}" value="${v}"${topSort() === v ? ' checked' : ''}><span>${label}</span></label>`;
-  const within = (v, label) => `<label class="ha-seg"><input type="radio" name="pa-within" id="pa-within-${v}" value="${v}"${sortMode() === v ? ' checked' : ''}><span>${label}</span></label>`;
   return `<h1 class="ha-large-title">Items</h1>
     <div class="ha-search" role="search">${icon('search')}
       <input type="search" id="pa-q" placeholder="Search the pantry" aria-label="Search the pantry" autocomplete="off" value="${esc(S.q)}">
       <button type="button" class="ha-search-clear" data-act="q-clear" aria-label="Clear search">${icon('close')}</button></div>
     <div class="ha-chips" role="group" aria-label="Where it’s kept">${chip('', 'All', all.length)}${places.map(p => chip(p, p, all.filter(i => i.location === p).length)).join('')}</div>
     <fieldset class="ha-segmented"><legend>Sort by</legend>${SORTS.map(([v, l]) => seg(v, l)).join('')}</fieldset>
-    ${topSort() === 'category' ? `<fieldset class="ha-segmented pa-within"><legend>Order within each category</legend>${within('category', 'By name')}${within('myorder', 'My order')}</fieldset>` : ''}
     <div id="pa-items-list">${itemsList()}</div>`;
 }
 // What the search and the place chips let through (the whole result: Select all means this, not just the rows drawn).
@@ -955,8 +953,7 @@ function openGrip(id) {
   const first = () => O.positionOf(groupOf(it), id).index === 0, last = () => { const p = O.positionOf(groupOf(it), id); return p.index === p.count - 1; };
   const s = haSheet({
     title: it.name, closeLabel: 'Done', grey: true,
-    body: `<ul class="ha-list">${ord ? btn('up', 'Move up', esc(pos()), first()) + btn('down', 'Move down', esc(pos()), last()) : ''}${btn('to', 'Move to…', `Now in ${esc(it.location || 'no place')}`)}</ul>
-      ${ord ? '' : '<p class="ha-section-footer">To put items in your own order, choose Category under Sort by, then My order.</p>'}`,
+    body: `<ul class="ha-list">${ord ? btn('up', 'Move up', esc(pos()), first()) + btn('down', 'Move down', esc(pos()), last()) : ''}${btn('to', 'Move to…', `Now in ${esc(it.location || 'no place')}`)}</ul>`,
     onClose: afterSheet,
   });
   const refresh = () => {
@@ -2742,11 +2739,10 @@ async function onChange(e) {
     return;
   }
   if (t.name === 'pa-sort') {
-    S.sort = t.value === 'category' && prefs.get('within') === 'myorder' ? 'myorder' : t.value;   // Category comes back as it was left (by name, or My order)
+    S.sort = t.value;
     prefs.set('sort', S.sort);
     return redraw();
   }
-  if (t.name === 'pa-within') { S.sort = t.value; prefs.set('sort', t.value); prefs.set('within', t.value); return redraw(); }
   if (t.dataset.bsel !== undefined) { const b = bulkState(); if (t.checked) b.sel.ids.add(t.dataset.bsel); else b.sel.ids.delete(t.dataset.bsel); return updateBulkUI(); }
   if (t.dataset.bk !== undefined) {
     if (t.dataset.bk === 'cat') { bulkState().cat = t.value; return drawBulkList(); }

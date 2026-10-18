@@ -2,6 +2,8 @@
 
 Small fixes, select mode, grip drag and My order, Bulk edit. Index: [../NOTES.md](../NOTES.md).
 
+- **18 Oct 2026, My order hidden (owner's request):** the "Order within each category" choice under Category is gone; Category is by name. The drag code, `order.js` and any saved `order` numbers stay (nothing is deleted), and a saved `myorder` sort falls back to Use by. Move up and Move down in the grip sheet go with it; Move to… stays.
+
 - **16 Oct 2026, small fixes (commit 1 of the combined Items-list PR; owner's queue, "PR-D"):**
   - **A pantry that goes away under an open phone.** Evidence: 11 rules errors at 08:30-08:32 UTC when a phone resumed on a
     household that had been deleted (the rules `get()` the household document, which errors when it is missing). `watchHousehold`
