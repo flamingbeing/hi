@@ -177,7 +177,7 @@ try {
     await page.click('#pa-save'); await settle(page);
     await page.click('.ha-tabbar a[href="#/"]'); await settle(page);
     ok(await page.locator('#h-use-soon').locator('xpath=..').locator('.ha-row', { hasText: 'Baby spinach' }).count() === 1, 'expiring item under Use soon');
-    ok(await page.locator('.ha-row', { hasText: 'Baby spinach' }).locator('.ha-badge--warn').textContent() === '2 days', 'with a 2 days badge');
+    ok(await page.locator('.ha-row', { hasText: 'Baby spinach' }).locator('.ha-badge--warn').textContent() === 'in 2 days', 'with an in 2 days badge');
     // an empty name is refused in words
     await page.click('.ha-tab--action'); await settle(page);
     await page.click('#pa-save');

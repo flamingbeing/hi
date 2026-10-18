@@ -6,7 +6,8 @@ owner's private notes.
 ## Now
 - Live on its own subdomain. Merged and working: family sharing, email and Google sign-in, places and names, sync safety
   (instructions not copies, removal markers, one record per place), select mode, Group by place, grip drag, My order,
-  Bulk edit, Sync now, the listener watchdog.
+  Bulk edit, Sync now, the listener watchdog. Every dated item shows its expiry in words ("in 2 weeks", "Expired 3 days
+  ago"; amber within 3 days, red once past).
 - Nothing blocks the build. iPhone touch behaviour is untested (only real touch events in Chromium).
 
 ## Next (in this order)

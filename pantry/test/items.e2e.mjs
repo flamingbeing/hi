@@ -359,7 +359,7 @@ try {
 
   // ---------- the grip: a real button on every row; dragging by it, with real touch ----------
   {
-    const { ctx, page, errors, touch } = await open(BASE + '?demo#/items', { height: 1500 });   // (tall, so every row and heading is on screen)
+    const { ctx, page, errors, touch } = await open(BASE + '?demo#/items', { height: 2000 });   // (tall, so every row and heading is on screen)
     ok(await page.locator('#pa-items-list .pa-grip').count() === 13, 'a grip on every row');
     const g = await page.locator('#pa-items-list li', { hasText: 'Kaya' }).locator('.pa-grip').boundingBox();
     ok(g.width >= 43.5 && g.height >= 43.5, `a 44px target (${g.width}x${g.height})`);
