@@ -134,3 +134,5 @@ Small fixes, select mode, grip drag and My order, Bulk edit. Index: [../NOTES.md
   - **Delete is applied alone** (every other choice is ignored for it) and is the same removal marker as everywhere (Recently removed).
   - The screen's rows read `items()` only (the live-only door): `removed.test.mjs` still guards every list and was extended for the
     few lookups by id that name an item in a toast or a label.
+
+- **Dates toggle** (per phone, `fullDates`): a chip beside the Items title swaps the use-by badges between "in 10 days" and the date in full ("24th Oct 26"). Items list only.

@@ -405,9 +405,16 @@ function thumb(it, cls = 'ha-row-thumb') {
   const src = thumbSrc(it);
   return src ? `<img class="${cls}" src="${esc(src)}" alt="">` : `<span class="${cls}">${icon(CAT_ICON[it.category] || 'box')}</span>`;
 }
-function badge(date) {
+// '24th Oct 26': the date in full (the Items list toggle), always with the year.
+const ordinal = n => n + (n % 100 >= 11 && n % 100 <= 13 ? 'th' : ({ 1: 'st', 2: 'nd', 3: 'rd' }[n % 10] || 'th'));
+function longDate(ymd) {
+  const d = L.parseYmd(ymd);
+  return d ? `${ordinal(d.getDate())} ${d.toLocaleDateString('en-GB', { month: 'short' })} ${String(d.getFullYear()).slice(-2)}` : '';
+}
+function badge(date, { full = false } = {}) {
   const b = L.shortLabel(date, today());
   if (!b.text) return '';
+  if (full) return `<span class="ha-badge${{ bad: ' ha-badge--bad', warn: ' ha-badge--warn' }[b.tone] || ''}">${esc(longDate(date))}</span>`;
   const tone = { bad: ' ha-badge--bad', warn: ' ha-badge--warn' }[b.tone] || '';
   return `<span class="ha-badge${tone}">${esc(b.text)}</span>`;
 }
@@ -420,7 +427,7 @@ const gripIcon = () => `<svg class="pa-grip-icon" viewBox="0 0 24 24" aria-hidde
 function itemRow(it, { sub, trail, select = false, grip = false, sel = null, attr = 'sel' } = {}) {
   const q = L.totalQty(it), staple = L.isStaple(it);
   const s = sub ?? [staple ? LEVEL_WORD[L.levelOf(it)] : q ? `${q} left` : 'None left', esc(it.location || '')].filter(Boolean).join(' · ');
-  const t = trail ?? (staple ? '' : badge(L.nextUseBy(it)));
+  const t = trail ?? (staple ? '' : badge(L.nextUseBy(it), { full: screen() === 'items' && prefs.get('fullDates', false) === true }));
   const body = `${thumb(it)}
     <span class="ha-row-body"><span class="ha-row-title">${esc(it.name)}</span>${s ? `<span class="ha-row-sub">${s}</span>` : ''}</span>
     ${t ? `<span class="ha-row-trail">${t}</span>` : ''}`;
@@ -697,13 +704,15 @@ function viewItems() {
   if (S.place && !places.includes(S.place)) S.place = '';
   const chip = (v, label, n) => `<button type="button" class="ha-chip" aria-pressed="${S.place === v}" data-act="place" data-v="${esc(v)}"${v ? ` data-place="${esc(v)}"` : ''}>${esc(label)} <span class="ha-chip-count">${n}</span></button>`;
   const seg = (v, label) => `<label class="ha-seg"><input type="radio" name="pa-sort" id="pa-sort-${v}" value="${v}"${topSort() === v ? ' checked' : ''}><span>${label}</span></label>`;
-  return `<h1 class="ha-large-title">Items</h1>
+  const full = prefs.get('fullDates', false) === true;
+  return `<div class="pa-titlerow"><h1 class="ha-large-title">Items</h1>
+    <button type="button" class="ha-chip pa-datetoggle" aria-pressed="${full}" data-act="dates-toggle" aria-label="Show use-by dates in full">Dates</button></div>
     <div class="ha-search" role="search">${icon('search')}
       <input type="search" id="pa-q" placeholder="Search the pantry" aria-label="Search the pantry" autocomplete="off" value="${esc(S.q)}">
       <button type="button" class="ha-search-clear" data-act="q-clear" aria-label="Clear search">${icon('close')}</button></div>
     <div class="ha-chips" role="group" aria-label="Where it’s kept">${chip('', 'All', all.length)}${places.map(p => chip(p, p, all.filter(i => i.location === p).length)).join('')}</div>
     <fieldset class="ha-segmented"><legend>Sort by</legend>${SORTS.map(([v, l]) => seg(v, l)).join('')}</fieldset>
-    <div id="pa-items-list">${itemsList()}</div>`;
+    <div id="pa-items-list"${full ? ' class="pa-fulldates"' : ''}>${itemsList()}</div>`;
 }
 // What the search and the place chips let through (the whole result: Select all means this, not just the rows drawn).
 function filteredItems() {
@@ -2578,6 +2587,7 @@ async function onClick(e) {
     }
     case 'place-open': return openPlace(b.dataset.v);
     case 'restore': return restoreFromList(b.dataset.kind, b.dataset.id);
+    case 'dates-toggle': prefs.set('fullDates', prefs.get('fullDates', false) !== true); return redraw();
     case 'q-clear': { S.q = ''; const q = $('#pa-q'); q.value = ''; drawItemsList(); return q.focus(); }
     case 'find-clear': { const f = $('#pa-find'); f.value = ''; showSugg(); return f.focus(); }
     case 'sample': {
