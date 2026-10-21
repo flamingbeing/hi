@@ -8,7 +8,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const SKIP = /(^|\/)(\.git|node_modules|\.wrangler|songs|suno-songs|test)(\/|$)/;
+const SKIP = /(^|\/)(\.git|node_modules|\.wrangler|test)(\/|$)/;
 const walk = dir => fs.readdirSync(dir, { withFileTypes: true }).flatMap(d => {
   const f = path.join(dir, d.name), rel = path.relative(ROOT, f);
   if (SKIP.test(rel)) return [];

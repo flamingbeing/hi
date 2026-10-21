@@ -2,9 +2,8 @@
 
 Instructions for every AI assistant working here (Claude Code reads this through `CLAUDE.md`).
 
-This **public** repo holds two things:
+This **public** repo holds the **family home apps** only (songs live in the owner's private notes):
 
-- `songs/`, `suno-songs/`: song lyrics and Suno style prompts (not served anywhere).
 - **The family home apps** on `*.flamingbeing.com`, served by one Cloudflare Worker ([HOSTING.md](HOSTING.md)):
   `homedesign/` (the design system every home app uses; start with `homedesign/README.md`), `pantry/` (household
   inventory; start with `pantry/NOTES.md`) and `kakihome/` (a separate household inventory to try out a product idea,
@@ -52,7 +51,7 @@ Plus each app's browser tests when it changes (listed in its `NOTES.md`; the app
 - PR titles start with the app: "Pantry: …", "Home design: …", "Repo: …". Keep each PR small and finished on its own;
   merge your own once the Checks are green, then report with the PR link.
 - Push once per finished step: every push to a PR branch starts a Cloudflare build, and build minutes are limited.
-- Show UI changes with 390 px screenshots and the PR preview link (`<preview>/_sites/<host>/?demo`).
+- Show UI changes with 390 px screenshots.
 - Each app keeps `NOTES.md` (lasting decisions, how to test) and `STATUS.md` (now, next, dated decisions). Update them
   when a task finishes and before a session ends.
 - Plain words, short. When asked to plan, plan and wait.
