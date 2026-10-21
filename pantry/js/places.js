@@ -70,6 +70,7 @@ function explicitEntries(docs, legacy) {
     const k = key(d.name);
     if (seen.has(k)) { seen.get(k).dupes.push(d.id); continue; }
     const e = { id: d.id, name: cleanPlace(d.name), order: d.order, dupes: [] };
+    if (KINDS.includes(d.kind)) e.kind = d.kind;
     seen.set(k, e); out.push(e);
   }
   return out;
@@ -113,13 +114,14 @@ export function mergeInto(base, incoming, at = new Date().toISOString()) {
   const bDocs = (base.docs || []).filter(isPlaceDoc), bEntries = explicitEntries(base.docs, base.legacy);
   const have = new Set(bEntries.map(e => key(e.name)));
   const add = [];
-  for (const e of explicitEntries(incoming.docs, incoming.legacy)) if (!have.has(key(e.name)) && !add.some(n => key(n) === key(e.name))) add.push(e.name);
+  const kinds = new Map();
+  for (const e of explicitEntries(incoming.docs, incoming.legacy)) if (!have.has(key(e.name)) && !add.some(n => key(n) === key(e.name))) { add.push(e.name); if (e.kind) kinds.set(key(e.name), e.kind); }
   const carried = (incoming.docs || []).filter(d => isPlaceDoc(d) && gone(d) && !bDocs.some(b => b.id === d.id) && !have.has(key(d.name)));
   const room = Math.max(0, MAX_PLACES - bEntries.length), fresh = add.slice(0, room);
   if (!fresh.length && !carried.length) return [];
   const out = bDocs.length ? [] : bEntries.map(e => seedDoc(e));
   let order = Math.max(0, ...bEntries.map(e => e.order));
-  for (const n of fresh) { order = Math.floor(order) + 1; out.push({ id: placeId(n), name: cleanPlace(n), order, updatedAt: at }); }
+  for (const n of fresh) { order = Math.floor(order) + 1; out.push({ id: placeId(n), name: cleanPlace(n), order, updatedAt: at, ...(kinds.has(key(n)) ? { kind: kinds.get(key(n)) } : {}) }); }
   out.push(...carried.map(d => ({ ...d })));
   return out;
 }
@@ -157,10 +159,28 @@ export function placeProblem(list, name, except = null) {
 export function moveItems(items, from, to) {
   return items.filter(it => it.location === from).map(it => ({ ...it, location: cleanPlace(to) }));
 }
-// The household's first place of a kind ('fridge', 'freezer'), by a whole word in its name ("Level 1 freezer"), else
-// the generic name (Freeze moves a batch to the freezer, Thaw and Leftovers to the fridge).
-export function placeOfKind(list, kind) {
-  const re = new RegExp(`\\b${kind}\\b`, 'i');
-  return list.find(p => re.test(p)) || kind.charAt(0).toUpperCase() + kind.slice(1);
+// ---- kinds of place (21 Oct 2026, owner) ---------------------------------------------------------------------------------------
+// A place is a fridge, a freezer or anything else. The kind is guessed from the name ("Level 1 freezer", "Chest freezer",
+// "Ice box", "Chiller") and can be set in Settings, Places (`kind` on the place document; none means "guess"). Food moved into
+// a freezer freezes, out of one thaws (logic.js moveFreezeOps); Freeze, Thaw and Leftovers go to a place of the right kind.
+export const KINDS = ['fridge', 'freezer', 'other'];
+export const KIND_LABELS = { fridge: 'Fridge', freezer: 'Freezer', other: 'Other (cupboard, shelf…)' };
+export function guessKind(name) {
+  const n = String(name || '');
+  if (/\b(freezers?|freeze|frozen|ice ?box(es)?)\b/i.test(n)) return 'freezer';
+  if (/\b(fridges?|refrigerators?|chillers?)\b/i.test(n)) return 'fridge';
+  return 'other';
 }
-export const isFreezer = name => /\bfreezer\b/i.test(name || '');
+// A place's kind: what the household set on it, else the guess from its name. `entries` from placeEntries().
+export function kindOf(name, entries = []) {
+  const e = entries.find(x => key(x.name) === key(name));
+  return e && KINDS.includes(e.kind) ? e.kind : guessKind(name);
+}
+// The places of a kind, in list order (names). `list` is names; `kinds` a name -> kind function (default: the guess).
+export const placesOfKind = (list, kind, kinds = guessKind) => list.filter(p => kinds(p) === kind);
+// The household's first place of a kind ('fridge', 'freezer'), else the generic name (Freeze moves a batch to the freezer,
+// Thaw and Leftovers to the fridge).
+export function placeOfKind(list, kind, kinds = guessKind) {
+  return placesOfKind(list, kind, kinds)[0] || kind.charAt(0).toUpperCase() + kind.slice(1);
+}
+export const isFreezer = (name, kinds = guessKind) => !!name && kinds(name) === 'freezer';

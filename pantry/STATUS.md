@@ -8,6 +8,9 @@ owner's private notes.
   (instructions not copies, removal markers, one record per place), select mode, Group by place, grip drag, My order,
   Bulk edit, Sync now, the listener watchdog. Every dated item shows its expiry in words ("in 2 weeks", "Expired 3 days
   ago"; amber within 3 days, red once past).
+- Freezer fixes (owner, 21 Oct 2026): Freeze keeps 1 year (bread 1 month), Thaw 3 days; how many and which freezer or
+  fridge; Not frozen puts the packaging date back; moving food into or out of a freezer freezes or thaws it; places have
+  a kind (Fridge, Freezer, Other), guessed from the name and settable.
 - Nothing blocks the build. iPhone touch behaviour is untested (only real touch events in Chromium).
 
 ## Next (in this order)
@@ -20,4 +23,6 @@ owner's private notes.
 3. **The Items tab (PR-F), after PR-E:** a pinned-places bar under the search bar (`pinned` on the place records);
    compact rows with a stepper and a menu; drop My order (dragging only moves an item to a place); sync status as one
    icon in the top bar of every screen.
+- Next after the freezer fixes (owner, 21 Oct 2026): **product memory**, barcode to name, details and photo for the
+  household, kept even when an item is deleted; scans check it before the online look-up. Then expiry reminders.
 - Ideas: expiry reminders (push, needs a Worker cron), prices, receipt photo, more catalogue lines, recipe links.

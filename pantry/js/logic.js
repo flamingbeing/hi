@@ -288,7 +288,7 @@ export function applyFieldOps(doc, ops = {}) {
 
 // ---- stock -------------------------------------------------------------------------------------------------
 
-const batchesOf = item => (Array.isArray(item.batches) ? item.batches : normalizeBatches(item.batches, item.id));
+export const batchesOf = item => (Array.isArray(item.batches) ? item.batches : normalizeBatches(item.batches, item.id));
 export const totalQty = item => batchesOf(item).reduce((n, b) => n + clampQty(b.qty), 0);
 
 // The date a batch should be used by: the printed date, or "opened on + keeps N days after opening",
@@ -416,29 +416,93 @@ export function setLevel(item, { level = 'plenty', by, at } = {}) {
   return done(item, ops, ev(item, 'level', 1, by, at, { level }));
 }
 
-// Freeze one batch: it moves to `place` (the item's place, as places belong to items), keeps until the later of its
-// own date and `days` from today, and is marked frozen on today. Thaw: back to `place`, use within `days`.
-// Each returns { item, event, ops } like the others (event types 'freeze' and 'thaw', counted nowhere but the history).
-export function freezeBatch(item, { batchId, days = 91, place, by, at, today = ymd() } = {}) {
-  const b = batchesOf(item).find(x => x.id === batchId) || fefo(item).find(x => !x.frozenAt);
-  if (!b || b.frozenAt) return nothing(item);
-  const keep = addDays(today, days), was = batchUseBy(b, item);
+// Freeze and thaw (21 Oct 2026, owner). A batch counts as frozen when it is marked so, or when it sits in a freezer place and
+// hasn't been thawed (frozen goods bought into the freezer); `inFreezer` says whether the item's place is a freezer.
+export const isFrozenBatch = (b, inFreezer = false) => !!b?.frozenAt || (inFreezer && !b?.thawedAt);
+// What a batch is split into when only some of it changes: `<id>-<tag><day>`, so two phones doing it on one day add to one.
+const splitId = (b, tag, today) => `${b.id}-${tag}${today.replace(/-/g, '')}`.slice(0, 40);
+// Change `n` units of batch `b`: all of it in place, or some of it into a batch of its own (like openOne) that carries
+// `fields`. Returns the ops and the id that changed.
+function splitOff(item, b, n, tag, today, fields) {
   const ops = emptyOps();
-  ops.set[bp(b.id, 'frozenAt')] = today;
-  ops.set[bp(b.id, 'thawedAt')] = null;
-  ops.set[bp(b.id, 'expiry')] = was && was > keep ? was : keep;
-  if (place || item.location) ops.set.location = place || item.location;
-  return done(item, ops, ev(item, 'freeze', b.qty, by, at));
+  const all = n >= b.qty, id = all ? b.id : splitId(b, tag, today);
+  if (!all) {
+    ops.inc[bp(b.id, 'qty')] = -n;
+    ops.inc[bp(id, 'qty')] = n;
+    ops.set[bp(id, 'addedAt')] = b.addedAt ?? null;
+    ops.set[bp(id, 'openedAt')] = b.openedAt ?? null;
+    ops.del.push(...spentBatches(item).filter(p => p !== `batches.${id}`));
+  }
+  for (const [k, v] of Object.entries(fields)) ops.set[bp(id, k)] = v;
+  return { ops, id };
 }
-export function thawBatch(item, { batchId, days = 2, place, by, at, today = ymd() } = {}) {
+const unitsOf = (qty, b) => Math.max(1, Math.min(b.qty, Math.round(Number(qty)) || b.qty));
+// Is anything with stock left in the other state? (The item moves only when nothing is left behind.)
+const anyLeft = (item, inFreezer, frozen) => batchesOf(item).some(x => x.qty > 0 && isFrozenBatch(x, inFreezer) === frozen);
+// Freeze `qty` units of one batch (all of it when not given). They keep till the later of their own date and `days` from
+// today, are marked frozen on today and remember their packaging date and place (`packExpiry`, `packPlace`; kept from an
+// earlier freeze), for "Not frozen: back to packaging date". The item moves to `place` once none of its stock is left unfrozen.
+export function freezeBatch(item, { batchId, qty = null, days = 365, place, inFreezer = false, by, at, today = ymd() } = {}) {
+  const b = batchesOf(item).find(x => x.id === batchId) || fefo(item).find(x => !isFrozenBatch(x, inFreezer));
+  if (!b || isFrozenBatch(b, inFreezer) || !(b.qty > 0)) return nothing(item);
+  const n = unitsOf(qty, b);
+  const keep = addDays(today, days), was = batchUseBy(b, item);
+  const { ops } = splitOff(item, b, n, 'f', today, {
+    frozenAt: today, thawedAt: null, expiry: was && was > keep ? was : keep,
+    packExpiry: 'packExpiry' in b ? b.packExpiry ?? null : b.expiry ?? null,
+    packPlace: 'packPlace' in b ? b.packPlace ?? null : (!inFreezer && item.location) || null,
+  });
+  const after = applyOps(item, ops);
+  if (place && !anyLeft(after, inFreezer, false)) ops.set.location = place;
+  return done(item, ops, ev(item, 'freeze', n, by, at));
+}
+// Thaw `qty` units of a frozen batch (all when not given): use within `days`. The item moves to `place` once none of its
+// stock is left frozen. The packaging date stays remembered.
+export function thawBatch(item, { batchId, qty = null, days = 3, place, inFreezer = false, by, at, today = ymd() } = {}) {
   const b = batchesOf(item).find(x => x.id === batchId);
-  if (!b) return nothing(item);
+  if (!b || !(b.qty > 0)) return nothing(item);
+  const n = unitsOf(qty, b);
+  const fields = { frozenAt: null, thawedAt: today, expiry: addDays(today, days) };
+  if (n < b.qty) { if ('packExpiry' in b) fields.packExpiry = b.packExpiry ?? null; if ('packPlace' in b) fields.packPlace = b.packPlace ?? null; }
+  const { ops } = splitOff(item, b, n, 't', today, fields);
+  const after = applyOps(item, ops);
+  if (place && !anyLeft(after, inFreezer, true)) ops.set.location = place;
+  return done(item, ops, ev(item, 'thaw', n, by, at));
+}
+// "Not frozen: back to packaging date": a batch frozen by mistake (still frozen) gets its packaging date back and stops
+// counting as frozen; the item goes back to where it was (`packPlace`, or `place`) once none of its stock is left frozen.
+export const canUnfreeze = b => !!b && 'packExpiry' in b && !!b.frozenAt;   // never after a real thaw: thawed food keeps its 3 days
+export function unfreezeBatch(item, { batchId, place = null, inFreezer = false, by, at } = {}) {
+  const b = batchesOf(item).find(x => x.id === batchId);
+  if (!canUnfreeze(b)) return nothing(item);
   const ops = emptyOps();
   ops.set[bp(b.id, 'frozenAt')] = null;
-  ops.set[bp(b.id, 'thawedAt')] = today;
-  ops.set[bp(b.id, 'expiry')] = addDays(today, days);
-  if (place || item.location) ops.set.location = place || item.location;
-  return done(item, ops, ev(item, 'thaw', b.qty, by, at));
+  ops.set[bp(b.id, 'thawedAt')] = null;
+  ops.set[bp(b.id, 'expiry')] = b.packExpiry ?? null;
+  ops.del.push(bp(b.id, 'packExpiry'), bp(b.id, 'packPlace'));
+  const to = b.packPlace || place;
+  // the batch itself no longer counts as frozen, wherever the item is
+  const rest = applyOps(item, ops);
+  if (to && to !== item.location && !batchesOf(rest).some(x => x.id !== b.id && x.qty > 0 && isFrozenBatch(x, inFreezer))) ops.set.location = to;
+  return done(item, ops, ev(item, 'unfreeze', b.qty, by, at));
+}
+// Moving an item between a freezer and anywhere else (Move to…, a drag, Bulk edit, the edit form) freezes or thaws its food
+// the same way: into a freezer, every unfrozen batch with stock freezes; out of one, every frozen batch thaws. The ops
+// (without the location, which the caller sets) and how many units changed: { ops, frozen, thawed }.
+export function moveFreezeOps(item, { fromFreezer, toFreezer, food = true, freezeDays = 365, thawDays = 3, today = ymd() } = {}) {
+  const out = { ops: emptyOps(), frozen: 0, thawed: 0 };
+  if (!food || fromFreezer === toFreezer || isStaple(item)) return out;
+  let cur = item;
+  for (const b of batchesOf(item).filter(x => x.qty > 0)) {
+    const r = toFreezer
+      ? (!isFrozenBatch(b, fromFreezer) ? freezeBatch(cur, { batchId: b.id, days: freezeDays, inFreezer: fromFreezer, today }) : null)
+      : (isFrozenBatch(b, fromFreezer) ? thawBatch(cur, { batchId: b.id, days: thawDays, inFreezer: fromFreezer, today }) : null);
+    if (!r?.event) continue;
+    out.ops = mergeOps(out.ops, r.ops); cur = r.item;
+    if (toFreezer) out.frozen += r.event.qty; else out.thawed += r.event.qty;
+  }
+  delete out.ops.set.location;
+  return out;
 }
 
 // ---- consumption patterns ------------------------------------------------------------------------------------
@@ -630,7 +694,7 @@ export function recent(items, { days = 7, now = new Date() } = {}) {
 
 // ---- since you last looked (Home) ------------------------------------------------------------------------------
 
-const SINCE_TYPES = new Set(['add', 'use', 'discard', 'expired', 'open', 'freeze', 'thaw', 'level']);
+const SINCE_TYPES = new Set(['add', 'use', 'discard', 'expired', 'open', 'freeze', 'thaw', 'unfreeze', 'level']);
 // What the rest of the family did after `since` (an ISO time: when this phone last looked): history and shopping-list
 // lines signed by someone for whom isMe(by) is false, newest first, as { by, type, name, qty, level?, at }.
 export function sinceLast({ events = [], shop = [], since, isMe = () => false } = {}) {

@@ -58,6 +58,8 @@ async function noSideways(page, what) {
 }
 async function axe(page, what) {
   if (!(await page.evaluate(() => !!window.axe))) await page.addScriptTag({ content: AXE });
+  // a toast still fading in or out reads as low contrast: let running (finite) animations finish first, 3 s at most
+  await page.evaluate(() => Promise.race([Promise.all(document.getAnimations().filter(x => x.effect?.getComputedTiming().iterations !== Infinity).map(x => x.finished.catch(() => {}))), new Promise(r => setTimeout(r, 3000))]));
   const v = await page.evaluate(async () => (await window.axe.run(document, { runOnly: ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa', 'best-practice'] }))
     .violations.map(x => `${x.id} (${x.impact}): ${x.nodes.slice(0, 3).map(n => n.target.join(' ')).join(' | ')}`));
   ok(v.length === 0, `${what}: axe violations\n  ${v.join('\n  ')}`);
@@ -664,6 +666,17 @@ try {
     await toast(page).locator('.ha-toast-action').click(); await settle(page);
     now = await S();
     ok(now.list[1] === 'Fridge' && fridgeIds.every(id => now.items.find(i => i.id === id).location === 'Fridge'), 'Undo puts the name and the items back');
+    // the kind of a place: guessed from the name, set in its sheet (one field of its document)
+    await go(page, '#/places');
+    await openPlace('Level 2 fridge');
+    ok(await sheet.locator('input[name="pa-pl-kind"]:checked').inputValue() === 'fridge' && (await sheet.locator('#pa-pl-kind-note').textContent()).startsWith('Guessed from the name.'), 'a fridge by its name, guessed');
+    await sheet.locator('.pa-pl-kind label', { hasText: 'Freezer' }).click(); await settle(page);
+    const kindOf = n => page.evaluate(x => [...window.__pantry.S.places.values()].find(p => p.name === x && !p.removedAt)?.kind, n);
+    ok(await kindOf('Level 2 fridge') === 'freezer' && !(await sheet.locator('#pa-pl-kind-note').textContent()).startsWith('Guessed'), 'set to Freezer: saved on the place, no longer a guess');
+    await axe(page, 'place kind');
+    await sheet.locator('.pa-pl-kind label', { hasText: 'Fridge' }).click(); await settle(page);
+    ok(await kindOf('Level 2 fridge') === 'fridge', 'and back');
+    await sheet.locator('[data-ha-close]').first().click(); await settle(page);
     await go(page, '#/items');
     ok(await page.locator('[data-act="place"][data-v="Fridge"]').count() === 1, 'Items filters by the place');
 
@@ -1076,7 +1089,7 @@ try {
     ok(await page.locator('.pa-guess').getAttribute('aria-pressed') === 'true' && await page.locator('.pa-guess').textContent() === 'About 1 week', 'shown as a selected About 1 week chip');
     ok((await page.locator('.pa-guess-hint').textContent()).includes('a guess'), 'said to be a guess');
     await page.selectOption('#pa-form [name="location"]', 'Freezer'); await settle(page);
-    ok(await page.inputValue('#pa-form [name="expiry"]') === ymdPlus(91), 'in the freezer it keeps three months');
+    ok(await page.inputValue('#pa-form [name="expiry"]') === ymdPlus(365), 'in the freezer it keeps a year');
     await page.selectOption('#pa-form [name="location"]', 'Fridge'); await settle(page);
     await page.fill('#pa-form [name="expiry"]', ymdPlus(10));
     await page.selectOption('#pa-form [name="category"]', 'Drinks'); await settle(page);
@@ -1091,20 +1104,58 @@ try {
     // Freeze and Thaw on a batch
     const milk = await idOf('Fresh milk');
     await go(page, '#/item/' + milk);
+    // two freezers in the demo: Freeze asks which (one unit: no "how many")
     await page.click('[data-act="freeze"]'); await settle(page);
-    ok((await toast(page).textContent()).startsWith('Frozen: moved to Freezer, keeps till'), 'Freeze says where and till when');
+    const cold = page.locator('dialog.ha-sheet[open]');
+    ok(await cold.locator('#pa-cold-qty').count() === 0 && (await cold.locator('input[name="pa-cold"]').evaluateAll(l => l.map(i => i.value))).join() === 'Freezer,Level 1 freezer', 'Freeze asks which freezer');
+    await axe(page, 'freeze sheet');
+    await cold.locator('#pa-cold-go').click(); await settle(page);
+    ok((await toast(page).textContent()).startsWith('1 frozen: moved to Freezer, keeps till'), 'Freeze says where and till when');
     let m = await S(id => window.__pantry.S.items.get(id), milk);
-    ok(m.location === 'Freezer' && m.batches[0].frozenAt === ymdPlus(0) && m.batches[0].expiry === ymdPlus(91), 'frozen: in the freezer, three months, frozen today');
+    const packDate = m.batches[0].packExpiry;
+    ok(m.location === 'Freezer' && m.batches[0].frozenAt === ymdPlus(0) && m.batches[0].expiry === ymdPlus(365) && m.batches[0].packPlace === 'Fridge', 'frozen: in the freezer, a year, frozen today, the packaging date kept');
     ok(await page.locator('.pa-batch .ha-row-title').first().textContent() === '1 frozen' && (await page.locator('.pa-batch .ha-row-sub').first().textContent()).startsWith('Frozen '), 'the batch says frozen, and when');
     await axe(page, 'item frozen');
     await shot(page, 'n05-item-frozen');
     await page.click('[data-act="thaw"]'); await settle(page);
+    ok((await cold.locator('input[name="pa-cold"]').evaluateAll(l => l.map(i => i.value))).join() === 'Fridge,Level 1 fridge', 'Thaw asks which fridge');
+    await cold.locator('#pa-cold-go').click(); await settle(page);
     m = await S(id => window.__pantry.S.items.get(id), milk);
-    ok(m.location === 'Fridge' && !m.batches[0].frozenAt && m.batches[0].expiry === ymdPlus(2), 'thawed: back in the fridge, two days');
+    ok(m.location === 'Fridge' && !m.batches[0].frozenAt && m.batches[0].expiry === ymdPlus(3), 'thawed: back in the fridge, three days');
     ok((await page.locator('#h-history').locator('xpath=..').innerText()).includes('Thawed'), 'the history says thawed');
     await shot(page, 'n06-item-thawed');
     await toast(page).locator('.ha-toast-action').click(); await settle(page);
     ok(await S(id => window.__pantry.S.items.get(id).location, milk) === 'Freezer', 'Undo puts it back in the freezer');
+    // frozen by mistake: Not frozen puts back the packaging date and the fridge
+    await page.click('[data-act="unfreeze"]'); await settle(page);
+    m = await S(id => window.__pantry.S.items.get(id), milk);
+    ok(m.location === 'Fridge' && !m.batches[0].frozenAt && !m.batches[0].thawedAt && m.batches[0].expiry === packDate && !('packExpiry' in m.batches[0]), 'Not frozen: the packaging date and the fridge are back');
+    ok((await toast(page).textContent()).startsWith('Not frozen: use by'), 'and says so');
+    ok(await page.locator('[data-act="unfreeze"]').count() === 0, 'no Not frozen once it isn’t');
+    // moving it into a freezer freezes it, out again thaws it
+    const moveByForm = async to => { await go(page, '#/edit/' + milk); await page.selectOption('#pa-form [name="location"]', to); await page.click('#pa-save'); await settle(page); };
+    await moveByForm('Level 1 freezer');
+    m = await S(id => window.__pantry.S.items.get(id), milk);
+    ok(m.location === 'Level 1 freezer' && m.batches[0].frozenAt === ymdPlus(0) && m.batches[0].expiry === ymdPlus(365), 'moved into a freezer: frozen, a year');
+    ok((await toast(page).textContent()) === 'Saved: 1 frozen (keeps a year)', 'Save says it froze');
+    await moveByForm('Fridge');
+    m = await S(id => window.__pantry.S.items.get(id), milk);
+    ok(!m.batches[0].frozenAt && m.batches[0].thawedAt === ymdPlus(0) && m.batches[0].expiry === ymdPlus(3), 'moved out: thawed, three days');
+    ok(await page.locator('[data-act="unfreeze"]').count() === 0, 'thawed for real: no Not frozen (thawed food keeps its 3 days)');
+    // thawing some of a batch (frozen goods in a freezer): how many, and the rest stays frozen
+    const dump = await idOf('Frozen dumplings');
+    await go(page, '#/item/' + dump);
+    const db = (await S(id => window.__pantry.S.items.get(id), dump)).batches[0];
+    await page.click(`[data-act="thaw"][data-b="${db.id}"]`); await settle(page);
+    ok(await cold.locator('#pa-cold-qty output').textContent() === '2' && await cold.locator('#pa-cold-where').isVisible(), 'how many starts at all of them, with the fridges');
+    await cold.locator('#pa-cold-qty [data-step="-1"]').click();
+    ok(await cold.locator('#pa-cold-where').isHidden() && (await cold.locator('#pa-cold-note').textContent()) === 'The rest stays in Level 1 freezer.', 'one of two: no place to pick, the rest stays');
+    await axe(page, 'thaw some');
+    await cold.locator('#pa-cold-go').click(); await settle(page);
+    const d2 = await S(id => window.__pantry.S.items.get(id), dump);
+    ok(d2.location === 'Level 1 freezer' && d2.batches.some(b => b.id === db.id && b.qty === 1) && d2.batches.some(b => b.thawedAt === ymdPlus(0) && b.qty === 1 && b.expiry === ymdPlus(3)), 'split: one thawed, one still frozen');
+    ok(await page.locator('.pa-batch .ha-row-title').evaluateAll(l => l.map(x => x.textContent).sort().join()) === '1 frozen,1 in stock', 'the rows say which');
+    await toast(page).locator('.ha-toast-action').click(); await settle(page);
         await go(page, '#/item/' + await idOf('Laundry liquid'));
     ok(await page.locator('[data-act="freeze"]').count() === 0, 'no Freeze for laundry liquid');
 

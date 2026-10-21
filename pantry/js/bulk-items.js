@@ -30,7 +30,7 @@ const levelFromStock = it => { const q = L.totalQty(it); return q <= 0 ? 'out' :
 // One item: { ops, notes, skip } where ops are the instructions (empty: nothing to change in the item itself), `list` says "put it on
 // the shopping list", `notes` tags worth a warning, `skip` the reasons a chosen field was left alone for this item. Delete is applied
 // alone (every other choice is ignored for it).
-// ctx: { onList(id) -> bool, by }
+// ctx: { onList(id) -> bool, by, placeOps(item, to) -> ops (freezing or thawing on a move; app.js) }
 export function planItem(it, ch, ctx = {}) {
   const out = { ops: L.emptyOps(), list: false, notes: [], skip: [] };
   if (ch.bin) { out.ops = L.removeOps(ctx.by || ''); out.bin = true; return out; }
@@ -59,6 +59,8 @@ export function planItem(it, ch, ctx = {}) {
   }
   if (ch.list && !(ctx.onList && ctx.onList(it.id))) out.list = true;
   else if (ch.list) out.skip.push('onList');
+  // into or out of a freezer, food freezes or thaws as with Move to… (unless a date is being set here too: that one wins)
+  if (set.location && ctx.placeOps && !ch.expiry) out.ops = L.mergeOps(out.ops, ctx.placeOps(it, set.location));
   return out;
 }
 
