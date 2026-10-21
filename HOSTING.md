@@ -2,7 +2,7 @@
 
 One Cloudflare Worker, `flamingbeing-home` (`wrangler.jsonc`, `worker/sites.js`), serves this repo's files. Which
 folder each address may see is the `SITES` table in `worker/routes.js`; `/homedesign/` is shared by every host.
-Workers Builds deploys it on each merge to `main` and posts a preview link on every PR. No data and no secrets in the
+Workers Builds deploys it on each merge to `main`. No data and no secrets in the
 Worker. `flamingbeing.com` itself (the owner's server page) is not served by it.
 
 | Address | Folder | What |
@@ -11,8 +11,7 @@ Worker. `flamingbeing.com` itself (the owner's server page) is not served by it.
 | `pantry.flamingbeing.com` | `pantry/` (+ `/__/auth/`) | Household inventory (custom domain: owner, `pantry/SETUP.md` step 1) |
 | `kakihome.flamingbeing.com` | `kakihome/` (+ `/__/auth/`) | Kaki Home, a household inventory to try out a product idea (own data and Firebase project) |
 
-- **Previews:** `https://<branch>-flamingbeing-home.<account>.workers.dev/`. A preview serves the whole repo; try a
-  host's view at `<preview>/_sites/pantry.flamingbeing.com/?demo`. Sign-in never works on previews (on purpose).
+- **Previews:** off (`preview_urls: false`); check a UI change locally or on the live host after merge. Sign-in never works on previews.
 - **Adding an app:** add its host to `SITES` (and a test in `worker/test/routes.test.mjs`) and to `routes` in
   `wrangler.jsonc` (`custom_domain: true`); the deploy on merge creates the address. Ask the owner first whether the
   name is already in use.

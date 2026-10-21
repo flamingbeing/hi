@@ -21,8 +21,8 @@
     { "pattern": "pantry.flamingbeing.com", "custom_domain": true },
     { "pattern": "kakihome.flamingbeing.com", "custom_domain": true }
   ],
-  // a preview link per branch and per build, posted on the PR by Workers Builds
-  "preview_urls": true,
+  // preview links are off: family apps only, no extra public addresses
+  "preview_urls": false,
   "keep_vars": true,
   // required by `wrangler preview`, even when empty
   "previews": {}

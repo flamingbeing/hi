@@ -8,6 +8,4 @@ node_modules
 .wrangler
 worker
 tools
-songs
-suno-songs
 *.log
