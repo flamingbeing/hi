@@ -1,6 +1,6 @@
 // The Cloudflare Worker behind *.flamingbeing.com home apps and the PR previews (HOSTING.md). It serves the repo's
 // files (static assets, bound as ASSETS) and decides which folder an address may see (routes.js). No data, no secrets.
-import { resolve } from './routes.js';
+import { resolve, kitCors } from './routes.js';
 
 const NOINDEX = 'noindex, nofollow';
 
@@ -27,6 +27,7 @@ export default {
     if (res.status === 404) return notFound();
     res = new Response(res.body, res);
     res.headers.set('X-Robots-Tag', NOINDEX);
+    if (kitCors(file)) res.headers.set('Access-Control-Allow-Origin', '*');
     // service workers must always be checked fresh, or phones keep an old app for a day
     if (/(^|\/)sw\.js$/.test(file)) res.headers.set('Cache-Control', 'no-cache');
     return res;

@@ -10,7 +10,8 @@
 //      or { prefixes: { '/a/': 'a/', '/b/': 'b/' } } several static pages sharing a host
 export const SITES = {
   // the family home design system's own guide pages (static, no data)
-  'design.flamingbeing.com': { root: 'homedesign/' },
+  // /v1/ is the same kit for apps in other repos (repo split, 21 Oct 2026); a breaking kit change goes in /v2/
+  'design.flamingbeing.com': { root: 'homedesign/', also: { '/v1/': 'homedesign/' } },
   // the family pantry (saves data, signs in): Firebase's sign-in helper pages and the project's init.json on its own
   // address, so sign-in never leaves it (authDomain is pantry.flamingbeing.com)
   'pantry.flamingbeing.com': { root: 'pantry/', also: { '/__/auth/': '__/auth/', '/__/firebase/': 'pantry/auth/firebase/' } },
@@ -21,6 +22,9 @@ export const SITES = {
 // Shared by every host as it is: the design system (styles, icons and the app kit script; no data), so an app links
 // /homedesign/tokens.css. The only folders shared between subdomains.
 export const SHARED = ['/homedesign/'];
+
+// The kit's files may be read by pages on any host (Access-Control-Allow-Origin: *), for those files only.
+export const kitCors = file => String(file || '').startsWith('homedesign/');
 
 // On any host not in SITES, /_sites/<host>/<path> serves <path> as that host would, so the mapping can be tried on a
 // PR preview before the real address exists: <preview>/_sites/pantry.flamingbeing.com/
