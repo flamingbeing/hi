@@ -177,7 +177,7 @@ export function viewGuide() {
       row('refresh', 'Undo', 'Tapped the wrong thing? Tap Undo in the message at the bottom.'),
       row('trash', 'Recently removed', 'Deleted something by mistake? Settings, Recently removed keeps deleted items, shopping list lines and places for 30 days. Tap Restore.'),
       row('cart', 'Bought more', 'On the item, add what you bought and its date.'),
-      row('snowflake', 'Freeze and Thaw', 'Freeze moves it to the freezer and keeps it about 3 months. Thaw moves it to the fridge: use within 2 days.'),
+      row('snowflake', 'Freeze and Thaw', 'Freeze moves it to the freezer and keeps it about a year (bread a month). Thaw moves it to the fridge: use within 3 days.'),
       row('barcode', 'Scan many', 'On Home: choose Bought, Used up or Add to list, then scan one barcode after another. Done saves them all, with one Undo.'),
       row('check', 'Select several', 'On Items, tap Select (or press and hold a row), tick items, then Move to…, Shopping list or Delete. One Undo for the lot.'),
       row('edit', 'Bulk edit', 'On Items, tap Bulk edit: pick items, choose what to change (place, category, how it is counted, best-before, shopping list, delete), then Review. One Undo for the lot.'),

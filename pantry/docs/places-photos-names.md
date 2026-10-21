@@ -55,15 +55,15 @@ Thumbnails, editable places, names for the family and the research items. Index:
     `null` where no date matters: salt, tissue, soap; frozen goods ignore the name rules). Add, Bought more, Put away,
     Say or type and scan-many Bought fill the guess; on Add and Bought more it is a selected "About 1 week" chip with a
     line saying it's a guess. A date someone typed is never replaced; a change of category or place re-guesses only
-    while the date is still the guess. In a freezer the guess is the frozen keep (3 months, bread 1).
+    while the date is still the guess. In a freezer the guess is the frozen keep (1 year, bread 1 month).
   - **Since you last looked** (Home): events and shopping-list lines signed by someone else after this phone's
     `pantry:lastSeen` (per phone; set on open and when the app goes to the background; "Got it" sets it now). Never in
     on-this-phone mode (everything there is this phone's). **"Use this week"** under Use soon and **"Going shopping
     now"** on the list are `https://wa.me/?text=…` links with plain text: WhatsApp asks which chat, nothing is sent by
     the app.
   - **Freeze / Thaw** on a batch (food only): Freeze marks the batch `frozenAt`, keeps it till the later of its own
-    date and 3 months (bread 1) and moves the **item** to the household's first place with "freezer" in its name; Thaw
-    clears `frozenAt`, sets `thawedAt`, gives 2 days and moves the item to the first "fridge" place. Places belong to
+    date and 1 year (bread 1 month) and moves the **item** to the household's first place with "freezer" in its name; Thaw
+    clears `frozenAt`, sets `thawedAt`, gives 3 days and moves the item to the first "fridge" place. Places belong to
     items, not batches, so freezing one of several batches moves the whole item (simplest; the batch rows say which is
     frozen). While frozen, opening doesn't count; after a thaw an opened batch counts from the thaw. A batch kept in a
     freezer place (frozen goods) offers Thaw. Events `freeze` and `thaw` show in history only.

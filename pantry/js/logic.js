@@ -419,7 +419,7 @@ export function setLevel(item, { level = 'plenty', by, at } = {}) {
 // Freeze one batch: it moves to `place` (the item's place, as places belong to items), keeps until the later of its
 // own date and `days` from today, and is marked frozen on today. Thaw: back to `place`, use within `days`.
 // Each returns { item, event, ops } like the others (event types 'freeze' and 'thaw', counted nowhere but the history).
-export function freezeBatch(item, { batchId, days = 91, place, by, at, today = ymd() } = {}) {
+export function freezeBatch(item, { batchId, days = 365, place, by, at, today = ymd() } = {}) {
   const b = batchesOf(item).find(x => x.id === batchId) || fefo(item).find(x => !x.frozenAt);
   if (!b || b.frozenAt) return nothing(item);
   const keep = addDays(today, days), was = batchUseBy(b, item);
@@ -430,7 +430,7 @@ export function freezeBatch(item, { batchId, days = 91, place, by, at, today = y
   if (place || item.location) ops.set.location = place || item.location;
   return done(item, ops, ev(item, 'freeze', b.qty, by, at));
 }
-export function thawBatch(item, { batchId, days = 2, place, by, at, today = ymd() } = {}) {
+export function thawBatch(item, { batchId, days = 3, place, by, at, today = ymd() } = {}) {
   const b = batchesOf(item).find(x => x.id === batchId);
   if (!b) return nothing(item);
   const ops = emptyOps();

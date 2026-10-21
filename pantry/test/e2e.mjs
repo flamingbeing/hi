@@ -1076,7 +1076,7 @@ try {
     ok(await page.locator('.pa-guess').getAttribute('aria-pressed') === 'true' && await page.locator('.pa-guess').textContent() === 'About 1 week', 'shown as a selected About 1 week chip');
     ok((await page.locator('.pa-guess-hint').textContent()).includes('a guess'), 'said to be a guess');
     await page.selectOption('#pa-form [name="location"]', 'Freezer'); await settle(page);
-    ok(await page.inputValue('#pa-form [name="expiry"]') === ymdPlus(91), 'in the freezer it keeps three months');
+    ok(await page.inputValue('#pa-form [name="expiry"]') === ymdPlus(365), 'in the freezer it keeps a year');
     await page.selectOption('#pa-form [name="location"]', 'Fridge'); await settle(page);
     await page.fill('#pa-form [name="expiry"]', ymdPlus(10));
     await page.selectOption('#pa-form [name="category"]', 'Drinks'); await settle(page);
@@ -1094,13 +1094,13 @@ try {
     await page.click('[data-act="freeze"]'); await settle(page);
     ok((await toast(page).textContent()).startsWith('Frozen: moved to Freezer, keeps till'), 'Freeze says where and till when');
     let m = await S(id => window.__pantry.S.items.get(id), milk);
-    ok(m.location === 'Freezer' && m.batches[0].frozenAt === ymdPlus(0) && m.batches[0].expiry === ymdPlus(91), 'frozen: in the freezer, three months, frozen today');
+    ok(m.location === 'Freezer' && m.batches[0].frozenAt === ymdPlus(0) && m.batches[0].expiry === ymdPlus(365), 'frozen: in the freezer, a year, frozen today');
     ok(await page.locator('.pa-batch .ha-row-title').first().textContent() === '1 frozen' && (await page.locator('.pa-batch .ha-row-sub').first().textContent()).startsWith('Frozen '), 'the batch says frozen, and when');
     await axe(page, 'item frozen');
     await shot(page, 'n05-item-frozen');
     await page.click('[data-act="thaw"]'); await settle(page);
     m = await S(id => window.__pantry.S.items.get(id), milk);
-    ok(m.location === 'Fridge' && !m.batches[0].frozenAt && m.batches[0].expiry === ymdPlus(2), 'thawed: back in the fridge, two days');
+    ok(m.location === 'Fridge' && !m.batches[0].frozenAt && m.batches[0].expiry === ymdPlus(3), 'thawed: back in the fridge, three days');
     ok((await page.locator('#h-history').locator('xpath=..').innerText()).includes('Thawed'), 'the history says thawed');
     await shot(page, 'n06-item-thawed');
     await toast(page).locator('.ha-toast-action').click(); await settle(page);

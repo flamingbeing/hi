@@ -220,8 +220,8 @@ export function shelfDays({ name = '', category = '' } = {}) {
   if (category !== 'Frozen') for (const [re, d] of SHELF_BY_NAME) if (re.test(name)) return d;   // frozen nuggets aren't 2-day chicken
   return category in SHELF_BY_CATEGORY ? SHELF_BY_CATEGORY[category] : null;
 }
-// Freezing pauses the clock: frozen, most food keeps about 3 months (bread about 1); thawed, use within 2 days.
-export const FROZEN_DAYS = 91, THAW_DAYS = 2;
+// Freezing pauses the clock: frozen, food keeps about a year (bread about a month); thawed, use within 3 days.
+export const FROZEN_DAYS = 365, THAW_DAYS = 3;
 export const freezeDays = ({ name = '', category = '' } = {}) => (category === 'Bread & bakery' || /\bbread\b/i.test(name) ? 30 : FROZEN_DAYS);
 // Things it makes sense to freeze (food); household goods, medicine and pet food don't get Freeze.
 const NOT_FOOD = new Set(['Laundry & cleaning', 'Kitchen & paper', 'Toiletries', 'Medicine & first aid', 'Pet']);

@@ -8,6 +8,7 @@ owner's private notes.
   (instructions not copies, removal markers, one record per place), select mode, Group by place, grip drag, My order,
   Bulk edit, Sync now, the listener watchdog. Every dated item shows its expiry in words ("in 2 weeks", "Expired 3 days
   ago"; amber within 3 days, red once past).
+- Freeze keeps a batch 1 year (bread 1 month), Thaw gives 3 days (owner, 21 Oct 2026; was 3 months and 2 days).
 - Nothing blocks the build. iPhone touch behaviour is untested (only real touch events in Chromium).
 
 ## Next (in this order)

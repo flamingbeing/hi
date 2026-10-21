@@ -176,21 +176,21 @@ assert.throws(() => L.parseBackup('nonsense'), /not a pantry backup/);
 }
 // ---- freeze and thaw ----
 {
-  const it = { id: 'f', name: 'Minced pork', openDays: 2, location: 'Fridge', batches: [{ id: 'b1', qty: 2, expiry: '2026-10-18', openedAt: '2026-10-15' }, { id: 'b2', qty: 1, expiry: '2027-03-01' }] };
-  const f = L.freezeBatch(it, { batchId: 'b1', days: 91, place: 'Level 1 freezer', today: '2026-10-16', by: 'Mum' });
+  const it = { id: 'f', name: 'Minced pork', openDays: 2, location: 'Fridge', batches: [{ id: 'b1', qty: 2, expiry: '2026-10-18', openedAt: '2026-10-15' }, { id: 'b2', qty: 1, expiry: '2028-03-01' }] };
+  const f = L.freezeBatch(it, { batchId: 'b1', days: 365, place: 'Level 1 freezer', today: '2026-10-16', by: 'Mum' });
   const b1 = f.item.batches.find(b => b.id === 'b1');
   assert.equal(b1.frozenAt, '2026-10-16');
-  assert.equal(b1.expiry, '2027-01-15', 'frozen: keeps three months from today');
-  assert.equal(L.batchUseBy(b1, f.item), '2027-01-15', 'opening no longer counts while frozen');
+  assert.equal(b1.expiry, '2027-10-16', 'frozen: keeps a year from today');
+  assert.equal(L.batchUseBy(b1, f.item), '2027-10-16', 'opening no longer counts while frozen');
   assert.equal(f.item.location, 'Level 1 freezer');
   assert.deepEqual([f.event.type, f.event.qty, f.event.by], ['freeze', 2, 'Mum']);
-  const later = L.freezeBatch(it, { batchId: 'b2', days: 91, today: '2026-10-16' }).item.batches.find(b => b.id === 'b2');
-  assert.equal(later.expiry, '2027-03-01', 'a later printed date stays');
+  const later = L.freezeBatch(it, { batchId: 'b2', days: 365, today: '2026-10-16' }).item.batches.find(b => b.id === 'b2');
+  assert.equal(later.expiry, '2028-03-01', 'a later printed date stays');
   assert.equal(L.freezeBatch(f.item, { batchId: 'b1' }).event, null, 'already frozen');
-  const t = L.thawBatch(f.item, { batchId: 'b1', days: 2, place: 'Fridge', today: '2026-11-01' });
+  const t = L.thawBatch(f.item, { batchId: 'b1', days: 3, place: 'Fridge', today: '2026-11-01' });
   const tb = t.item.batches.find(b => b.id === 'b1');
-  assert.deepEqual([tb.frozenAt, tb.thawedAt, tb.expiry, t.item.location, t.event.type], [null, '2026-11-01', '2026-11-03', 'Fridge', 'thaw']);
-  assert.equal(L.batchUseBy(tb, t.item), '2026-11-03', 'an opened one counts its days from the thaw');
+  assert.deepEqual([tb.frozenAt, tb.thawedAt, tb.expiry, t.item.location, t.event.type], [null, '2026-11-01', '2026-11-04', 'Fridge', 'thaw']);
+  assert.equal(L.batchUseBy(tb, t.item), '2026-11-03', 'an opened one counts its days from the thaw (2, sooner than the 3-day thaw)');
   assert.equal(L.monthStats([f.event, t.event], f.event.at.slice(0, 7)).bought, 0, 'freezing and thawing are not buying');
 }
 // ---- places of a kind ----

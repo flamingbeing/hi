@@ -91,7 +91,7 @@ const twice = L.applyOps(u.item, u.ops);
 assert.equal(qtys(twice)[oid], 2, 'two phones opening from one batch on one day make two opened');
 assert.equal(qtys(twice).a, 0, '...and stock never shows below 0');
 // freeze and thaw set fields, never the batch
-u = L.freezeBatch(milk, { batchId: 'b', days: 91, place: 'Freezer', today: T });
+u = L.freezeBatch(milk, { batchId: 'b', days: 365, place: 'Freezer', today: T });
 assert.deepEqual(Object.keys(u.ops.set).sort(), ['batches.b.expiry', 'batches.b.frozenAt', 'batches.b.thawedAt', 'location']); assert.deepEqual(u.ops.inc, {});
 assert.equal(u.item.location, 'Freezer');
 // level
