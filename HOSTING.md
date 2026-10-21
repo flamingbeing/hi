@@ -7,7 +7,7 @@ Worker. `flamingbeing.com` itself (the owner's server page) is not served by it.
 
 | Address | Folder | What |
 |---|---|---|
-| `design.flamingbeing.com` | `homedesign/` | The design system's guide pages |
+| `design.flamingbeing.com` | `homedesign/` (also at `/v1/`) | The design system's guide pages; `/v1/` is the kit for apps in other repos (kit files carry `Access-Control-Allow-Origin: *`; a breaking change goes in `/v2/`) |
 | `pantry.flamingbeing.com` | `pantry/` (+ `/__/auth/`) | Household inventory (custom domain: owner, `pantry/SETUP.md` step 1) |
 | `kakihome.flamingbeing.com` | `kakihome/` (+ `/__/auth/`) | Kaki Home, a household inventory to try out a product idea (own data and Firebase project) |
 
