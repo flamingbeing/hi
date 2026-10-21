@@ -100,8 +100,10 @@ service cloud.firestore {
     // overwrite a place someone has renamed, moved or removed since (their real changes carry a real time). The rules judge the
     // document as it will be, so a rename (one field), a move (one field) and a removal (two fields) all pass the same checks.
     // They can't count the place documents (no 40-place cap here; the app keeps to it): each document is small and members-only.
+    // `kind` (21 Oct 2026): optional, 'fridge', 'freezer' or 'other' (none: the app guesses from the name).
     function placeOk(d, id) {
-      return d.keys().hasOnly(['id', 'name', 'order', 'updatedAt', 'removedAt', 'removedBy'])
+      return d.keys().hasOnly(['id', 'name', 'order', 'updatedAt', 'removedAt', 'removedBy', 'kind'])
+        && (!('kind' in d) || d.kind in ['fridge', 'freezer', 'other'])
         && d.keys().hasAll(['id', 'name', 'order', 'updatedAt'])
         && d.id == id
         && id.matches('[A-Za-z0-9_-]{1,40}')

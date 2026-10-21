@@ -539,6 +539,8 @@ try {
     await tryIt('a removedAt that is not a time', () => F.setDoc(d('r16'), P('r16', { removedAt: 'yesterday' })));
     await tryIt('a removedAt of null', () => F.setDoc(d('r17'), P('r17', { removedAt: null })));
     await tryIt('a removedBy over 40 characters', () => F.setDoc(d('r18'), P('r18', { removedAt: '2026-10-16T01:00:00.000Z', removedBy: 'x'.repeat(41) })));
+    await tryIt('a freezer kind', () => F.setDoc(d('r19'), P('r19', { kind: 'freezer' })));
+    await tryIt('an unknown kind', () => F.setDoc(d('r20'), P('r20', { kind: 'garage' })));
     // changes by field: the rules judge the place as it will be
     await tryIt('a rename by field', () => F.updateDoc(d('r1'), { name: 'Renamed', updatedAt: '2026-10-16T02:00:00.000Z' }));
     await tryIt('a move by field', () => F.updateDoc(d('r1'), { order: 0.75, updatedAt: '2026-10-16T02:00:00.000Z' }));
@@ -546,6 +548,8 @@ try {
     await tryIt('a restore by field', () => F.updateDoc(d('r1'), { removedAt: F.deleteField(), removedBy: F.deleteField(), updatedAt: '2026-10-16T04:00:00.000Z' }));
     await tryIt('an empty name by field', () => F.updateDoc(d('r1'), { name: '' }));
     await tryIt('an unknown field by field', () => F.updateDoc(d('r1'), { colour: 'red' }));
+    await tryIt('a kind by field', () => F.updateDoc(d('r19'), { kind: 'fridge', updatedAt: '2026-10-16T02:00:00.000Z' }));
+    await tryIt('the kind removed by field', () => F.updateDoc(d('r19'), { kind: F.deleteField(), updatedAt: '2026-10-16T03:00:00.000Z' }));
     await tryIt('the name field removed', () => F.updateDoc(d('r1'), { name: F.deleteField() }));
     await tryIt('a field change of a place that isn’t there', () => F.updateDoc(d('nothere'), { name: 'x' }));
     // documents made from the old list carry the migration time: only new, or exactly as they are
@@ -564,6 +568,7 @@ try {
     'a name with a new line': NO, 'a number for a name': NO, 'a text order': NO, 'no order': NO, 'no updatedAt': NO, 'another field': NO,
     'an id that is not the document id': NO, 'a document id with a dot': NO, 'a document id of 40 characters': OK, 'a document id of 41 characters': NO,
     'removedAt and removedBy': OK, 'a removedAt that is not a time': NO, 'a removedAt of null': NO, 'a removedBy over 40 characters': NO,
+    'a freezer kind': OK, 'an unknown kind': NO, 'a kind by field': OK, 'the kind removed by field': OK,
     'a rename by field': OK, 'a move by field': OK, 'a removal by field': OK, 'a restore by field': OK, 'an empty name by field': NO, 'an unknown field by field': NO,
     'the name field removed': NO, 'a field change of a place that isn’t there': NO,   // (an update has no document to build on: refused, not "not found")
    
@@ -872,7 +877,9 @@ try {
     const r1 = await act(mum, 'reorder', 'bo4', null);
     assert.equal(r1.renumbered, false); assert.deepEqual(r1.sets, [{ id: 'bo4', order: 1 }], 'to the top of a category with no numbers: ONE field on ONE item');
     await drain(mum); await drain(dad);
-    assert.equal(await seq(), 'bo4,bo1,bo2,bo3'); assert.equal(await phoneSeq(dad), 'bo4,bo1,bo2,bo3', 'the other phone shows it');
+    assert.equal(await seq(), 'bo4,bo1,bo2,bo3');
+    for (let k = 0; k < 40 && await phoneSeq(dad) !== 'bo4,bo1,bo2,bo3'; k++) await dad.waitForTimeout(250);   // (the listener delivers a moment after the write is acknowledged)
+    assert.equal(await phoneSeq(dad), 'bo4,bo1,bo2,bo3', 'the other phone shows it');
     assert.deepEqual((await admin.list(`households/${hid}/items`)).filter(i => /^bo\d$/.test(i.id) && 'order' in i).map(i => i.id), ['bo4'], 'only the moved item has a number');
     const r2 = await act(mum, 'reorder', 'bo3', 'bo4');
     assert.equal(r2.sets.length, 1, 'again ONE field on ONE item'); assert.equal(r2.sets[0].order, 2); assert.equal(r2.renumbered, false);

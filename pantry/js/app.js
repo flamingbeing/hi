@@ -225,6 +225,17 @@ function saveMany(kind, list) {
 const placeList = () => P.placeEntries([...S.places.values()], S.settings.get(P.PLACES_ID));
 const placeNames = () => placeList().map(e => e.name);
 const placeByName = name => placeList().find(e => e.name === name) || null;
+// A place's kind (places.js): what the family set in Places, else the guess from its name.
+const kindOfPlace = name => P.kindOf(name, placeList());
+const inFreezer = it => P.isFreezer(it?.location, kindOfPlace);
+// Moving an item to another place: into a freezer its food freezes, out of one it thaws (logic.js moveFreezeOps). `tally`
+// counts the units, for the message.
+function placeOps(it, to, tally = null) {
+  const r = L.moveFreezeOps(it, { fromFreezer: inFreezer(it), toFreezer: P.isFreezer(to, kindOfPlace), food: freezable(it), freezeDays: freezeDays(it), thawDays: THAW_DAYS, today: today() });
+  if (tally) { tally.frozen += r.frozen; tally.thawed += r.thawed; }
+  return r.ops;
+}
+const tallyText = t => [t.frozen ? `${t.frozen} frozen (keeps a year)` : '', t.thawed ? `${t.thawed} thawed (use within ${plural(THAW_DAYS, 'day')})` : ''].filter(Boolean).join(', ');
 // Recently removed shows the removed places (within their 30 days), newest removal first.
 const removedPlaces = () => L.recentlyRemoved([...S.places.values()]);
 // Every place to offer, the list's order first, then places items still use that aren't in it.
@@ -464,7 +475,7 @@ function daysText(d) {
 // A guessed best-before date from how long a product usually keeps (catalogue.js): { days, date, label } or null.
 // In a freezer it keeps as long as frozen food does.
 function guessFor(x) {
-  const days = P.isFreezer(x.location) && x.category !== 'Frozen' && shelfDays(x) !== null ? freezeDays(x) : shelfDays(x);
+  const days = inFreezer(x) && x.category !== 'Frozen' && shelfDays(x) !== null ? freezeDays(x) : shelfDays(x);
   return days ? { days, date: L.addDays(today(), days), label: `About ${daysText(days)}` } : null;
 }
 // The quick dates under a date field; a guess comes first (selected while it is the date), with a line saying so.
@@ -867,16 +878,17 @@ function undoBatch(sent, { liveOnly = true, lines = [] } = {}) {
 }
 // The move itself: one batch, nothing for an item that is already there. { place, sent, same }.
 function moveItems(list, to) {
-  const place = P.cleanPlace(to), todo = list.filter(it => it.location !== place);
-  const sent = todo.length ? patchMany(todo.map(it => ({ id: it.id, ops: { set: { location: place }, inc: {}, del: [] } }))) : [];
-  return { place, sent, same: list.length - todo.length };
+  const place = P.cleanPlace(to), todo = list.filter(it => it.location !== place), tally = { frozen: 0, thawed: 0 };
+  const sent = todo.length ? patchMany(todo.map(it => ({ id: it.id, ops: L.mergeOps(placeOps(it, place, tally), { set: { location: place } }) }))) : [];
+  return { place, sent, same: list.length - todo.length, tally };
 }
 function bulkMove(list, to) {
   finishBulk();
-  const { place, sent, same } = moveItems(list, to);
+  const { place, sent, same, tally } = moveItems(list, to);
   if (!sent.length) { haToast(`Already in ${place}`); return; }
   redraw();
-  const msg = sent.length === 1 && !same ? `${S.items.get(sent[0].id)?.name || 'Item'} moved to ${place}` : `${plural(sent.length, 'item')} moved to ${place}${same ? ` (${same} already there)` : ''}`;
+  const cold = tallyText(tally);
+  const msg = (sent.length === 1 && !same ? `${S.items.get(sent[0].id)?.name || 'Item'} moved to ${place}` : `${plural(sent.length, 'item')} moved to ${place}${same ? ` (${same} already there)` : ''}`) + (cold ? `: ${cold}` : '');
   haToast(msg, { action: 'Undo', onAction: () => undoBatch(sent) }); haAnnounce(msg);
 }
 function bulkToList(list) {
@@ -1128,7 +1140,7 @@ function bulkReview() {
   if (!list.length) return haToast('Select some items first');
   if (BI.isEmpty(ch)) return haToast('Choose what to change first');
   const gap = BI.missing(ch); if (gap) return haToast(gap);
-  const p = BI.plan(list, ch, { onList, by: who() });
+  const p = BI.plan(list, ch, { onList, by: who(), placeOps: (it, to) => placeOps(it, to) });
   if (!p.changing) return haToast(p.unchanged ? 'None of them would change: they are already as chosen' : 'None of them would change');
   b.plan = p; b.step = 'review';
   redraw();
@@ -1167,7 +1179,7 @@ function bulkSave() {
 
 // ---- Item -------------------------------------------------------------------------------------------------------
 
-const VERB = { add: 'Bought', use: 'Used up', open: 'Opened', discard: 'Thrown away', expired: 'Expired, thrown away', freeze: 'Frozen', thaw: 'Thawed' };
+const VERB = { add: 'Bought', use: 'Used up', open: 'Opened', discard: 'Thrown away', expired: 'Expired, thrown away', freeze: 'Frozen', thaw: 'Thawed', unfreeze: 'Back to packaging date' };
 function viewItem(it) {
   const evs = eventsFor(it.id).sort((a, b) => (a.at < b.at ? 1 : -1));
   const u = L.usage(evs);
@@ -1185,7 +1197,7 @@ function viewItem(it) {
   const batchRow = b => {
     const d = L.batchUseBy(b, it);
     // frozen: marked so, or kept in a freezer (frozen goods); Thaw then. Food elsewhere can be frozen.
-    const frozen = !!b.frozenAt || (P.isFreezer(it.location) && !b.thawedAt);
+    const frozen = L.isFrozenBatch(b, inFreezer(it));
     const what = frozen ? `${b.qty} frozen` : b.openedAt ? `${b.qty} opened` : it.openDays ? `${b.qty} unopened` : plural(b.qty, 'in stock', 'in stock');
     const sub = [b.frozenAt ? `Frozen ${fmt(b.frozenAt)}` : '', b.thawedAt && !frozen ? `Thawed ${fmt(b.thawedAt)}` : '', b.openedAt ? `Opened ${fmt(b.openedAt)}` : '', d ? `use by ${fmt(d)}` : 'No date'].filter(Boolean).join(' · ');
     const desc = d ? `use by ${fmt(d)}` : 'no date';
@@ -1194,6 +1206,7 @@ function viewItem(it) {
       <span class="ha-row-trail">${badge(d)}</span>
       <span class="pa-batch-acts">
         ${!b.openedAt && it.openDays && !frozen ? `<button type="button" class="ha-btn ha-btn--small" data-act="open" data-b="${esc(b.id)}" aria-label="Open 1, ${esc(desc)}">Open</button>` : ''}
+        ${L.canUnfreeze(b) ? `<button type="button" class="ha-btn ha-btn--small ha-btn--quiet" data-act="unfreeze" data-b="${esc(b.id)}" aria-label="Not frozen: back to the packaging date, ${esc(b.packExpiry ? fmt(b.packExpiry) : 'no date')}">Not frozen</button>` : ''}
         ${frozen ? `<button type="button" class="ha-btn ha-btn--small" data-act="thaw" data-b="${esc(b.id)}" aria-label="Thaw ${esc(plural(b.qty, 'unit'))}, ${esc(desc)}">${icon('droplet')}Thaw</button>`
           : freezable(it) ? `<button type="button" class="ha-btn ha-btn--small" data-act="freeze" data-b="${esc(b.id)}" aria-label="Freeze ${esc(plural(b.qty, 'unit'))}, ${esc(desc)}">${icon('snowflake')}Freeze</button>` : ''}
         <button type="button" class="ha-btn ha-btn--small" data-act="use" data-b="${esc(b.id)}" aria-label="Used 1, ${esc(desc)}">Used 1</button>
@@ -1419,9 +1432,13 @@ function submitForm(e) {
       if (pics) { ops.set.thumb = pics.thumb; ops.set.hasPhoto = true; }
       else { if (base.thumb !== undefined) ops.del.push('thumb'); if (base.hasPhoto !== undefined) ops.del.push('hasPhoto'); }
     }
-    if (!L.opsEmpty(ops)) patchItem(base.id, ops);
+    const tally = { frozen: 0, thawed: 0 };
+    const now = itemById(base.id) || base;
+    const all = ops.set.location ? L.mergeOps(placeOps(now, ops.set.location, tally), ops) : ops;
+    if (!L.opsEmpty(all)) patchItem(base.id, all);
     haBack('#/item/' + base.id);
-    haToast('Saved');
+    const cold = tallyText(tally);
+    haToast(cold ? `Saved: ${cold}` : 'Saved');
     return;
   }
   const it = { id, batches: [], createdAt: new Date().toISOString(), createdBy: who(), ...fields };
@@ -1668,11 +1685,63 @@ function openBought(it, { shopId = null } = {}) {
     apply(res, `Added ${n} ${it.name}`);
   });
 }
+// ---- Freeze and Thaw on a batch (21 Oct 2026, owner) ----------------------------------------------------------------
+// One tap when there's one unit and one place of the kind. Otherwise a sheet: how many (some of a batch split off, logic.js),
+// and, when all of it goes and the family has two or more freezers (or fridges), which one, this phone's last pick first.
+// `kind` is where it goes: 'freezer' (Freeze) or 'fridge' (Thaw).
+function coldPlaces(kind) {
+  const list = P.placesOfKind(placeNames(), kind, kindOfPlace), last = (prefs.get('lastCold', {}) || {})[kind];
+  if (!list.length) return [P.placeOfKind(placeNames(), kind, kindOfPlace)];
+  return list.includes(last) ? [last, ...list.filter(p => p !== last)] : list;
+}
+function doCold(it, batchId, kind, n, place) {
+  const cur = itemById(it.id); if (!cur) return null;
+  const opts = { batchId, qty: n, place, inFreezer: inFreezer(cur), by: who() };
+  const res = kind === 'freezer' ? L.freezeBatch(cur, { ...opts, days: freezeDays(cur) }) : L.thawBatch(cur, { ...opts, days: THAW_DAYS });
+  if (!res.event) return apply(res, '');
+  prefs.set('lastCold', { ...(prefs.get('lastCold', {}) || {}), [kind]: place });
+  const moved = res.ops.set.location ? `moved to ${res.ops.set.location}` : `the rest stays in ${cur.location || 'its place'}`;
+  const changed = L.batchesOf(res.item).find(x => x.frozenAt === today() || x.thawedAt === today());
+  return apply(res, kind === 'freezer'
+    ? `${n} frozen: ${moved}, keeps till ${fmt(changed?.expiry || L.addDays(today(), freezeDays(cur)))}`
+    : `${n} thawed: ${moved}, use within ${plural(THAW_DAYS, 'day')}`);
+}
+function openCold(it, batchId, kind) {
+  const b = L.batchesOf(it).find(x => x.id === batchId); if (!b || !(b.qty > 0)) return apply({ event: null }, '');
+  const places = coldPlaces(kind), verb = kind === 'freezer' ? 'Freeze' : 'Thaw';
+  if (b.qty <= 1 && places.length <= 1) return doCold(it, batchId, kind, 1, places[0]);
+  const rest = it.location || 'its place';
+  const row = (p, i) => `<li><label class="ha-row"><input type="radio" name="pa-cold" value="${esc(p)}"${i === 0 ? ' checked' : ''}><span class="ha-row-body"><span class="ha-row-title">${esc(p)}</span></span></label></li>`;
+  const s = haSheet({
+    title: `${verb} ${it.name}`, closeLabel: 'Cancel', grey: true,
+    body: `${b.qty > 1 ? `<ul class="ha-list"><li><div class="ha-row"><span class="ha-row-body"><span class="ha-row-title" id="pa-cold-l">How many</span><span class="ha-row-sub">of ${b.qty}</span></span>
+        <div class="ha-stepper" role="group" aria-labelledby="pa-cold-l" id="pa-cold-qty"><button type="button" data-step="-1" aria-label="Fewer">${icon('minus')}</button><output>${b.qty}</output><button type="button" data-step="1" aria-label="More">${icon('plus')}</button></div></div></li></ul>` : ''}
+      ${places.length > 1 ? `<fieldset class="pa-moveto" id="pa-cold-where"><legend class="ha-section-header">${kind === 'freezer' ? 'Which freezer' : 'Which fridge'}</legend><ul class="ha-list">${places.map(row).join('')}</ul></fieldset>` : ''}
+      <p class="ha-section-footer" id="pa-cold-note" role="status"></p>`,
+    footer: `<button type="button" class="ha-btn ha-btn--primary ha-btn--block" id="pa-cold-go">${verb}</button>`,
+    onClose: afterSheet,
+  });
+  const go = $('#pa-cold-go', s.el), where = $('#pa-cold-where', s.el), note = $('#pa-cold-note', s.el);
+  const sync = n => {
+    const all = n >= b.qty;
+    if (where) where.hidden = !all;
+    go.textContent = `${verb} ${n}`;
+    note.textContent = all ? (kind === 'freezer' ? `Keeps about ${freezeDays(it) >= 365 ? 'a year' : 'a month'}.` : `Use within ${plural(THAW_DAYS, 'day')}.`) : `The rest stays in ${rest}.`;
+  };
+  const qty = b.qty > 1 ? haStepper($('#pa-cold-qty', s.el), { min: 1, max: b.qty, onChange: sync }) : { get: () => 1 };
+  sync(qty.get());
+  go.addEventListener('click', async () => {
+    const n = qty.get(), place = $('input[name="pa-cold"]:checked', s.el)?.value || places[0];
+    await haCloseSheet(s.el);
+    doCold(it, batchId, kind, n, place);
+  });
+  return s;
+}
 // ---- leftovers: a name, the fridge, use within 3 days, one tap ----------------------------------------------------
 
 const LEFTOVER_DAYS = 3;
 function openLeftovers() {
-  const fridge = P.placeOfKind(placeNames(), 'fridge'), by = L.addDays(today(), LEFTOVER_DAYS);
+  const fridge = P.placeOfKind(placeNames(), 'fridge', kindOfPlace), by = L.addDays(today(), LEFTOVER_DAYS);
   const s = haSheet({
     title: 'Leftovers', closeLabel: 'Cancel', grey: true,
     body: `<form id="pa-left" novalidate>
@@ -2065,7 +2134,7 @@ function viewPlaces() {
   const { listed, unlisted } = placeChoices();
   const counts = P.placeCounts(items());
   const row = p => { const n = counts.get(p) || 0; return `<li><button type="button" class="ha-row pa-place" data-act="place-open" data-v="${esc(p)}">
-      <span class="ha-row-body"><span class="ha-row-title">${esc(p)}</span></span>
+      <span class="ha-row-body"><span class="ha-row-title">${esc(p)}</span>${kindOfPlace(p) !== 'other' ? `<span class="ha-row-sub">${esc(P.KIND_LABELS[kindOfPlace(p)])}</span>` : ''}</span>
       <span class="ha-row-value">${n}<span class="ha-sr"> ${n === 1 ? 'item' : 'items'}</span></span>${chevron()}</button></li>`; };
   let h = `<h1 class="ha-large-title">Places</h1><p class="ha-large-sub">Where things are kept${S.mode === 'cloud' ? ', shared with the family' : ''}</p>`;
   h += section('Your places', `<ul class="ha-list" id="pa-places">${listed.map(row).join('')}</ul>`,
@@ -2096,6 +2165,19 @@ function addPlaceFromForm() {
   $('#pa-place-name')?.focus();
   haToast(`Added ${name}`);
 }
+// A place's kind: Fridge, Freezer or Other, guessed from the name until someone picks one (one field of its document).
+const kindNote = name => `${placeByName(name)?.kind ? '' : 'Guessed from the name. '}Food moved into a freezer freezes (keeps a year); moved out of one, it thaws. Things already here keep their dates.`;
+function placeKindSection(name) {
+  const k = kindOfPlace(name);
+  const seg = v => `<label class="ha-seg"><input type="radio" name="pa-pl-kind" value="${v}"${k === v ? ' checked' : ''}><span>${v === 'other' ? 'Other' : esc(P.KIND_LABELS[v])}</span></label>`;
+  return `<section class="ha-section" aria-labelledby="pa-pl-kind-h"><h3 class="ha-section-header" id="pa-pl-kind-h">Kind of place</h3>
+    <fieldset class="ha-segmented pa-pl-kind"><legend class="ha-sr">Kind of place</legend>${P.KINDS.map(seg).join('')}</fieldset>
+    <p class="ha-section-footer" id="pa-pl-kind-note">${esc(kindNote(name))}</p></section>`;
+}
+function setPlaceKind(e, kind) {
+  materializePlaces();
+  patchPlaces(placeIds(e).map(id => ({ id, ops: { set: { kind }, inc: {}, del: [] } })));
+}
 // A place's sheet: rename it, move it up or down, add it to the list, or remove it.
 function openPlace(name) {
   const listed = () => !!placeByName(name);
@@ -2110,6 +2192,7 @@ function openPlace(name) {
         <button type="submit" class="ha-btn ha-btn--secondary ha-btn--block">Rename</button>
       </form>
       <p class="ha-text pa-pl-count">${n ? `${esc(plural(n, 'item'))} kept here. Renaming moves ${n === 1 ? 'it' : 'them'} too.` : 'No items kept here.'}</p>
+      ${listed() ? placeKindSection(name) : ''}
       ${listed()
         ? `<section class="ha-section" aria-labelledby="pa-pl-order"><h3 class="ha-section-header" id="pa-pl-order">Order</h3>
           <div class="ha-btn-row pa-pl-move"><button type="button" class="ha-btn ha-btn--secondary" data-pl="up" aria-label="Move up, ${esc(name)}">${icon('chevron-left', { cls: 'pa-up' })}Move up</button><button type="button" class="ha-btn ha-btn--secondary" data-pl="down" aria-label="Move down, ${esc(name)}">${icon('chevron-left', { cls: 'pa-down' })}Move down</button></div>
@@ -2135,6 +2218,14 @@ function openPlace(name) {
     if (listed() || P.placeCounts(items()).get(name)) return true;
     haToast(`${name} was changed on another phone`); haCloseSheet(el); return false;
   };
+  el.addEventListener('change', e => {
+    if (e.target.name !== 'pa-pl-kind' || !stillThere()) return;
+    const pe = placeByName(name); if (!pe) return;
+    setPlaceKind(pe, e.target.value);
+    $('#pa-pl-kind-note', el).textContent = kindNote(name);
+    S.pendingRender = true;
+    haAnnounce(`${name} is a ${P.KIND_LABELS[e.target.value].toLowerCase()}`);
+  });
   $('#pa-pl-form', el).addEventListener('submit', async e => {
     e.preventDefault();
     if (!stillThere()) return;
@@ -2532,15 +2623,13 @@ async function onClick(e) {
     case 'tour-on': { prefs.set('tour', 'on'); haGo('#/'); return haToast('The getting-started list is on Home'); }
     case 'soon': { prefs.set('soonDays', Number(b.dataset.v)); redraw(); return haToast(`Use soon: within ${SOON[b.dataset.v]}`); }
     case 'open': return apply(L.openOne(it, { by: who(), batchId: b.dataset.b || null }), `Opened 1 ${it.name}`);
-    case 'freeze': {
-      const place = P.placeOfKind(placeNames(), 'freezer');
-      const res = L.freezeBatch(it, { batchId: b.dataset.b, days: freezeDays(it), place, by: who() });
-      const d = res.item.batches.find(x => x.id === b.dataset.b)?.expiry;
-      return apply(res, `Frozen: moved to ${place}, keeps till ${fmt(d)}`);
-    }
-    case 'thaw': {
-      const place = P.placeOfKind(placeNames(), 'fridge');
-      return apply(L.thawBatch(it, { batchId: b.dataset.b, days: THAW_DAYS, place, by: who() }), `Thawed: moved to ${place}, use within ${plural(THAW_DAYS, 'day')}`);
+    case 'freeze': return openCold(it, b.dataset.b, 'freezer');
+    case 'thaw': return openCold(it, b.dataset.b, 'fridge');
+    case 'unfreeze': {
+      const res = L.unfreezeBatch(it, { batchId: b.dataset.b, place: P.placeOfKind(placeNames(), 'fridge', kindOfPlace), inFreezer: inFreezer(it), by: who() });
+      const was = L.batchesOf(it).find(x => x.id === b.dataset.b);
+      const where = res.ops.set.location ? `, back in ${res.ops.set.location}` : '';
+      return apply(res, `Not frozen: ${was?.packExpiry ? `use by ${fmt(was.packExpiry)}` : 'no date'}${where}`);
     }
     case 'leftovers': return openLeftovers();
     case 'scan-many': return openScanMany();

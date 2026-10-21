@@ -61,12 +61,22 @@ Thumbnails, editable places, names for the family and the research items. Index:
     on-this-phone mode (everything there is this phone's). **"Use this week"** under Use soon and **"Going shopping
     now"** on the list are `https://wa.me/?text=…` links with plain text: WhatsApp asks which chat, nothing is sent by
     the app.
-  - **Freeze / Thaw** on a batch (food only): Freeze marks the batch `frozenAt`, keeps it till the later of its own
-    date and 1 year (bread 1 month) and moves the **item** to the household's first place with "freezer" in its name; Thaw
-    clears `frozenAt`, sets `thawedAt`, gives 3 days and moves the item to the first "fridge" place. Places belong to
-    items, not batches, so freezing one of several batches moves the whole item (simplest; the batch rows say which is
-    frozen). While frozen, opening doesn't count; after a thaw an opened batch counts from the thaw. A batch kept in a
-    freezer place (frozen goods) offers Thaw. Events `freeze` and `thaw` show in history only.
+  - **Freeze / Thaw** on a batch (food only; reworked 21 Oct 2026, owner): Freeze keeps the frozen units till the later of
+    their own date and 1 year (bread 1 month), marks them `frozenAt` and remembers the packaging date and place
+    (`packExpiry`, `packPlace`, kept through later thaws and freezes); Thaw clears `frozenAt`, sets `thawedAt` and gives
+    3 days. Both ask **how many** when a batch has more than one (some of a batch split off into `<id>-f<day>` /
+    `<id>-t<day>`, like Open) and **which** freezer or fridge when the family has two or more (this phone's last pick
+    first, `pantry:lastCold`). Places belong to items, not batches, so the **item moves only when none of its stock is
+    left behind** (the batch rows say which is frozen). **Not frozen** on a still-frozen batch with `packExpiry` (never after a thaw) puts the packaging
+    date back, drops both fields and moves the item back to `packPlace` once nothing else of it is frozen. A batch in a
+    freezer place counts as frozen unless thawed (`isFrozenBatch`). While frozen, opening doesn't count; after a thaw an
+    opened batch counts from the thaw. Events `freeze`, `thaw`, `unfreeze` show in history only.
+  - **Moving into or out of a freezer** (Move to…, a drag, Bulk edit's place, the edit form's Kept in): food freezes or
+    thaws the same way (`moveFreezeOps`), with the place change in one write and one Undo. Bulk edit that also sets a date
+    keeps that date. Renaming a place moves nothing.
+  - **Kinds of place**: Fridge, Freezer or Other, guessed from the name (freezer, freeze, frozen, ice box; fridge,
+    refrigerator, chiller) and settable in the place's sheet (`kind` on the place document; the rules allow only those
+    three). Freeze, Thaw, Leftovers and the freezer guess on Add use the kind.
   - **Leftovers** (Home and Add): a name, the fridge place, use within 3 days; category Leftovers, `noRestock`.
   - **Shopping list:** lines grouped by aisle (the pantry item's category, else the catalogue's best match for the
     typed name, in `CATEGORIES` order); **Buy again** chips (items bought two or more units in total, not on the list or

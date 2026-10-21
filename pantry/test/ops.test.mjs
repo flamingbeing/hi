@@ -92,8 +92,8 @@ assert.equal(qtys(twice)[oid], 2, 'two phones opening from one batch on one day 
 assert.equal(qtys(twice).a, 0, '...and stock never shows below 0');
 // freeze and thaw set fields, never the batch
 u = L.freezeBatch(milk, { batchId: 'b', days: 365, place: 'Freezer', today: T });
-assert.deepEqual(Object.keys(u.ops.set).sort(), ['batches.b.expiry', 'batches.b.frozenAt', 'batches.b.thawedAt', 'location']); assert.deepEqual(u.ops.inc, {});
-assert.equal(u.item.location, 'Freezer');
+assert.deepEqual(Object.keys(u.ops.set).sort(), ['batches.b.expiry', 'batches.b.frozenAt', 'batches.b.packExpiry', 'batches.b.packPlace', 'batches.b.thawedAt']); assert.deepEqual(u.ops.inc, {});
+assert.equal(u.item.location, 'Fridge', 'batch a is still unfrozen: the item stays');
 // level
 u = L.setLevel({ id: 's', measure: 'level', batches: [] }, { level: 'low' });
 assert.deepEqual(u.ops.set, { level: 'low' });
@@ -116,13 +116,14 @@ assert.deepEqual(inv.inc, { 'batches.a.qty': 2 }); assert.deepEqual(L.applyOps(u
 const elsewhere = L.applyOps(u.item, L.takeOut(u.item, { batchId: 'b', today: T }).ops);
 assert.deepEqual(qtys(L.applyOps(elsewhere, inv)), { a: 2, b: 2 }, 'their use stays');
 // a set is put back only when nobody changed it since
-u = L.freezeBatch(milk, { batchId: 'b', place: 'Freezer', today: T });
-inv = L.invertOps(u.ops, milk, u.item);
+const solo = L.normalizeItem({ ...milk, batches: { b: { qty: 3, expiry: '2026-12-01', addedAt: '2026-10-11' } } });   // all of it frozen: the item moves too
+u = L.freezeBatch(solo, { batchId: 'b', place: 'Freezer', today: T });
+inv = L.invertOps(u.ops, solo, u.item);
 assert.equal(inv.set.location, 'Fridge'); assert.equal(inv.set['batches.b.expiry'], '2026-12-01');
 assert.equal(inv.set['batches.b.thawedAt'], undefined, 'a field that was missing is removed again');
 assert.ok(inv.del.includes('batches.b.frozenAt') || inv.set['batches.b.frozenAt'] === undefined);
 const moved = L.applyOps(u.item, { set: { location: 'Shelf' }, inc: {}, del: [] });
-inv = L.invertOps(u.ops, milk, moved);
+inv = L.invertOps(u.ops, solo, moved);
 assert.ok(!('location' in inv.set), 'someone moved it since: Undo leaves their place');
 assert.equal(inv.set['batches.b.expiry'], '2026-12-01');
 // a batch this change made is emptied by its inc, not deleted
