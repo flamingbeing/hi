@@ -58,6 +58,8 @@ async function noSideways(page, what) {
 }
 async function axe(page, what) {
   if (!(await page.evaluate(() => !!window.axe))) await page.addScriptTag({ content: AXE });
+  // a toast still fading in or out reads as low contrast: let running (finite) animations finish first, 3 s at most
+  await page.evaluate(() => Promise.race([Promise.all(document.getAnimations().filter(x => x.effect?.getComputedTiming().iterations !== Infinity).map(x => x.finished.catch(() => {}))), new Promise(r => setTimeout(r, 3000))]));
   const v = await page.evaluate(async () => (await window.axe.run(document, { runOnly: ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa', 'best-practice'] }))
     .violations.map(x => `${x.id} (${x.impact}): ${x.nodes.slice(0, 3).map(n => n.target.join(' ')).join(' | ')}`));
   ok(v.length === 0, `${what}: axe violations\n  ${v.join('\n  ')}`);
