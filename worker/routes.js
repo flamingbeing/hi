@@ -12,9 +12,7 @@ export const SITES = {
   // the family home design system's own guide pages (static, no data)
   // /v1/ is the same kit for apps in other repos (repo split, 21 Oct 2026); a breaking kit change goes in /v2/
   'design.flamingbeing.com': { root: 'homedesign/', also: { '/v1/': 'homedesign/' } },
-  // the family pantry (saves data, signs in): Firebase's sign-in helper pages and the project's init.json on its own
-  // address, so sign-in never leaves it (authDomain is pantry.flamingbeing.com)
-  'pantry.flamingbeing.com': { root: 'pantry/', also: { '/__/auth/': '__/auth/', '/__/firebase/': 'pantry/auth/firebase/' } },
+  // pantry.flamingbeing.com moved to its own repo and Worker (flamingbeing/pantry, 22 Oct 2026)
   // kakihome.flamingbeing.com moved to its own repo and Worker (flamingbeing/kakihome, 22 Oct 2026)
 };
 

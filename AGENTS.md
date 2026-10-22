@@ -5,9 +5,9 @@ Instructions for every AI assistant working here (Claude Code reads this through
 This **public** repo holds the **family home apps** only (songs live in the owner's private notes):
 
 - **The family home apps** on `*.flamingbeing.com`, served by one Cloudflare Worker ([HOSTING.md](HOSTING.md)):
-  `homedesign/` (the design system every home app uses; start with `homedesign/README.md`), `pantry/` (household
-  inventory; start with `pantry/NOTES.md`). Kaki Home moved to its own repo (`flamingbeing/kakihome`,
-  22 Oct 2026); its old folder here is no longer served and goes in a clean-up PR.
+  `homedesign/` (the design system every home app uses; start with `homedesign/README.md`). Pantry and Kaki Home
+  moved to their own repos (`flamingbeing/pantry`, `flamingbeing/kakihome`, 22 Oct 2026); their old folders here are
+  no longer served and go in a clean-up PR.
 
 Accounts and costs: in the owner's private notes; hosting: [HOSTING.md](HOSTING.md). Site-wide work in progress: [STATUS.md](STATUS.md).
 
