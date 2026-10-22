@@ -3,13 +3,13 @@
 One Cloudflare Worker, `flamingbeing-home` (`wrangler.jsonc`, `worker/sites.js`), serves this repo's files. Which
 folder each address may see is the `SITES` table in `worker/routes.js`; `/homedesign/` is shared by every host.
 Workers Builds deploys it on each merge to `main`. No data and no secrets in the
-Worker. `flamingbeing.com` itself (the owner's server page) is not served by it.
+Worker. `flamingbeing.com` itself (the owner's server page) is not served by it. Kaki Home moved to its own repo and
+Worker (`flamingbeing/kakihome`, 22 Oct 2026); it links the kit at `/v1/`.
 
 | Address | Folder | What |
 |---|---|---|
 | `design.flamingbeing.com` | `homedesign/` (also at `/v1/`) | The design system's guide pages; `/v1/` is the kit for apps in other repos (kit files carry `Access-Control-Allow-Origin: *`; a breaking change goes in `/v2/`) |
 | `pantry.flamingbeing.com` | `pantry/` (+ `/__/auth/`) | Household inventory (custom domain: owner, `pantry/SETUP.md` step 1) |
-| `kakihome.flamingbeing.com` | `kakihome/` (+ `/__/auth/`) | Kaki Home, a household inventory to try out a product idea (own data and Firebase project) |
 
 - **Previews:** off (`preview_urls: false`); check a UI change locally or on the live host after merge. Sign-in never works on previews.
 - **Adding an app:** add its host to `SITES` (and a test in `worker/test/routes.test.mjs`) and to `routes` in

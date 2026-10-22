@@ -15,8 +15,7 @@ export const SITES = {
   // the family pantry (saves data, signs in): Firebase's sign-in helper pages and the project's init.json on its own
   // address, so sign-in never leaves it (authDomain is pantry.flamingbeing.com)
   'pantry.flamingbeing.com': { root: 'pantry/', also: { '/__/auth/': '__/auth/', '/__/firebase/': 'pantry/auth/firebase/' } },
-  // Kaki Home (a household inventory to try out a product idea; its own data and sign-in, apart from the pantry)
-  'kakihome.flamingbeing.com': { root: 'kakihome/', also: { '/__/auth/': '__/auth/', '/__/firebase/': 'kakihome/auth/firebase/' } },
+  // kakihome.flamingbeing.com moved to its own repo and Worker (flamingbeing/kakihome, 22 Oct 2026)
 };
 
 // Shared by every host as it is: the design system (styles, icons and the app kit script; no data), so an app links

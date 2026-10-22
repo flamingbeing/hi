@@ -44,12 +44,8 @@ assert.deepEqual(resolve('pantry.flamingbeing.com', '/__/auth/iframe.js'), { fil
 assert.deepEqual(resolve('pantry.flamingbeing.com', '/__/firebase/init.json'), { file: 'pantry/auth/firebase/init.json' });
 assert.deepEqual(resolve('pantry.flamingbeing.com', '/songs/x.txt'), { file: 'pantry/songs/x.txt' });
 assert.deepEqual(resolve('x.workers.dev', '/_sites/pantry.flamingbeing.com/?demo'.split('?')[0]), { file: 'pantry/' });
-// Kaki Home: its own folder and sign-in pages; never the pantry's
-assert.deepEqual(resolve('kakihome.flamingbeing.com', '/'), { file: 'kakihome/' });
-assert.deepEqual(resolve('kakihome.flamingbeing.com', '/js/quick.js'), { file: 'kakihome/js/quick.js' });
-assert.deepEqual(resolve('kakihome.flamingbeing.com', '/__/firebase/init.json'), { file: 'kakihome/auth/firebase/init.json' });
-assert.deepEqual(resolve('kakihome.flamingbeing.com', '/__/auth/handler'), { file: '__/auth/handler' });
-assert.deepEqual(resolve('kakihome.flamingbeing.com', '/pantry/index.html'), { file: 'kakihome/pantry/index.html' });
+// Kaki Home moved to its own repo and Worker: no longer served here
+assert.ok(!('kakihome.flamingbeing.com' in SITES));
 assert.deepEqual(resolve('design.flamingbeing.com', '/__/auth/handler'), { file: 'homedesign/__/auth/handler' });
 assert.ok(SHARED.every(s => s.startsWith('/') && s.endsWith('/')));
 console.log('worker routes: ok');
