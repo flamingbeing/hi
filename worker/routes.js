@@ -35,7 +35,7 @@ export function resolve(host, pathname) {
 }
 
 function route(host, pathname) {
-  host = String(host || '').toLowerCase().replace(/:\d+$/, '');
+  host = String(host || '').toLowerCase().replace(/:\d+$/, '').replace(/\.$/, '');
   let site = SITES[host], p = pathname;
   if (!site && p.startsWith(TRY)) {
     const rest = p.slice(TRY.length), slash = rest.indexOf('/');

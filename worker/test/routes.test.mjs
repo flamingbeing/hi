@@ -6,6 +6,9 @@ SITES['app.example.test'] = { root: 'pantry/', also: { '/__/auth/': '__/auth/', 
 SITES['pages.example.test'] = { prefixes: { '/a/': 'alpha/' } };
 
 assert.deepEqual(resolve('design.flamingbeing.com', '/'), { file: 'homedesign/' });
+assert.deepEqual(resolve('design.flamingbeing.com.', '/'), { file: 'homedesign/' });
+assert.deepEqual(resolve('DESIGN.flamingbeing.com.:443', '/'), { file: 'homedesign/' });
+assert.deepEqual(resolve('design.flamingbeing.com..', '/x'), { file: 'x' });
 assert.deepEqual(resolve('design.flamingbeing.com', '/app.html'), { file: 'homedesign/app.html' });
 // /v1/: the kit for other repos, the same files; the CORS header goes on kit files only
 assert.deepEqual(resolve('design.flamingbeing.com', '/v1/tokens.css'), { file: 'homedesign/tokens.css' });
