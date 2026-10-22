@@ -34,16 +34,8 @@ assert.deepEqual(resolve('flamingbeing-home.x.workers.dev', '/pantry/index.html'
 assert.deepEqual(resolve('x.workers.dev', '/_sites/app.example.test'), { redirect: '/_sites/app.example.test/' });
 assert.deepEqual(resolve('x.workers.dev', '/_sites/app.example.test/js/a.js'), { file: 'pantry/js/a.js' });
 assert.deepEqual(resolve('x.workers.dev', '/_sites/app.example.test/pantry'), { redirect: '/_sites/app.example.test/pantry/' });
-// the pantry: its own folder, the kit, and Firebase's sign-in pages; nothing else in the repo
-assert.deepEqual(resolve('pantry.flamingbeing.com', '/'), { file: 'pantry/' });
-assert.deepEqual(resolve('pantry.flamingbeing.com', '/sw.js'), { file: 'pantry/sw.js' });
-assert.deepEqual(resolve('pantry.flamingbeing.com', '/js/app.js'), { file: 'pantry/js/app.js' });
-assert.deepEqual(resolve('pantry.flamingbeing.com', '/homedesign/app.js'), { file: 'homedesign/app.js' });
-assert.deepEqual(resolve('pantry.flamingbeing.com', '/__/auth/handler'), { file: '__/auth/handler' });
-assert.deepEqual(resolve('pantry.flamingbeing.com', '/__/auth/iframe.js'), { file: '__/auth/iframe.js' });
-assert.deepEqual(resolve('pantry.flamingbeing.com', '/__/firebase/init.json'), { file: 'pantry/auth/firebase/init.json' });
-assert.deepEqual(resolve('pantry.flamingbeing.com', '/songs/x.txt'), { file: 'pantry/songs/x.txt' });
-assert.deepEqual(resolve('x.workers.dev', '/_sites/pantry.flamingbeing.com/?demo'.split('?')[0]), { file: 'pantry/' });
+// the pantry moved to its own repo and Worker: no longer served here
+assert.ok(!('pantry.flamingbeing.com' in SITES));
 // Kaki Home moved to its own repo and Worker: no longer served here
 assert.ok(!('kakihome.flamingbeing.com' in SITES));
 assert.deepEqual(resolve('design.flamingbeing.com', '/__/auth/handler'), { file: 'homedesign/__/auth/handler' });
