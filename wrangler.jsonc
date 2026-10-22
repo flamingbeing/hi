@@ -1,6 +1,6 @@
 // Cloudflare Workers config for the family home apps on *.flamingbeing.com (HOSTING.md). The Worker
 // (worker/sites.js) serves this repo's files and decides which folder each address may see (worker/routes.js).
-// No data, no secrets. Workers Builds deploys it on every merge to main and posts a preview link on every PR.
+// No data, no secrets. Workers Builds deploys it on every merge to main (preview links are off).
 {
   "name": "flamingbeing-home",
   "main": "worker/sites.js",
