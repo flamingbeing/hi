@@ -35,15 +35,25 @@ const server = http.createServer((req, res) => {
     if (swMode === 'offline') return req.socket.destroy();
     if (swMode === 'ok') { res.writeHead(200, { 'content-type': 'text/javascript' }); return res.end('// test worker'); }
   }
+  // an app on another address that links the kit by URL (127.0.0.1 here, the kit on localhost)
+  if (url.pathname === '/xo/') {
+    res.writeHead(200, { 'content-type': 'text/html; charset=utf-8' });
+    return res.end(`<!doctype html><html lang="en"><head><title>xo</title><link rel="stylesheet" href="${KIT}tokens.css"><link rel="stylesheet" href="${KIT}app.css"></head>
+<body><svg id="static" class="ha-icon" aria-hidden="true"><use href="#i-cart"/></svg><p id="dyn"></p>
+<script type="module">import { haIcon, haIcons, haIconsReady } from '${KIT}app.js';
+window.xo = haIconsReady.then(ok => { document.getElementById('dyn').innerHTML = haIcon('home'); return { ok, base: haIcons.base }; });</script></body></html>`);
+  }
   let rel = decodeURIComponent(url.pathname);
   if (rel.endsWith('/')) rel += 'index.html';
   const f = path.join(ROOT, rel);
   if (!f.startsWith(ROOT) || !fs.existsSync(f) || fs.statSync(f).isDirectory()) { res.writeHead(404); return res.end('not found'); }
-  res.writeHead(200, { 'content-type': MIME[f.split('.').pop()] || 'application/octet-stream' });
+  // the kit files allow any origin, as the Worker sends them (worker/routes.js kitCors)
+  res.writeHead(200, { 'content-type': MIME[f.split('.').pop()] || 'application/octet-stream', ...(rel.startsWith('/homedesign/') ? { 'access-control-allow-origin': '*' } : {}) });
   fs.createReadStream(f).pipe(res);
 });
 await new Promise(r => server.listen(0, '127.0.0.1', r));
 const BASE = `http://localhost:${server.address().port}/homedesign/`;
+const KIT = BASE;   // what the cross-origin page (/xo/ on 127.0.0.1) links
 
 const browser = await chromium.launch(process.env.CHROMIUM_PATH ? { executablePath: process.env.CHROMIUM_PATH, args: ['--no-sandbox'] } : {});
 const SIZES = [
@@ -289,6 +299,23 @@ try {
     ok(await page.locator('dialog.ha-sheet[open]').count() === 1, 'reduced motion: sheet opens');
     await page.goBack(); await page.waitForTimeout(100);
     ok(await page.locator('dialog.ha-sheet[open]').count() === 0, 'reduced motion: back closes it');
+    await ctx.close();
+  }
+  // the kit linked from another address: the sprite is put in the page, static and haIcon() icons draw
+  {
+    const ctx = await browser.newContext({ viewport: { width: 390, height: 844 } });
+    const page = await ctx.newPage();
+    const errors = [];
+    page.on('pageerror', e => errors.push(e.message));
+    await page.goto(`http://127.0.0.1:${server.address().port}/xo/`);
+    const r = await page.evaluate(() => window.xo);
+    ok(r.ok && r.base === '', 'cross-origin kit: sprite inlined, base empty');
+    ok(await page.locator('[data-ha-sprite] symbol#i-cart').count() === 1, 'cross-origin kit: sprite in the page');
+    for (const sel of ['#static', '#dyn svg']) {
+      const box = await page.locator(sel).evaluate(el => { const b = el.querySelector('use').getBBox(); return { w: b.width, h: b.height }; });
+      ok(box.w > 0 && box.h > 0, `cross-origin kit: ${sel} icon draws (${box.w}x${box.h})`);
+    }
+    ok(!errors.length, 'cross-origin kit: no errors: ' + errors.join('; '));
     await ctx.close();
   }
   console.log(`homedesign e2e: ok (${checks} checks)`);

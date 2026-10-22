@@ -25,6 +25,12 @@ The Worker serves this folder at `/homedesign/` on **every** `*.flamingbeing.com
 `design.flamingbeing.com`), so apps link it by absolute path and never copy it. Inside this folder, files link each
 other relatively, so the guide works at both addresses.
 
+**Apps in other repos** link the kit at `https://design.flamingbeing.com/v1/` (the same files; the kit files allow any
+origin). `/v1/` never breaks: a breaking change goes in `/v2/`. Loaded that way, `app.js` puts the icon sprite into the
+page itself (browsers refuse `<use>` across addresses), so static icon markup writes `<use href="#i-cart"/>` and
+`haIcon()` does the same on its own (`haIconsReady` resolves once the sprite is in). Offline: list the four kit URLs in
+the app's service worker `SHELL` and answer `https://design.flamingbeing.com/v1/` requests from the cache.
+
 ## Using it in a web page
 
 ```html
@@ -115,7 +121,8 @@ haToast(text, { action, onAction, ms })                         // -> { hide }; 
 // controls and helpers
 haStepper(el, { min, max, step, onChange })                     // -> { get(), set(v) }
 haVersion(el, prefix, { swUrl = 'sw.js', reload })              // the two version lines
-haIcon(name, { label, cls })  haIcons.base                      // icon markup; sprite address
+haIcon(name, { label, cls })  haIcons.base                      // icon markup; sprite address ('' when inlined)
+haIconsReady                                                    // promise: sprite in the page (cross-origin kit)
 haHaptic(ms)  haAnnounce(text)  haEsc(s)  haReducedMotion()
 ```
 
