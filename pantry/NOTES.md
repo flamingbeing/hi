@@ -13,6 +13,7 @@ Detail by topic is in [docs/](docs/); the owner's plans, the dated log and real-
 | Thumbnails and photos, editable places, names, guessed best-before dates and the other research items | [docs/places-photos-names.md](docs/places-photos-names.md) |
 | Sync safety: instructions not copies, removal markers, one record per place, the listener watchdog, limits that remain | [docs/sync-safety.md](docs/sync-safety.md) |
 | The Items list: select mode, grip drag, My order, Bulk edit, Sync now | [docs/items-list.md](docs/items-list.md) |
+| Fixed bugs that still want a test | [docs/tests-to-add.md](docs/tests-to-add.md) |
 
 ## Rules that bite
 
