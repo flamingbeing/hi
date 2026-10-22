@@ -1,6 +1,6 @@
 # Pantry checks (pantry/NOTES.md, "How to test"): unit tests, the phone browser test (Playwright + axe) and family
 # sharing against the local Firebase emulators (demo-pantry project, fake accounts), on PRs touching the pantry, the
-# design kit it uses or Firebase's sign-in pages.
+# design kit it uses or Firebase's sign-in pages. Three jobs run side by side (was one 10-minute job).
 name: Pantry checks
 on:
   pull_request:
@@ -11,7 +11,7 @@ on:
       - '.github/workflows/pantry-checks.yml'
   workflow_dispatch:
 jobs:
-  pantry:
+  browser:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -19,10 +19,6 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      - uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: 21
       - run: node pantry/test/logic.test.mjs
       - run: node pantry/test/config.test.mjs
       - run: node pantry/test/quick.test.mjs
@@ -47,18 +43,53 @@ jobs:
           PLAYWRIGHT_PATH: ${{ github.workspace }}/node_modules/playwright/index.mjs
           SHOTS: ${{ runner.temp }}/pantry-shots
         run: node pantry/test/e2e.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: pantry-screenshots-browser
+          path: ${{ runner.temp }}/pantry-shots
+          if-no-files-found: ignore
+  items:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: node pantry/test/logic.test.mjs
+      - name: Install Playwright and axe-core
+        run: |
+          npm install --no-save playwright@1.56.1 axe-core
+          npx playwright install --with-deps chromium
       - name: Items list (touch)
         env:
           PLAYWRIGHT_PATH: ${{ github.workspace }}/node_modules/playwright/index.mjs
           SHOTS: ${{ runner.temp }}/pantry-shots
         run: node pantry/test/items.e2e.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: pantry-screenshots-items
+          path: ${{ runner.temp }}/pantry-shots
+          if-no-files-found: ignore
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+      - name: Install Playwright and axe-core
+        run: |
+          npm install --no-save playwright@1.56.1 axe-core
+          npx playwright install --with-deps chromium
       - name: Family sharing (local emulators)
         env:
           PLAYWRIGHT_PATH: ${{ github.workspace }}/node_modules/playwright/index.mjs
         run: pantry/test/run-sync.sh
-      - uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: pantry-screenshots
-          path: ${{ runner.temp }}/pantry-shots
-          if-no-files-found: ignore

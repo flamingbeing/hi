@@ -70,7 +70,7 @@ node tools/check.mjs && node tools/stamp-versions.mjs --check
 ```
 
 `e2e.mjs` needs Playwright (`PLAYWRIGHT_PATH`) and axe-core (`AXE_PATH`, or `npm install --no-save axe-core`);
-`run-sync.sh` needs Java 21 and fetches `firebase-tools` with npx. The "Pantry checks" workflow runs all of them on PRs
+`run-sync.sh` needs Java 21 and fetches `firebase-tools` with npx. The "Pantry checks" workflow runs all of them on PRs (three parallel jobs: browser, items, sync)
 touching `pantry/`, `homedesign/` or `__/`. Never point a test at the live Firebase project, with one exception: the
 live-service harness (`pantry/test/live-multidevice.mjs`, see `pantry/test/LIVE-TEST.md`), which the owner arranges separately
 and sessions run only with `--dry` (`pantry/test/run-live-dry.sh`, local emulators).
