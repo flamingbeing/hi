@@ -244,5 +244,5 @@ swaps. No confetti, sounds or looping animation.
 - Don't put more than five tabs in the tab bar or more than four segments in a control.
 - Don't use hover-only affordances, spinners, emoji, or any sentence under 16px.
 - Don't dim text with opacity; don't signal state by colour alone.
-- Don't fork the kit inside an app: improve it here and note it in `STATUS.md`.
+- Don't fork the kit inside an app: improve it here and note it in `DECISIONS.md`.
 - Don't put real names, family details or household data in samples: the repo is public.
