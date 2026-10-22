@@ -13,7 +13,25 @@ doc.addEventListener('touchstart', () => {}, { passive: true });
 // ---------- icons ----------
 // The sprite's address: icons.svg next to this module (so /homedesign/icons.svg on every host). Override with
 // haIcons.base = '/somewhere/icons.svg' if an app vendors the kit elsewhere.
-export const haIcons = { base: new URL('icons.svg', import.meta.url).pathname };
+// Loaded from another address (an app in its own repo linking https://design.flamingbeing.com/v1/app.js): browsers
+// refuse <use> across addresses, so the kit fetches the sprite once (the kit files allow any origin) and puts it in
+// the page; icons then point at "#i-<name>" (base ''). Static markup in such an app writes <use href="#i-cart"/>.
+const sprite = new URL('icons.svg', import.meta.url);
+const crossOrigin = sprite.origin !== location.origin;
+export const haIcons = { base: crossOrigin ? '' : sprite.pathname };
+// Resolves once the sprite is in the page (at once when it is same-origin); false if it could not be fetched.
+export const haIconsReady = !crossOrigin ? Promise.resolve(true) : fetch(sprite.href)
+  .then(r => (r.ok ? r.text() : Promise.reject(new Error(String(r.status)))))
+  .then(svg => {
+    const box = doc.createElement('div');
+    // not display:none (some browsers then skip the symbols' paint); out of sight and out of the accessibility tree
+    box.style.cssText = 'position:absolute;width:0;height:0;overflow:hidden';
+    box.setAttribute('aria-hidden', 'true'); box.dataset.haSprite = '';
+    box.innerHTML = svg.replace(/<!--[\s\S]*?-->/g, '');
+    (doc.body || root).prepend(box);
+    return true;
+  })
+  .catch(() => false);
 // An icon as markup. Decorative (aria-hidden) unless a label is given.
 export function haIcon(name, { label = '', cls = '' } = {}) {
   const a11y = label ? `role="img" aria-label="${haEsc(label)}"` : 'aria-hidden="true" focusable="false"';
