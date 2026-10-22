@@ -18,8 +18,7 @@
   // listed here are left alone. Other names under the domain are in use: check a new name with the owner first.
   "routes": [
     { "pattern": "design.flamingbeing.com", "custom_domain": true },
-    { "pattern": "pantry.flamingbeing.com", "custom_domain": true },
-    { "pattern": "kakihome.flamingbeing.com", "custom_domain": true }
+    { "pattern": "pantry.flamingbeing.com", "custom_domain": true }
   ],
   // preview links are off: family apps only, no extra public addresses
   "preview_urls": false,

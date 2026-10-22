@@ -6,8 +6,8 @@ This **public** repo holds the **family home apps** only (songs live in the owne
 
 - **The family home apps** on `*.flamingbeing.com`, served by one Cloudflare Worker ([HOSTING.md](HOSTING.md)):
   `homedesign/` (the design system every home app uses; start with `homedesign/README.md`), `pantry/` (household
-  inventory; start with `pantry/NOTES.md`) and `kakihome/` (a separate household inventory to try out a product idea,
-  with its own data and Firebase project; start with `kakihome/NOTES.md`).
+  inventory; start with `pantry/NOTES.md`). Kaki Home moved to its own repo (`flamingbeing/kakihome`,
+  22 Oct 2026); its old folder here is no longer served and goes in a clean-up PR.
 
 Accounts and costs: in the owner's private notes; hosting: [HOSTING.md](HOSTING.md). Site-wide work in progress: [STATUS.md](STATUS.md).
 

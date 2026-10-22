@@ -2,7 +2,8 @@
 
 ## Now
 - Family apps only: songs moved out (21 Oct 2026, repo split S4); previews off.
-- Pantry (`pantry/`) and Kaki Home (`kakihome/`) are live on their own subdomains; each has a `STATUS.md`.
+- Pantry (`pantry/`) is live on its own subdomain (`STATUS.md` there). Kaki Home moved to `flamingbeing/kakihome`
+  (22 Oct 2026); the `kakihome/` folder here is unserved until the clean-up PR.
 - Home design system (`homedesign/`): shared by every home app; status in `homedesign/STATUS.md`.
 - Rules deploy on merge (`.github/workflows/deploy-firestore-rules.yml`, one matrix entry per app, project id from a repo
   variable); it skips cleanly until the secret and variable are set.
