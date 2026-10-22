@@ -11,6 +11,8 @@ Stock, photos, shops, barcodes, the look, undo, demo mode, lessons from Kaki Hom
   opened + "keeps once opened" days. Taking out is first expiring first (opened ones first). The pace comes from
   "used up" events: (last − first finish) ÷ units after the first; run-out = last finish + stock × pace. The shopping
   list suggests anything out, at or below its "on the list when down to", or due to run out within a week.
+- **Expiry in words** (owner, Oct 2026): every dated item shows it ("in 2 weeks", "Expired 3 days ago"; amber within 3
+  days, red once past; `shortLabel` in `js/logic.js`).
 
 - **Photos** are small JPEG data URLs in Firestore (no Storage bucket to pay for or secure). Since 16 Oct 2026 (owner,
   see below) each one is kept twice: a thumbnail on the item and the photo in its own document.
