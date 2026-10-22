@@ -233,6 +233,20 @@ assert.throws(() => L.parseBackup('nonsense'), /not a pantry backup/);
   assert.equal(L.moveFreezeOps(goods, { fromFreezer: true, toFreezer: false, today: '2026-10-22' }).thawed, 2, 'frozen goods thaw on the way out');
   assert.equal(L.moveFreezeOps(goods, { fromFreezer: true, toFreezer: true }).thawed, 0, 'freezer to freezer: nothing');
   assert.ok(L.opsEmpty(L.moveFreezeOps(it, { fromFreezer: false, toFreezer: true, food: false }).ops), 'not food: nothing');
+  // Undo of a move in and out of a freezer (invertOps) puts the batches back exactly as they were
+  const roundTrip = (start, opts) => {
+    const m = L.moveFreezeOps(start, opts), moved = L.applyOps(start, m.ops);
+    const back = L.applyOps(moved, L.invertOps(m.ops, start, moved));
+    return { m, moved, back };
+  };
+  const mixed = { id: 'm', name: 'Soup', category: 'Meals', location: 'Fridge', batches: [{ id: 'p', qty: 2, expiry: '2026-10-25' }, { id: 'q', qty: 1, expiry: '2026-10-27' }] };
+  const into = roundTrip(mixed, { fromFreezer: false, toFreezer: true, today: '2026-10-21' });
+  assert.equal(into.m.frozen, 3); assert.ok(into.moved.batches.every(b => b.frozenAt), 'frozen on the way in');
+  assert.deepEqual(L.normalizeItem(into.back).batches, L.normalizeItem(mixed).batches, 'Undo of a move into a freezer: the batches are back');
+  const frozenItem = into.moved;
+  const outOf = roundTrip({ ...frozenItem, location: 'Freezer' }, { fromFreezer: true, toFreezer: false, today: '2026-10-22' });
+  assert.equal(outOf.m.thawed, 3); assert.ok(outOf.moved.batches.every(b => b.thawedAt === '2026-10-22'), 'thawed on the way out');
+  assert.deepEqual(L.normalizeItem(outOf.back).batches, L.normalizeItem(frozenItem).batches, 'Undo of a move out of a freezer: still frozen, as before');
 }
 // ---- places of a kind ----
 {

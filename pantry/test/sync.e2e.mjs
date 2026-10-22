@@ -1394,6 +1394,8 @@ try {
     const lostB = await person('lostb@example.com');
     const bErrors = [];
     lostB.on('console', m => { if (m.type() === 'error' && !/Failed to load resource/.test(m.text())) bErrors.push(m.text()); });
+    const bRules = [];   // any console line (warnings too, e.g. the network restart) naming a rules refusal, except the one deliberate warning below
+    lostB.on('console', m => { if (/permission-denied|insufficient permissions|missing or insufficient/i.test(m.text()) && m.text() !== 'household permission-denied') bRules.push(m.type() + ': ' + m.text()); });
     assert.equal(await lostB.evaluate(() => window.__pantry.S.household.id), 'goneX', 'B opens the bigger pantry');
     await go(lostB, '#/items');
     await lostB.locator('#pa-items-list .ha-row', { hasText: 'GX item 0' }).waitFor();
@@ -1414,6 +1416,7 @@ try {
     assert.equal((await admin.get('households/goneY/items/gy1')).notes, 'after the switch', 'writes go to the surviving pantry');
     assert.equal(await lostB.evaluate(() => window.__pantry.S.syncError), false, 'no "changes didn’t reach" banner');
     assert.deepEqual(bErrors, [], 'no console errors on the phone that was left behind: ' + bErrors.join(' | '));
+    assert.deepEqual(bRules, [], 'no rules errors from the items, places or other listeners after the household was deleted (watchHousehold’s own one-line warning is how the app notices and leaves): ' + bRules.join(' | '));
 
     // nothing left: a plain "Your pantry changed" with Try again, never a new pantry started on its own
     await admin.put('households/goneZ', { name: 'Our pantry', owner: 'lostd@example.com', members: ['lostd@example.com', 'loste@example.com'], createdAt: iso });

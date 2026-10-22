@@ -45,4 +45,24 @@ assert.deepEqual(conv[0][1], { x1: { qty: 1 } });
 // overlapping paths are refused before anything is sent
 assert.throws(() => updatePairs(F, null, { set: { a: 1 }, inc: { 'a.b': 1 }, del: [] }), /overlap/);
 assert.throws(() => updatePairs(F, null, L.mergeOps(PP.nameOps('a@b.c', 'A'), { set: { names: {} } })), /overlap/);
+// Firestore 10.14.1 crashes on enableNetwork while the network is already enabled, so every enableNetwork in js/ must follow
+// a disableNetwork in the same block (the restarts in cloud.js do disable, wait, enable).
+{
+  const { readdirSync, readFileSync } = await import('node:fs');
+  const dir = new URL('../js/', import.meta.url);
+  let seen = 0;
+  for (const f of readdirSync(dir).filter(n => n.endsWith('.js'))) {
+    const src = readFileSync(new URL(f, dir), 'utf8');
+    for (const m of src.matchAll(/enableNetwork\(/g)) {
+      seen++;
+      let depth = 0, start = 0;
+      for (let i = m.index - 1; i >= 0; i--) {   // back to the `{` that opens the enclosing block
+        if (src[i] === '}') depth++;
+        else if (src[i] === '{') { if (depth === 0) { start = i; break; } depth--; }
+      }
+      assert.match(src.slice(start, m.index), /disableNetwork\(/, `${f}: enableNetwork at offset ${m.index} has no disableNetwork before it in its block`);
+    }
+  }
+  assert.ok(seen >= 2, 'the check found the enableNetwork calls in js/ (cloud.js has two restarts)');
+}
 console.log('pantry cloud ops: ok');
