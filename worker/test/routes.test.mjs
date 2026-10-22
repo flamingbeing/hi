@@ -14,6 +14,9 @@ assert.deepEqual(resolve('design.flamingbeing.com', '/v1/../pantry/index.html'),
 assert.deepEqual(resolve('x.workers.dev', '/_sites/design.flamingbeing.com/v1/app.js'), { file: 'homedesign/app.js' });
 assert.ok(kitCors('homedesign/tokens.css') && !kitCors('pantry/index.html') && !kitCors(''));
 assert.deepEqual(resolve('DESIGN.flamingbeing.com:443', '/homedesign/tokens.css'), { file: 'homedesign/tokens.css' });
+assert.deepEqual(resolve('design.flamingbeing.com.', '/'), { file: 'homedesign/' });
+assert.deepEqual(resolve('DESIGN.flamingbeing.com.:443', '/'), { file: 'homedesign/' });
+assert.deepEqual(resolve('design.flamingbeing.com..', '/x'), { file: 'x' });
 assert.deepEqual(resolve('app.example.test', '/'), { file: 'pantry/' });
 assert.deepEqual(resolve('app.example.test', '/js/app.js'), { file: 'pantry/js/app.js' });
 assert.deepEqual(resolve('app.example.test', '/pantry'), { redirect: '/pantry/' });
