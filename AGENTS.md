@@ -2,12 +2,11 @@
 
 Instructions for every AI assistant working here (Claude Code reads this through `CLAUDE.md`).
 
-This **public** repo holds the **family home apps** only (songs live in the owner's private notes):
+This **public** repo holds the **family home design system** (songs live in the owner's private notes):
 
-- **The family home apps** on `*.flamingbeing.com`, served by one Cloudflare Worker ([HOSTING.md](HOSTING.md)):
-  `homedesign/` (the design system every home app uses; start with `homedesign/README.md`). Pantry and Kaki Home
-  moved to their own repos (`flamingbeing/pantry`, `flamingbeing/kakihome`, 22 Oct 2026); their old folders here are
-  no longer served and go in a clean-up PR.
+- `homedesign/` (the kit every home app uses; start with `homedesign/README.md`), served at `design.flamingbeing.com`
+  by one Cloudflare Worker ([HOSTING.md](HOSTING.md)); apps in other repos load it from `/v1/`. The apps live in their
+  own repos: `flamingbeing/pantry` and `flamingbeing/kakihome` (moved 22 Oct 2026).
 
 Accounts and costs: in the owner's private notes; hosting: [HOSTING.md](HOSTING.md). Site-wide work in progress: [STATUS.md](STATUS.md).
 
@@ -28,11 +27,7 @@ household data, names, emails and account details are in the owner's private not
   `tools/stamp-versions.mjs`). Change `<N>` only when the worker's own logic changes. Delete only `<app>-` caches.
 - **App version lines:** an app with a service worker ends its settings with `App version <date> (<hash>)` and a
   `Not updating? Get the latest version` button; the kit's `haVersion()` does both.
-- **Google sign-in** happens on the app's own address (`authDomain` is the app's subdomain; Firebase's helper pages in
-  `__/auth/`, `init.json` in `<app>/auth/firebase/`). Never add `*.workers.dev` previews to Firebase or the OAuth client.
-- **Firebase is live family data:** never sign in to, read or change live projects; the local emulator with a `demo-*`
-  project is fine. Rules deploy on merge (`.github/workflows/deploy-firestore-rules.yml`): run the rules tests, merge only
-  when Checks are green, confirm the deploy run, and say what the rules now allow or deny. Never loosen rules to pass a test.
+- **Firebase is live family data** (in the app repos): never sign in to, read or change live projects from here.
 - **Live cloud changes** (Firebase, Auth, IAM, budgets, Cloudflare DNS or Workers) are not made from a session: ask the
   owner. Never send secrets or real household data.
 
