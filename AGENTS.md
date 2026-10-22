@@ -9,7 +9,7 @@ This **public** repo holds the **family home apps** only (songs live in the owne
   inventory; start with `pantry/NOTES.md`) and `kakihome/` (a separate household inventory to try out a product idea,
   with its own data and Firebase project; start with `kakihome/NOTES.md`).
 
-Accounts and costs: [OPERATIONS.md](OPERATIONS.md). Site-wide work in progress: [STATUS.md](STATUS.md).
+Accounts and costs: in the owner's private notes; hosting: [HOSTING.md](HOSTING.md). Site-wide work in progress: [STATUS.md](STATUS.md).
 
 ## Public repo
 
