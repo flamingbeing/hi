@@ -19,14 +19,17 @@ jobs:
         with:
           node-version: 22
       - run: node homedesign/test/contrast.test.mjs
-      - uses: actions/cache@v4
+      - name: Install Playwright and axe-core
+        run: npm install --no-save playwright@1.56.1 axe-core
+      - name: Cache the browser
+        id: pw
+        uses: actions/cache@v4
         with:
           path: ~/.cache/ms-playwright
-          key: pw-1.56.1-${{ runner.os }}
-      - name: Install Playwright and axe-core
+          key: playwright-1.56.1-chromium-ubuntu-24.04
+      - name: Install a browser
         run: |
-          npm install --no-save playwright@1.56.1 axe-core
-          npx playwright install --with-deps chromium
+          if [ "${{ steps.pw.outputs.cache-hit }}" = "true" ]; then npx playwright install-deps chromium; else npx playwright install --with-deps chromium; fi
       - name: Browser test
         env:
           PLAYWRIGHT_PATH: ${{ github.workspace }}/node_modules/playwright/index.mjs
