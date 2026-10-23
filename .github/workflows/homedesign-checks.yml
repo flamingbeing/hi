@@ -29,7 +29,7 @@ jobs:
           key: playwright-1.56.1-chromium-ubuntu-24.04
       - name: Install a browser
         run: |
-          if [ "${{ steps.pw.outputs.cache-hit }}" = "true" ]; then npx playwright install-deps chromium; else npx playwright install --with-deps chromium; fi
+          npx playwright install chromium
       - name: Browser test
         env:
           PLAYWRIGHT_PATH: ${{ github.workspace }}/node_modules/playwright/index.mjs
