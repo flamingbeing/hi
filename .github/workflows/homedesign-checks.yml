@@ -15,21 +15,14 @@ jobs:
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
+      - uses: flamingbeing/app-devkit/setup-node@v1
       - run: node homedesign/test/contrast.test.mjs
       - name: Install Playwright and axe-core
         run: npm install --no-save playwright@1.56.1 axe-core
-      - name: Cache the browser
-        id: pw
-        uses: actions/cache@v4
+      - uses: flamingbeing/app-devkit/setup-browser@v1
         with:
-          path: ~/.cache/ms-playwright
-          key: playwright-1.56.1-chromium-ubuntu-24.04
-      - name: Install a browser
-        run: |
-          npx playwright install chromium
+          playwright-version: '1.56.1'
+          devkit-dir: ''
       - name: Browser test
         env:
           PLAYWRIGHT_PATH: ${{ github.workspace }}/node_modules/playwright/index.mjs
