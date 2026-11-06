@@ -2,7 +2,7 @@
 
 Instructions for every AI assistant working here (Claude Code reads this through `CLAUDE.md`).
 
-This **public** repo holds the **family home design system** (songs live in the owner's private notes):
+This **public** repo holds the **family home design system** (songs live in a private repo):
 
 - `homedesign/` (the kit every home app uses; start with `homedesign/README.md`), served at `design.flamingbeing.com`
   by one Cloudflare Worker ([HOSTING.md](HOSTING.md)); apps in other repos load it from `/v1/`. The apps live in their
